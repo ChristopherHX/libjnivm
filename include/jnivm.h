@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 #include <jni.h>
 
 namespace jnivm {
@@ -38,4 +39,8 @@ namespace jnivm {
     };
 
     JavaVM * createJNIVM();
+    std::string GeneratePreDeclaration(JNIEnv *env);
+    std::string GenerateHeader(JNIEnv *env);
+    std::string GenerateStubs(JNIEnv *env);
+    std::string GenerateJNIBinding(JNIEnv *env);
 }

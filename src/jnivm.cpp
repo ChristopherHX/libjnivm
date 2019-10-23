@@ -273,31 +273,24 @@ public:
     if (!_static) {
       ss << "Object<" << cl << ">* obj, ";
     }
-    ss << "va_list list) {\n    using Param = std::tuple<";
+    ss << "jvalue* values) {\n    ";
     if (!_static) {
-      ss << cl << "*";
-      if (parameters.size()) {
-        ss << ", ";
+      if (name != "<init>") {
+        ss << "return (obj ? obj->value : nullptr)->" << name;
+      } else {
+        ss << "new (obj ? obj->value : nullptr) " << cl;
       }
+    } else {
+      ss << "return " << scope;
     }
+    ss << "(";
     for (int i = 0; i < parameters.size(); i++) {
       if (i != 0) {
         ss << ", ";
       }
-      ss << parameters[i];
+      ss << "(" << parameters[i] << "&)values[" << i << "]";
     }
-    ss << ">;\n    Param param;\n";
-    if (!_static) {
-      ss << "    std::get<0>(param) = obj->value;\n";
-    }
-    for (int i = 0; i < parameters.size(); i++) {
-      ss << "    std::get<" << (_static ? i : (i + 1))
-         << ">(param) = va_arg(list, "
-         << (parameters[i] == "jboolean" ? "int" : parameters[i]) << ");\n";
-    }
-    ss << "    return std::apply(&"
-       << (name == "<init>" ? "Create<Param>::create" : scope)
-       << ", param);\n}\n\n";
+    ss << ");\n}\n";
     return ss.str();
   }
 };
@@ -1156,7 +1149,7 @@ jobjectRefType GetObjectRefType(JNIEnv *, jobject) {
 JavaVM *jnivm::createJNIVM() {
   return new JavaVM{new JNIInvokeInterface{
       new JNIEnv{new JNINativeInterface{
-          NULL,
+          new Namespace(),
           NULL,
           NULL,
           NULL,
@@ -1411,4 +1404,20 @@ JavaVM *jnivm::createJNIVM() {
         Log::trace("jnivm", "AttachCurrentThreadAsDaemon");
       },
   }};
+}
+
+std::string jnivm::GeneratePreDeclaration(JNIEnv * env) {
+  return ((Namespace*&)env->functions->reserved0)->GeneratePreDeclaration();
+}
+
+std::string jnivm::GenerateHeader(JNIEnv * env) {
+  return ((Namespace*&)env->functions->reserved0)->GenerateHeader("");
+}
+
+std::string jnivm::GenerateStubs(JNIEnv * env) {
+  return ((Namespace*&)env->functions->reserved0)->GenerateStubs("");
+}
+
+std::string jnivm::GenerateJNIBinding(JNIEnv * env) {
+  return ((Namespace*&)env->functions->reserved0)->GenerateJNIBinding("");
 }
