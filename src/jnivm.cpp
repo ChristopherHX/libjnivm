@@ -50,6 +50,80 @@ const char *ParseJNIType(const char *cur, const char *end, std::string &type) {
   return cur;
 }
 
+const char * ParseJNIValue(const char *cur, const char *end, va_list list, jvalue *value) {
+    switch (*cur) {
+    case 'V':
+        // Void has size 0 ignore it
+        break;
+    case 'Z':
+    case 'B':
+    case 'S':
+        // These are promoted to int (gcc warning)
+        if(value) value->z = va_arg(list, int);
+        break;
+    case 'I':
+        if(value) value->i = va_arg(list, jint);
+        break;
+    case 'J':
+        if(value) value->j = va_arg(list, jlong);
+        break;
+    case 'F':
+    case 'D':
+        if(value) value->d = va_arg(list, jdouble);
+        break;
+    case '[':
+        cur = ParseJNIValue(cur + 1, end, list, nullptr);
+        if(value) value->l = va_arg(list, jobject);
+        break;
+    case 'L':
+        cur = std::find(cur, end, ';');
+        if(value) value->l = va_arg(list, jobject);
+        break;
+    case '(':
+        return ParseJNIValue(cur + 1, end, list, value);
+    }
+    return cur;
+}
+
+const char * GetParamCount(const char *cur, const char *end, size_t& count) {
+    switch (*cur) {
+    case '[':
+        cur = GetParamCount(cur + 1, end, count);
+        break;
+    case 'L':
+        cur = std::find(cur, end, ';');
+        ++count;
+        cur = GetParamCount(cur + 1, end, count);
+        break;
+    case 'V':
+    case 'Z':
+    case 'B':
+    case 'S':
+    case 'I':
+    case 'J':
+    case 'F':
+    case 'D':
+        ++count;
+    case '(':
+        return GetParamCount(cur + 1, end, count);
+    }
+    return cur;
+}
+
+ScopedVaList::~ScopedVaList() {
+    va_end(list);
+}
+
+std::vector<jvalue> JValuesfromValist(va_list list, const char* signature) {
+    std::vector<jvalue> values;
+    const char* end = signature + strlen(signature);
+    for(size_t i = 0; *signature != ')'; ++i, ++signature) {
+        values.emplace_back();
+        signature = ParseJNIValue(signature, end, list, &values.back());
+    }
+    return values;
+}
+
 void Declare(JNIEnv *env, const char *signature) {
   for (const char *cur = signature, *end = cur + strlen(cur); cur != end;
        cur++) {
@@ -907,12 +981,26 @@ jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
 };
 
 template <class T>
-T CallStaticMethodV(JNIEnv *, jclass cl, jmethodID id, va_list param) {
+T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
   auto mid = ((Method *)id);
-  Log::trace("jnienv", "CallStaticMethodV %s", mid->name.data());
+  Log::trace("jnienv", "CallStaticMethod %s", mid->name.data());
   if (mid->nativehandle) {
-    return ((T(*)(va_list))mid->nativehandle)(param);
+    return ((T(*)(jvalue *))mid->nativehandle)(param);
   }
+};
+
+template <class T>
+T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, va_list param) {
+    return CallStaticMethod<T>(env, cl, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
+};
+
+template <class T>
+T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, ...) {
+    ScopedVaList param;
+    size_t count;
+    GetParamCount(((Method *)id)->signature.data(), ((Method *)id)->signature.data() + ((Method *)id)->signature.length(), count);
+    va_start(param.list, count);
+    return CallStaticMethod<T>(env, cl, id, param.list);
 };
 
 jobject CallStaticObjectMethod(JNIEnv *, jclass, jmethodID, ...) {
@@ -1381,36 +1469,36 @@ JavaVM *jnivm::createJNIVM() {
           SetField<jfloat>,
           SetField<jdouble>,
           GetStaticMethodID,
-          CallStaticObjectMethod,
-          CallStaticMethodV<jobject>,
-          CallStaticObjectMethodA,
-          CallStaticBooleanMethod,
-          CallStaticMethodV<jboolean>,
-          CallStaticBooleanMethodA,
-          CallStaticByteMethod,
-          CallStaticMethodV<jbyte>,
-          CallStaticByteMethodA,
-          CallStaticCharMethod,
-          CallStaticMethodV<jchar>,
-          CallStaticCharMethodA,
-          CallStaticShortMethod,
-          CallStaticMethodV<jshort>,
-          CallStaticShortMethodA,
-          CallStaticIntMethod,
-          CallStaticMethodV<jint>,
-          CallStaticIntMethodA,
-          CallStaticLongMethod,
-          CallStaticMethodV<jlong>,
-          CallStaticLongMethodA,
-          CallStaticFloatMethod,
-          CallStaticMethodV<jfloat>,
-          CallStaticFloatMethodA,
-          CallStaticDoubleMethod,
-          CallStaticMethodV<jdouble>,
-          CallStaticDoubleMethodA,
-          CallStaticVoidMethod,
-          CallStaticMethodV<void>,
-          CallStaticVoidMethodA,
+          CallStaticMethod<jobject>,
+          CallStaticMethod<jobject>,
+          CallStaticMethod<jobject>,
+          CallStaticMethod<jboolean>,
+          CallStaticMethod<jboolean>,
+          CallStaticMethod<jboolean>,
+          CallStaticMethod<jbyte>,
+          CallStaticMethod<jbyte>,
+          CallStaticMethod<jbyte>,
+          CallStaticMethod<jchar>,
+          CallStaticMethod<jchar>,
+          CallStaticMethod<jchar>,
+          CallStaticMethod<jshort>,
+          CallStaticMethod<jshort>,
+          CallStaticMethod<jshort>,
+          CallStaticMethod<jint>,
+          CallStaticMethod<jint>,
+          CallStaticMethod<jint>,
+          CallStaticMethod<jlong>,
+          CallStaticMethod<jlong>,
+          CallStaticMethod<jlong>,
+          CallStaticMethod<jfloat>,
+          CallStaticMethod<jfloat>,
+          CallStaticMethod<jfloat>,
+          CallStaticMethod<jdouble>,
+          CallStaticMethod<jdouble>,
+          CallStaticMethod<jdouble>,
+          CallStaticMethod<void>,
+          CallStaticMethod<void>,
+          CallStaticMethod<void>,
           GetStaticFieldID,
           GetStaticField<jobject>,
           GetStaticField<jboolean>,

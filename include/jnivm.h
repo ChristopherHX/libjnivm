@@ -32,5 +32,10 @@ namespace jnivm {
 
     template <> struct JNITypes<jchar> { using Array = jcharArray; };
 
+    struct ScopedVaList {
+        va_list list;
+        ~ScopedVaList();
+    };
+
     JavaVM * createJNIVM();
 }
