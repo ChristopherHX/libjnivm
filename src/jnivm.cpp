@@ -659,137 +659,30 @@ jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
   }
   return (jmethodID)next;
 };
-jobject CallObjectMethod(JNIEnv *, jobject, jmethodID, ...) {
-  Log::trace("jnienv", "CallObjectMethod");
-};
-jobject CallObjectMethodV(JNIEnv *, jobject obj, jmethodID id, va_list param) {
+
+template <class T>
+T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
   auto mid = ((Method *)id);
-  Log::trace("jnienv", "CallObjectMethodV %s", mid->name.data());
+  Log::trace("jnienv", "CallMethod %s", mid->name.data());
   if (mid->nativehandle) {
-    return ((jobject(*)(jobject, va_list))mid->nativehandle)(obj, param);
+    return ((T(*)(jobject, jvalue *))mid->nativehandle)(obj, param);
   }
 };
-jobject CallObjectMethodA(JNIEnv *, jobject, jmethodID, jvalue *) {
-  Log::trace("jnienv", "CallObjectMethodA");
+
+template <class T>
+T CallMethod(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
+    return CallMethod<T>(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
 };
-jboolean CallBooleanMethod(JNIEnv *, jobject, jmethodID, ...) {
-  Log::trace("jnienv", "CallBooleanMethod");
+
+template <class T>
+T CallMethod(JNIEnv * env, jobject obj, jmethodID id, ...) {
+    ScopedVaList param;
+    size_t count;
+    GetParamCount(((Method *)id)->signature.data(), ((Method *)id)->signature.data() + ((Method *)id)->signature.length(), count);
+    va_start(param.list, count);
+    return CallMethod<T>(env, obj, id, param.list);
 };
-jboolean CallBooleanMethodV(JNIEnv *, jobject obj, jmethodID id,
-                            va_list param) {
-  auto mid = ((Method *)id);
-  Log::trace("jnienv", "CallObjectMethodV %s", mid->name.data());
-  if (mid->nativehandle) {
-    return ((jboolean(*)(jobject, va_list))mid->nativehandle)(obj, param);
-  }
-};
-jboolean CallBooleanMethodA(JNIEnv *, jobject, jmethodID, jvalue *) {
-  Log::trace("jnienv", "CallBooleanMethodA");
-};
-jbyte CallByteMethod(JNIEnv *, jobject, jmethodID, ...) {
-  Log::trace("jnienv", "CallByteMethod");
-};
-jbyte CallByteMethodV(JNIEnv *, jobject obj, jmethodID id, va_list param) {
-  auto mid = ((Method *)id);
-  Log::trace("jnienv", "CallObjectMethodV %s", mid->name.data());
-  if (mid->nativehandle) {
-    return ((jbyte(*)(jobject, va_list))mid->nativehandle)(obj, param);
-  }
-};
-jbyte CallByteMethodA(JNIEnv *, jobject, jmethodID, jvalue *) {
-  Log::trace("jnienv", "CallByteMethodA");
-};
-jchar CallCharMethod(JNIEnv *, jobject, jmethodID, ...) {
-  Log::trace("jnienv", "CallCharMethod");
-};
-jchar CallCharMethodV(JNIEnv *, jobject obj, jmethodID id, va_list param) {
-  auto mid = ((Method *)id);
-  Log::trace("jnienv", "CallObjectMethodV %s", mid->name.data());
-  if (mid->nativehandle) {
-    return ((jchar(*)(jobject, va_list))mid->nativehandle)(obj, param);
-  }
-};
-jchar CallCharMethodA(JNIEnv *, jobject, jmethodID, jvalue *) {
-  Log::trace("jnienv", "CallCharMethodA");
-};
-jshort CallShortMethod(JNIEnv *, jobject, jmethodID, ...) {
-  Log::trace("jnienv", "CallShortMethod");
-};
-jshort CallShortMethodV(JNIEnv *, jobject obj, jmethodID id, va_list param) {
-  auto mid = ((Method *)id);
-  Log::trace("jnienv", "CallObjectMethodV %s", mid->name.data());
-  if (mid->nativehandle) {
-    return ((jshort(*)(jobject, va_list))mid->nativehandle)(obj, param);
-  }
-};
-jshort CallShortMethodA(JNIEnv *, jobject, jmethodID, jvalue *) {
-  Log::trace("jnienv", "CallShortMethodA");
-};
-jint CallIntMethod(JNIEnv *, jobject, jmethodID, ...) {
-  Log::trace("jnienv", "CallIntMethod");
-};
-jint CallIntMethodV(JNIEnv *, jobject obj, jmethodID id, va_list param) {
-  Log::trace("jnienv", "CallIntMethodV %s", ((Method *)id)->name.data());
-  auto mid = ((Method *)id);
-  if (mid->nativehandle) {
-    return ((jint(*)(jobject, va_list))mid->nativehandle)(obj, param);
-  }
-};
-jint CallIntMethodA(JNIEnv *, jobject, jmethodID, jvalue *) {
-  Log::trace("jnienv", "CallIntMethodA");
-};
-jlong CallLongMethod(JNIEnv *, jobject, jmethodID, ...) {
-  Log::trace("jnienv", "CallLongMethod");
-};
-jlong CallLongMethodV(JNIEnv *, jobject obj, jmethodID id, va_list param) {
-  auto mid = ((Method *)id);
-  Log::trace("jnienv", "CallObjectMethodV %s", mid->name.data());
-  if (mid->nativehandle) {
-    return ((jlong(*)(jobject, va_list))mid->nativehandle)(obj, param);
-  }
-};
-jlong CallLongMethodA(JNIEnv *, jobject, jmethodID, jvalue *) {
-  Log::trace("jnienv", "CallLongMethodA");
-};
-jfloat CallFloatMethod(JNIEnv *, jobject, jmethodID, ...) {
-  Log::trace("jnienv", "CallFloatMethod");
-};
-jfloat CallFloatMethodV(JNIEnv *, jobject obj, jmethodID id, va_list param) {
-  auto mid = ((Method *)id);
-  Log::trace("jnienv", "CallObjectMethodV %s", mid->name.data());
-  if (mid->nativehandle) {
-    return ((jfloat(*)(jobject, va_list))mid->nativehandle)(obj, param);
-  }
-};
-jfloat CallFloatMethodA(JNIEnv *, jobject, jmethodID, jvalue *) {
-  Log::trace("jnienv", "CallFloatMethodA");
-};
-jdouble CallDoubleMethod(JNIEnv *, jobject, jmethodID, ...) {
-  Log::trace("jnienv", "CallDoubleMethod");
-};
-jdouble CallDoubleMethodV(JNIEnv *, jobject obj, jmethodID id, va_list param) {
-  auto mid = ((Method *)id);
-  Log::trace("jnienv", "CallObjectMethodV %s", mid->name.data());
-  if (mid->nativehandle) {
-    return ((jfloat(*)(jobject, va_list))mid->nativehandle)(obj, param);
-  }
-};
-jdouble CallDoubleMethodA(JNIEnv *, jobject, jmethodID, jvalue *) {
-  Log::trace("jnienv", "CallDoubleMethodA");
-};
-void CallVoidMethod(JNIEnv *, jobject, jmethodID, ...) {
-  Log::trace("jnienv", "CallVoidMethod");
-};
-void CallVoidMethodV(JNIEnv *, jobject obj, jmethodID id, va_list param) {
-  auto mid = ((Method *)id);
-  Log::trace("jnienv", "CallObjectMethodV %s", mid->name.data());
-  if (mid->nativehandle) {
-    return ((void (*)(jobject, va_list))mid->nativehandle)(obj, param);
-  }
-};
-void CallVoidMethodA(JNIEnv *, jobject, jmethodID id, jvalue *) {
-  Log::trace("jnienv", "CallVoidMethodA %s", ((Method *)id)->name.data());
-};
+
 jobject CallNonvirtualObjectMethod(JNIEnv *, jobject, jclass, jmethodID, ...) {
   Log::trace("jnienv", "CallNonvirtualObjectMethod");
 };
@@ -1299,36 +1192,36 @@ JavaVM *jnivm::createJNIVM() {
           GetObjectClass,
           IsInstanceOf,
           GetMethodID,
-          CallObjectMethod,
-          CallObjectMethodV,
-          CallObjectMethodA,
-          CallBooleanMethod,
-          CallBooleanMethodV,
-          CallBooleanMethodA,
-          CallByteMethod,
-          CallByteMethodV,
-          CallByteMethodA,
-          CallCharMethod,
-          CallCharMethodV,
-          CallCharMethodA,
-          CallShortMethod,
-          CallShortMethodV,
-          CallShortMethodA,
-          CallIntMethod,
-          CallIntMethodV,
-          CallIntMethodA,
-          CallLongMethod,
-          CallLongMethodV,
-          CallLongMethodA,
-          CallFloatMethod,
-          CallFloatMethodV,
-          CallFloatMethodA,
-          CallDoubleMethod,
-          CallDoubleMethodV,
-          CallDoubleMethodA,
-          CallVoidMethod,
-          CallVoidMethodV,
-          CallVoidMethodA,
+          CallMethod<jobject>,
+          CallMethod<jobject>,
+          CallMethod<jobject>,
+          CallMethod<jboolean>,
+          CallMethod<jboolean>,
+          CallMethod<jboolean>,
+          CallMethod<jbyte>,
+          CallMethod<jbyte>,
+          CallMethod<jbyte>,
+          CallMethod<jchar>,
+          CallMethod<jchar>,
+          CallMethod<jchar>,
+          CallMethod<jshort>,
+          CallMethod<jshort>,
+          CallMethod<jshort>,
+          CallMethod<jint>,
+          CallMethod<jint>,
+          CallMethod<jint>,
+          CallMethod<jlong>,
+          CallMethod<jlong>,
+          CallMethod<jlong>,
+          CallMethod<jfloat>,
+          CallMethod<jfloat>,
+          CallMethod<jfloat>,
+          CallMethod<jdouble>,
+          CallMethod<jdouble>,
+          CallMethod<jdouble>,
+          CallMethod<void>,
+          CallMethod<void>,
+          CallMethod<void>,
           CallNonvirtualObjectMethod,
           CallNonvirtualObjectMethodV,
           CallNonvirtualObjectMethodA,
