@@ -1047,32 +1047,13 @@ void GetArrayRegion(JNIEnv *, typename JNITypes<T>::Array a, jsize start, jsize 
 };
 
 /* spec shows these without const; some jni.h do, some don't */
-void SetBooleanArrayRegion(JNIEnv *, jbooleanArray, jsize, jsize,
-                           const jboolean *) {
-  Log::trace("jnienv", "SetBooleanArrayRegion");
+template <class T>
+void SetArrayRegion(JNIEnv *, typename JNITypes<T>::Array a, jsize start, jsize len, const T * buf) {
+  Log::trace("jnienv", "SetArrayRegion");
+  auto arr = (Array<T> *)a;
+  std::copy(buf, buf + len, arr->value + start);
 };
-void SetByteArrayRegion(JNIEnv *, jbyteArray, jsize, jsize, const jbyte *) {
-  Log::trace("jnienv", "SetByteArrayRegion");
-};
-void SetCharArrayRegion(JNIEnv *, jcharArray, jsize, jsize, const jchar *) {
-  Log::trace("jnienv", "SetCharArrayRegion");
-};
-void SetShortArrayRegion(JNIEnv *, jshortArray, jsize, jsize, const jshort *) {
-  Log::trace("jnienv", "SetShortArrayRegion");
-};
-void SetIntArrayRegion(JNIEnv *, jintArray, jsize, jsize, const jint *) {
-  Log::trace("jnienv", "SetIntArrayRegion");
-};
-void SetLongArrayRegion(JNIEnv *, jlongArray, jsize, jsize, const jlong *) {
-  Log::trace("jnienv", "SetLongArrayRegion");
-};
-void SetFloatArrayRegion(JNIEnv *, jfloatArray, jsize, jsize, const jfloat *) {
-  Log::trace("jnienv", "SetFloatArrayRegion");
-};
-void SetDoubleArrayRegion(JNIEnv *, jdoubleArray, jsize, jsize,
-                          const jdouble *) {
-  Log::trace("jnienv", "SetDoubleArrayRegion");
-};
+
 jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method,
                      jint i) {
   Log::trace("jnienv", "RegisterNatives");
@@ -1336,14 +1317,14 @@ JavaVM *jnivm::createJNIVM() {
           GetArrayRegion<jfloat>,
           GetArrayRegion<jdouble>,
           /* spec shows these without const; some jni.h do, some don't */
-          SetBooleanArrayRegion,
-          SetByteArrayRegion,
-          SetCharArrayRegion,
-          SetShortArrayRegion,
-          SetIntArrayRegion,
-          SetLongArrayRegion,
-          SetFloatArrayRegion,
-          SetDoubleArrayRegion,
+          SetArrayRegion<jboolean>,
+          SetArrayRegion<jbyte>,
+          SetArrayRegion<jchar>,
+          SetArrayRegion<jshort>,
+          SetArrayRegion<jint>,
+          SetArrayRegion<jlong>,
+          SetArrayRegion<jfloat>,
+          SetArrayRegion<jdouble>,
           RegisterNatives,
           UnregisterNatives,
           MonitorEnter,
