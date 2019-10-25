@@ -1308,18 +1308,29 @@ JavaVM *jnivm::createJNIVM() {
       }},
       NULL,
       NULL,
-      [](JavaVM *) -> jint { Log::trace("jnivm", "DestroyJavaVM"); },
-      [](JavaVM *, JNIEnv **, void *) -> jint {
-        Log::trace("jnivm", "AttachCurrentThread");
+      [](JavaVM *) -> jint {
+        Log::trace("jnivm", "DestroyJavaVM");
+        return JNI_OK;
       },
-      [](JavaVM *) -> jint { Log::trace("jnivm", "DetachCurrentThread"); },
+      [](JavaVM *vm, JNIEnv **penv, void * args) -> jint {
+        Log::trace("jnivm", "AttachCurrentThread");
+        if(penv) {
+          *penv = (JNIEnv *)vm->functions->reserved0;
+        }
+        return JNI_OK;
+      },
+      [](JavaVM *) -> jint { 
+        Log::trace("jnivm", "DetachCurrentThread");
+        return JNI_OK;
+      },
       [](JavaVM *vm, void **penv, jint) -> jint {
         Log::trace("jnivm", "GetEnv");
         *penv = vm->functions->reserved0;
         return JNI_OK;
       },
-      [](JavaVM *, JNIEnv **, void *) -> jint {
+      [](JavaVM * vm, JNIEnv ** penv, void * args) -> jint {
         Log::trace("jnivm", "AttachCurrentThreadAsDaemon");
+        return vm->AttachCurrentThread(penv, args);
       },
   }};
 }
