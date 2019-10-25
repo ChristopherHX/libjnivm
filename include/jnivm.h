@@ -17,7 +17,7 @@ namespace jnivm {
         size_t length;
     };
 
-    template <class T> struct JNITypes { using Array = jobjectArray; };
+    template <class T> struct JNITypes { using Array = jarray; };
 
     template <> struct JNITypes<jboolean> { using Array = jbooleanArray; };
 
