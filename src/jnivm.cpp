@@ -700,110 +700,29 @@ T CallMethod(JNIEnv * env, jobject obj, jmethodID id, ...) {
     return CallMethod<T>(env, obj, id, param.list);
 };
 
-jobject CallNonvirtualObjectMethod(JNIEnv *, jobject, jclass, jmethodID, ...) {
-  Log::trace("jnienv", "CallNonvirtualObjectMethod");
+template <class T>
+T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, jvalue * param) {
+  auto mid = ((Method *)id);
+  Log::trace("jnienv", "CallNonvirtualMethod %s", mid->name.data());
+  if (mid->nativehandle) {
+    return ((T(*)(jobject, jvalue *))mid->nativehandle)(obj, param);
+  }
 };
-jobject CallNonvirtualObjectMethodV(JNIEnv *, jobject, jclass, jmethodID,
-                                    va_list) {
-  Log::trace("jnienv", "CallNonvirtualObjectMethodV");
+
+template <class T>
+T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, va_list param) {
+    return CallNonvirtualMethod<T>(env, obj, cl, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
 };
-jobject CallNonvirtualObjectMethodA(JNIEnv *, jobject, jclass, jmethodID,
-                                    jvalue *) {
-  Log::trace("jnienv", "CallNonvirtualObjectMethodA");
+
+template <class T>
+T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, ...) {
+    ScopedVaList param;
+    size_t count;
+    GetParamCount(((Method *)id)->signature.data(), ((Method *)id)->signature.data() + ((Method *)id)->signature.length(), count);
+    va_start(param.list, count);
+    return CallNonvirtualMethod<T>(env, obj, cl, id, param.list);
 };
-jboolean CallNonvirtualBooleanMethod(JNIEnv *, jobject, jclass, jmethodID,
-                                     ...) {
-  Log::trace("jnienv", "CallNonvirtualBooleanMethod");
-};
-jboolean CallNonvirtualBooleanMethodV(JNIEnv *, jobject, jclass, jmethodID,
-                                      va_list) {
-  Log::trace("jnienv", "CallNonvirtualBooleanMethodV");
-};
-jboolean CallNonvirtualBooleanMethodA(JNIEnv *, jobject, jclass, jmethodID,
-                                      jvalue *) {
-  Log::trace("jnienv", "CallNonvirtualBooleanMethodA");
-};
-jbyte CallNonvirtualByteMethod(JNIEnv *, jobject, jclass, jmethodID, ...) {
-  Log::trace("jnienv", "CallNonvirtualByteMethod");
-};
-jbyte CallNonvirtualByteMethodV(JNIEnv *, jobject, jclass, jmethodID, va_list) {
-  Log::trace("jnienv", "CallNonvirtualByteMethodV");
-};
-jbyte CallNonvirtualByteMethodA(JNIEnv *, jobject, jclass, jmethodID,
-                                jvalue *) {
-  Log::trace("jnienv", "CallNonvirtualByteMethodA");
-};
-jchar CallNonvirtualCharMethod(JNIEnv *, jobject, jclass, jmethodID, ...) {
-  Log::trace("jnienv", "CallNonvirtualCharMethod");
-};
-jchar CallNonvirtualCharMethodV(JNIEnv *, jobject, jclass, jmethodID, va_list) {
-  Log::trace("jnienv", "CallNonvirtualCharMethodV");
-};
-jchar CallNonvirtualCharMethodA(JNIEnv *, jobject, jclass, jmethodID,
-                                jvalue *) {
-  Log::trace("jnienv", "CallNonvirtualCharMethodA");
-};
-jshort CallNonvirtualShortMethod(JNIEnv *, jobject, jclass, jmethodID, ...) {
-  Log::trace("jnienv", "CallNonvirtualShortMethod");
-};
-jshort CallNonvirtualShortMethodV(JNIEnv *, jobject, jclass, jmethodID,
-                                  va_list) {
-  Log::trace("jnienv", "CallNonvirtualShortMethodV");
-};
-jshort CallNonvirtualShortMethodA(JNIEnv *, jobject, jclass, jmethodID,
-                                  jvalue *) {
-  Log::trace("jnienv", "CallNonvirtualShortMethodA");
-};
-jint CallNonvirtualIntMethod(JNIEnv *, jobject, jclass, jmethodID, ...) {
-  Log::trace("jnienv", "CallNonvirtualIntMethod");
-};
-jint CallNonvirtualIntMethodV(JNIEnv *, jobject, jclass, jmethodID, va_list) {
-  Log::trace("jnienv", "CallNonvirtualIntMethodV");
-};
-jint CallNonvirtualIntMethodA(JNIEnv *, jobject, jclass, jmethodID, jvalue *) {
-  Log::trace("jnienv", "CallNonvirtualIntMethodA");
-};
-jlong CallNonvirtualLongMethod(JNIEnv *, jobject, jclass, jmethodID, ...) {
-  Log::trace("jnienv", "CallNonvirtualLongMethod");
-};
-jlong CallNonvirtualLongMethodV(JNIEnv *, jobject, jclass, jmethodID, va_list) {
-  Log::trace("jnienv", "CallNonvirtualLongMethodV");
-};
-jlong CallNonvirtualLongMethodA(JNIEnv *, jobject, jclass, jmethodID,
-                                jvalue *) {
-  Log::trace("jnienv", "CallNonvirtualLongMethodA");
-};
-jfloat CallNonvirtualFloatMethod(JNIEnv *, jobject, jclass, jmethodID, ...) {
-  Log::trace("jnienv", "CallNonvirtualFloatMethod");
-};
-jfloat CallNonvirtualFloatMethodV(JNIEnv *, jobject, jclass, jmethodID,
-                                  va_list) {
-  Log::trace("jnienv", "CallNonvirtualFloatMethodV");
-};
-jfloat CallNonvirtualFloatMethodA(JNIEnv *, jobject, jclass, jmethodID,
-                                  jvalue *) {
-  Log::trace("jnienv", "CallNonvirtualFloatMethodA");
-};
-jdouble CallNonvirtualDoubleMethod(JNIEnv *, jobject, jclass, jmethodID, ...) {
-  Log::trace("jnienv", "CallNonvirtualDoubleMethod");
-};
-jdouble CallNonvirtualDoubleMethodV(JNIEnv *, jobject, jclass, jmethodID,
-                                    va_list) {
-  Log::trace("jnienv", "CallNonvirtualDoubleMethodV");
-};
-jdouble CallNonvirtualDoubleMethodA(JNIEnv *, jobject, jclass, jmethodID,
-                                    jvalue *) {
-  Log::trace("jnienv", "CallNonvirtualDoubleMethodA");
-};
-void CallNonvirtualVoidMethod(JNIEnv *, jobject, jclass, jmethodID, ...) {
-  Log::trace("jnienv", "CallNonvirtualVoidMethod");
-};
-void CallNonvirtualVoidMethodV(JNIEnv *, jobject, jclass, jmethodID, va_list) {
-  Log::trace("jnienv", "CallNonvirtualVoidMethodV");
-};
-void CallNonvirtualVoidMethodA(JNIEnv *, jobject, jclass, jmethodID, jvalue *) {
-  Log::trace("jnienv", "CallNonvirtualVoidMethodA");
-};
+
 jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name,
                     const char *type) {
   std::string &classname = ((Class *)cl)->name;
@@ -1161,36 +1080,36 @@ JavaVM *jnivm::createJNIVM() {
           CallMethod<void>,
           CallMethod<void>,
           CallMethod<void>,
-          CallNonvirtualObjectMethod,
-          CallNonvirtualObjectMethodV,
-          CallNonvirtualObjectMethodA,
-          CallNonvirtualBooleanMethod,
-          CallNonvirtualBooleanMethodV,
-          CallNonvirtualBooleanMethodA,
-          CallNonvirtualByteMethod,
-          CallNonvirtualByteMethodV,
-          CallNonvirtualByteMethodA,
-          CallNonvirtualCharMethod,
-          CallNonvirtualCharMethodV,
-          CallNonvirtualCharMethodA,
-          CallNonvirtualShortMethod,
-          CallNonvirtualShortMethodV,
-          CallNonvirtualShortMethodA,
-          CallNonvirtualIntMethod,
-          CallNonvirtualIntMethodV,
-          CallNonvirtualIntMethodA,
-          CallNonvirtualLongMethod,
-          CallNonvirtualLongMethodV,
-          CallNonvirtualLongMethodA,
-          CallNonvirtualFloatMethod,
-          CallNonvirtualFloatMethodV,
-          CallNonvirtualFloatMethodA,
-          CallNonvirtualDoubleMethod,
-          CallNonvirtualDoubleMethodV,
-          CallNonvirtualDoubleMethodA,
-          CallNonvirtualVoidMethod,
-          CallNonvirtualVoidMethodV,
-          CallNonvirtualVoidMethodA,
+          CallNonvirtualMethod<jobject>,
+          CallNonvirtualMethod<jobject>,
+          CallNonvirtualMethod<jobject>,
+          CallNonvirtualMethod<jboolean>,
+          CallNonvirtualMethod<jboolean>,
+          CallNonvirtualMethod<jboolean>,
+          CallNonvirtualMethod<jbyte>,
+          CallNonvirtualMethod<jbyte>,
+          CallNonvirtualMethod<jbyte>,
+          CallNonvirtualMethod<jchar>,
+          CallNonvirtualMethod<jchar>,
+          CallNonvirtualMethod<jchar>,
+          CallNonvirtualMethod<jshort>,
+          CallNonvirtualMethod<jshort>,
+          CallNonvirtualMethod<jshort>,
+          CallNonvirtualMethod<jint>,
+          CallNonvirtualMethod<jint>,
+          CallNonvirtualMethod<jint>,
+          CallNonvirtualMethod<jlong>,
+          CallNonvirtualMethod<jlong>,
+          CallNonvirtualMethod<jlong>,
+          CallNonvirtualMethod<jfloat>,
+          CallNonvirtualMethod<jfloat>,
+          CallNonvirtualMethod<jfloat>,
+          CallNonvirtualMethod<jdouble>,
+          CallNonvirtualMethod<jdouble>,
+          CallNonvirtualMethod<jdouble>,
+          CallNonvirtualMethod<void>,
+          CallNonvirtualMethod<void>,
+          CallNonvirtualMethod<void>,
           GetFieldID,
           GetField<jobject>,
           GetField<jboolean>,
