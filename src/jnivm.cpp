@@ -1038,30 +1038,14 @@ template <class T>
 void ReleaseArrayElements(JNIEnv *, typename JNITypes<T>::Array a, T *carr, jint) {
   Log::trace("jnienv", "ReleaseArrayElements");
 };
-void GetBooleanArrayRegion(JNIEnv *, jbooleanArray, jsize, jsize, jboolean *) {
-  Log::trace("jnienv", "GetBooleanArrayRegion");
+
+template <class T>
+void GetArrayRegion(JNIEnv *, typename JNITypes<T>::Array a, jsize start, jsize len, T * buf) {
+  Log::trace("jnienv", "GetArrayRegion");
+  auto arr = (Array<T> *)a;
+  std::copy(arr->value + start, arr->value + start + len, buf);
 };
-void GetByteArrayRegion(JNIEnv *, jbyteArray, jsize, jsize, jbyte *) {
-  Log::trace("jnienv", "GetByteArrayRegion");
-};
-void GetCharArrayRegion(JNIEnv *, jcharArray, jsize, jsize, jchar *) {
-  Log::trace("jnienv", "GetCharArrayRegion");
-};
-void GetShortArrayRegion(JNIEnv *, jshortArray, jsize, jsize, jshort *) {
-  Log::trace("jnienv", "GetShortArrayRegion");
-};
-void GetIntArrayRegion(JNIEnv *, jintArray, jsize, jsize, jint *) {
-  Log::trace("jnienv", "GetIntArrayRegion");
-};
-void GetLongArrayRegion(JNIEnv *, jlongArray, jsize, jsize, jlong *) {
-  Log::trace("jnienv", "GetLongArrayRegion");
-};
-void GetFloatArrayRegion(JNIEnv *, jfloatArray, jsize, jsize, jfloat *) {
-  Log::trace("jnienv", "GetFloatArrayRegion");
-};
-void GetDoubleArrayRegion(JNIEnv *, jdoubleArray, jsize, jsize, jdouble *) {
-  Log::trace("jnienv", "GetDoubleArrayRegion");
-};
+
 /* spec shows these without const; some jni.h do, some don't */
 void SetBooleanArrayRegion(JNIEnv *, jbooleanArray, jsize, jsize,
                            const jboolean *) {
@@ -1343,14 +1327,14 @@ JavaVM *jnivm::createJNIVM() {
           ReleaseArrayElements<jlong>,
           ReleaseArrayElements<jfloat>,
           ReleaseArrayElements<jdouble>,
-          GetBooleanArrayRegion,
-          GetByteArrayRegion,
-          GetCharArrayRegion,
-          GetShortArrayRegion,
-          GetIntArrayRegion,
-          GetLongArrayRegion,
-          GetFloatArrayRegion,
-          GetDoubleArrayRegion,
+          GetArrayRegion<jboolean>,
+          GetArrayRegion<jbyte>,
+          GetArrayRegion<jchar>,
+          GetArrayRegion<jshort>,
+          GetArrayRegion<jint>,
+          GetArrayRegion<jlong>,
+          GetArrayRegion<jfloat>,
+          GetArrayRegion<jdouble>,
           /* spec shows these without const; some jni.h do, some don't */
           SetBooleanArrayRegion,
           SetByteArrayRegion,
