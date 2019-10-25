@@ -82,7 +82,7 @@ const char * ParseJNIValue(const char *cur, const char *end, va_list list, jvalu
     case '(':
         return ParseJNIValue(cur + 1, end, list, value);
     }
-    return cur;
+    return cur + 1;
 }
 
 const char * GetParamCount(const char *cur, const char *end, size_t& count) {
@@ -116,8 +116,9 @@ ScopedVaList::~ScopedVaList() {
 
 std::vector<jvalue> JValuesfromValist(va_list list, const char* signature) {
     std::vector<jvalue> values;
+    signature++;
     const char* end = signature + strlen(signature);
-    for(size_t i = 0; *signature != ')'; ++i, ++signature) {
+    for(size_t i = 0; *signature != ')' && signature != end; ++i) {
         values.emplace_back();
         signature = ParseJNIValue(signature, end, list, &values.back());
     }
@@ -314,6 +315,15 @@ public:
     return ss.str();
   }
 
+  std::string GenerateStubs(std::string scope, const std::string &cname) {
+    if(!_static) return std::string();
+    std::ostringstream ss;
+    std::string rettype;
+    ParseJNIType(type.data(), type.data() + type.length(), rettype);
+    ss << rettype << " " << scope << name << " = " << rettype << "();\n\n";
+    return ss.str();
+  }
+
   std::string GenerateJNIBinding(std::string scope) {
     std::ostringstream ss;
     std::string rettype;
@@ -356,7 +366,13 @@ public:
 
   std::string GenerateHeader(std::string scope) {
     std::ostringstream ss;
-    ss << "class " << scope << name << " {\npublic:\n";
+    scope += name;
+    ss << "class " << scope << " {\npublic:\n";
+    for (auto &cl : classes) {
+      ss << std::regex_replace(cl->GeneratePreDeclaration(),
+                               std::regex("(^|\n)([^\n]+)"), "$1    $2");
+      ss << "\n";
+    }
     for (auto &field : fields) {
       ss << std::regex_replace(field->GenerateHeader(),
                                std::regex("(^|\n)([^\n]+)"), "$1    $2");
@@ -368,6 +384,10 @@ public:
       ss << "\n";
     }
     ss << "};";
+    for (auto &cl : classes) {
+      ss << "\n";
+      ss << cl->GenerateHeader(scope + "::");
+    }
     return ss.str();
   }
 
@@ -382,6 +402,9 @@ public:
     scope += name + "::";
     for (auto &cl : classes) {
       ss << cl->GenerateStubs(scope);
+    }
+    for (auto &field : fields) {
+      ss << field->GenerateStubs(scope, name);
     }
     for (auto &method : methods) {
       ss << method->GenerateStubs(scope, name);
@@ -647,6 +670,7 @@ jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
                          (!strcmp(str0, "<init>") ? classname : str0);
     if (!(next->nativehandle = dlsym(This, symbol.data()))) {
       Log::trace("JNIBinding", "Unresolved symbol %s", symbol.data());
+      Log::debug("Missing wrapper", "%s", next->GenerateJNIBinding(((Class *)cl)->nativeprefix, "").data());
     }
     dlclose(This);
   }
@@ -961,9 +985,10 @@ jstring NewStringUTF(JNIEnv *, const char *str) {
   return (jstring)(
       new Object<std::string>{.cl = 0, .value = new std::string(str)});
 };
-jsize GetStringUTFLength(JNIEnv *, jstring) {
+jsize GetStringUTFLength(JNIEnv *, jstring str) {
   Log::trace("jnienv", "GetStringUTFLength");
-  return 19;
+  return str && ((Object<std::string> *)str)->value
+             ? ((Object<std::string> *)str)->value->length() : 36;
 };
 /* JNI spec says this returns const jbyte*, but that's inconsistent */
 const char *GetStringUTFChars(JNIEnv *, jstring str, jboolean *copy) {
@@ -973,7 +998,7 @@ const char *GetStringUTFChars(JNIEnv *, jstring str, jboolean *copy) {
   Log::trace("jnienv", "GetStringUTFChars");
   return str && ((Object<std::string> *)str)->value
              ? ((Object<std::string> *)str)->value->data()
-             : "asfbdbbfsdnbsbsdbd";
+             : "daa78df1-373a-444d-9b1d-4c71a14bb559";
 };
 void ReleaseStringUTFChars(JNIEnv *, jstring, const char *) {
   Log::trace("jnienv", "ReleaseStringUTFChars");

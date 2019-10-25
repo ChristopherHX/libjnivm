@@ -10,8 +10,10 @@ namespace jnivm {
         T* value;
     };
 
-    template<class T> class Array : public Object<T> {
+    template<class T> class Array {
     public:
+        jclass cl;
+        T* value;
         size_t length;
     };
 
