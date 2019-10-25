@@ -1033,29 +1033,10 @@ T *GetArrayElements(JNIEnv *, typename JNITypes<T>::Array a, jboolean *iscopy) {
   }
   return a ? ((Array<T> *)a)->value : 0;
 };
-void ReleaseBooleanArrayElements(JNIEnv *, jbooleanArray, jboolean *, jint) {
-  Log::trace("jnienv", "ReleaseBooleanArrayElements");
-};
-void ReleaseByteArrayElements(JNIEnv *, jbyteArray, jbyte *, jint) {
-  Log::trace("jnienv", "ReleaseByteArrayElements");
-};
-void ReleaseCharArrayElements(JNIEnv *, jcharArray, jchar *, jint) {
-  Log::trace("jnienv", "ReleaseCharArrayElements");
-};
-void ReleaseShortArrayElements(JNIEnv *, jshortArray, jshort *, jint) {
-  Log::trace("jnienv", "ReleaseShortArrayElements");
-};
-void ReleaseIntArrayElements(JNIEnv *, jintArray, jint *, jint) {
-  Log::trace("jnienv", "ReleaseIntArrayElements");
-};
-void ReleaseLongArrayElements(JNIEnv *, jlongArray, jlong *, jint) {
-  Log::trace("jnienv", "ReleaseLongArrayElements");
-};
-void ReleaseFloatArrayElements(JNIEnv *, jfloatArray, jfloat *, jint) {
-  Log::trace("jnienv", "ReleaseFloatArrayElements");
-};
-void ReleaseDoubleArrayElements(JNIEnv *, jdoubleArray, jdouble *, jint) {
-  Log::trace("jnienv", "ReleaseDoubleArrayElements");
+
+template <class T>
+void ReleaseArrayElements(JNIEnv *, typename JNITypes<T>::Array a, T *carr, jint) {
+  Log::trace("jnienv", "ReleaseArrayElements");
 };
 void GetBooleanArrayRegion(JNIEnv *, jbooleanArray, jsize, jsize, jboolean *) {
   Log::trace("jnienv", "GetBooleanArrayRegion");
@@ -1354,14 +1335,14 @@ JavaVM *jnivm::createJNIVM() {
           GetArrayElements<jlong>,
           GetArrayElements<jfloat>,
           GetArrayElements<jdouble>,
-          ReleaseBooleanArrayElements,
-          ReleaseByteArrayElements,
-          ReleaseCharArrayElements,
-          ReleaseShortArrayElements,
-          ReleaseIntArrayElements,
-          ReleaseLongArrayElements,
-          ReleaseFloatArrayElements,
-          ReleaseDoubleArrayElements,
+          ReleaseArrayElements<jboolean>,
+          ReleaseArrayElements<jbyte>,
+          ReleaseArrayElements<jchar>,
+          ReleaseArrayElements<jshort>,
+          ReleaseArrayElements<jint>,
+          ReleaseArrayElements<jlong>,
+          ReleaseArrayElements<jfloat>,
+          ReleaseArrayElements<jdouble>,
           GetBooleanArrayRegion,
           GetByteArrayRegion,
           GetCharArrayRegion,
