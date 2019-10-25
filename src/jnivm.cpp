@@ -1007,14 +1007,17 @@ jsize GetArrayLength(JNIEnv *, jarray a) {
   Log::trace("jnienv", "GetArrayLength");
   return a ? ((Array<void> *)a)->length : 0;
 };
-jobjectArray NewObjectArray(JNIEnv *, jsize, jclass, jobject) {
+jobjectArray NewObjectArray(JNIEnv *, jsize size, jclass c, jobject init) {
   Log::trace("jnienv", "NewObjectArray");
+  return (jobjectArray)new Array<jobject> { .cl = 0, .value = new jobject[size] {init} , .length = size };
 };
-jobject GetObjectArrayElement(JNIEnv *, jobjectArray, jsize) {
+jobject GetObjectArrayElement(JNIEnv *, jobjectArray a, jsize i ) {
   Log::trace("jnienv", "GetObjectArrayElement");
+  return ((Array<jobject>*)a)->value[i];
 };
-void SetObjectArrayElement(JNIEnv *, jobjectArray, jsize, jobject) {
+void SetObjectArrayElement(JNIEnv *, jobjectArray a, jsize i, jobject v) {
   Log::trace("jnienv", "SetObjectArrayElement");
+  ((Array<jobject>*)a)->value[i] = v;
 };
 jbooleanArray NewBooleanArray(JNIEnv *, jsize) {
   Log::trace("jnienv", "NewBooleanArray");
