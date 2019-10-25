@@ -1019,27 +1019,10 @@ void SetObjectArrayElement(JNIEnv *, jobjectArray a, jsize i, jobject v) {
   Log::trace("jnienv", "SetObjectArrayElement");
   ((Array<jobject>*)a)->value[i] = v;
 };
-jbooleanArray NewBooleanArray(JNIEnv *, jsize) {
-  Log::trace("jnienv", "NewBooleanArray");
-};
-jbyteArray NewByteArray(JNIEnv *, jsize) {
-  Log::trace("jnienv", "NewByteArray");
-};
-jcharArray NewCharArray(JNIEnv *, jsize) {
-  Log::trace("jnienv", "NewCharArray");
-};
-jshortArray NewShortArray(JNIEnv *, jsize) {
-  Log::trace("jnienv", "NewShortArray");
-};
-jintArray NewIntArray(JNIEnv *, jsize) { Log::trace("jnienv", "NewIntArray"); };
-jlongArray NewLongArray(JNIEnv *, jsize) {
-  Log::trace("jnienv", "NewLongArray");
-};
-jfloatArray NewFloatArray(JNIEnv *, jsize) {
-  Log::trace("jnienv", "NewFloatArray");
-};
-jdoubleArray NewDoubleArray(JNIEnv *, jsize) {
-  Log::trace("jnienv", "NewDoubleArray");
+
+template <class T> typename JNITypes<T>::Array NewArray(JNIEnv * env, jsize size) {
+  Log::trace("jnienv", "NewArray");
+  return (typename JNITypes<T>::Array)new Array<T> { .cl = 0, .value = new T[size], .length = size };
 };
 
 template <class T>
@@ -1355,14 +1338,14 @@ JavaVM *jnivm::createJNIVM() {
           NewObjectArray,
           GetObjectArrayElement,
           SetObjectArrayElement,
-          NewBooleanArray,
-          NewByteArray,
-          NewCharArray,
-          NewShortArray,
-          NewIntArray,
-          NewLongArray,
-          NewFloatArray,
-          NewDoubleArray,
+          NewArray<jboolean>,
+          NewArray<jbyte>,
+          NewArray<jchar>,
+          NewArray<jshort>,
+          NewArray<jint>,
+          NewArray<jlong>,
+          NewArray<jfloat>,
+          NewArray<jdouble>,
           GetArrayElements<jboolean>,
           GetArrayElements<jbyte>,
           GetArrayElements<jchar>,
