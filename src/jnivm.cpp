@@ -5,6 +5,8 @@
 #include <log.h>
 #include <regex>
 #include <string>
+#include <cuchar>
+#include <climits>
 
 using namespace jnivm;
 
@@ -887,14 +889,41 @@ void SetStaticField(JNIEnv *, jclass cl, jfieldID id, T value) {
   }
 }
 
-jstring NewString(JNIEnv *, const jchar *, jsize) {
+jstring NewString(JNIEnv *, const jchar * str, jsize size) {
   Log::trace("jnienv", "NewString");
+  std::stringstream ss;
+  std::mbstate_t state{};
+  char out[MB_LEN_MAX]{};
+  for (size_t i = 0; i < size; i++) {
+    std::size_t rc = std::c16rtomb(out, (char16_t)str[i], &state);
+    if(rc != -1) {
+      ss.write(out, rc);
+    }
+  }
+  return (jstring)(
+      new Object<std::string>{.cl = 0, .value = new std::string(ss.str())});
 };
-jsize GetStringLength(JNIEnv *, jstring) {
+jsize GetStringLength(JNIEnv *env, jstring str) {
   Log::trace("jnienv", "GetStringLength");
+  std::mbstate_t state{};
+  std::string * cstr = ((Object<std::string>*)str)->value;
+  size_t count = 0;
+  jsize length = 0;
+  jchar dummy;
+  auto cur = cstr->data(), end = cur + cstr->length();
+  while(cur != end && (count = std::mbrtoc16((char16_t*)&dummy, cur, end - cur, &state)) > 0) {
+    cur += count, length++;
+  }
 };
-const jchar *GetStringChars(JNIEnv *, jstring, jboolean *) {
+const jchar *GetStringChars(JNIEnv * env, jstring str, jboolean * copy) {
   Log::trace("jnienv", "GetStringChars");
+  if(copy) {
+    *copy = true;
+  }
+  jsize length = env->GetStringLength(str);
+  jchar * jstr = new jchar[length + 1];
+  env->GetStringRegion(str, 0, length, jstr);
+  return jstr;
 };
 void ReleaseStringChars(JNIEnv *, jstring, const jchar *) {
   Log::trace("jnienv", "ReleaseStringChars");
@@ -983,12 +1012,35 @@ jint UnregisterNatives(JNIEnv *, jclass) {
 jint MonitorEnter(JNIEnv *, jobject) { Log::trace("jnienv", "MonitorEnter"); };
 jint MonitorExit(JNIEnv *, jobject) { Log::trace("jnienv", "MonitorExit"); };
 jint GetJavaVM(JNIEnv *, JavaVM **) { Log::trace("jnienv", "GetJavaVM"); };
-void GetStringRegion(JNIEnv *, jstring, jsize, jsize, jchar *) {
+void GetStringRegion(JNIEnv *, jstring str, jsize start, jsize length, jchar * buf) {
   Log::trace("jnienv", "GetStringRegion");
+  std::mbstate_t state{};
+  std::string * cstr = ((Object<std::string>*)str)->value;
+  int count = 0;
+  jchar dummy, * bend = buf + length;
+  auto cur = cstr->data(), end = cur + cstr->length();
+  while(start && (count = std::mbrtoc16((char16_t*)&dummy, cur, end - cur, &state)) > 0) {
+    cur += count, start--;
+  }
+  while(buf != bend && (count = std::mbrtoc16((char16_t*)buf, cur, end - cur, &state)) > 0) {
+    cur += count, buf++;
+  }
 };
 void GetStringUTFRegion(JNIEnv *, jstring str, jsize start, jsize len, char * buf) {
   Log::trace("jnienv", "GetStringUTFRegion");
-  memcpy(buf, ((Object<std::string>*)str)->value->data() + start, len);
+  std::mbstate_t state{};
+  std::string * cstr = ((Object<std::string>*)str)->value;
+  int count = 0;
+  jchar dummy;
+  char * bend = buf + len;
+  auto cur = cstr->data(), end = cur + cstr->length();
+  while(start && (count = std::mbrtoc16((char16_t*)&dummy, cur, end - cur, &state)) > 0) {
+    cur += count, start--;
+  }
+  while(buf != bend && (count = std::mbrtoc16((char16_t*)&dummy, cur, end - cur, &state)) > 0) {
+    memcpy(buf, cur, count);
+    cur += count, buf++;
+  }
 };
 jweak NewWeakGlobalRef(JNIEnv *, jobject) {
   Log::trace("jnienv", "NewWeakGlobalRef");
