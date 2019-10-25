@@ -1067,20 +1067,9 @@ jint GetJavaVM(JNIEnv *, JavaVM **) { Log::trace("jnienv", "GetJavaVM"); };
 void GetStringRegion(JNIEnv *, jstring, jsize, jsize, jchar *) {
   Log::trace("jnienv", "GetStringRegion");
 };
-void GetStringUTFRegion(JNIEnv *, jstring, jsize, jsize, char *) {
+void GetStringUTFRegion(JNIEnv *, jstring str, jsize start, jsize len, char * buf) {
   Log::trace("jnienv", "GetStringUTFRegion");
-};
-void *GetPrimitiveArrayCritical(JNIEnv *, jarray, jboolean *) {
-  Log::trace("jnienv", "GetPrimitiveArrayCritical");
-};
-void ReleasePrimitiveArrayCritical(JNIEnv *, jarray, void *, jint) {
-  Log::trace("jnienv", "ReleasePrimitiveArrayCritical");
-};
-const jchar *GetStringCritical(JNIEnv *, jstring, jboolean *) {
-  Log::trace("jnienv", "GetStringCritical");
-};
-void ReleaseStringCritical(JNIEnv *, jstring, const jchar *) {
-  Log::trace("jnienv", "ReleaseStringCritical");
+  memcpy(buf, ((Object<std::string>*)str)->value->data() + start, len);
 };
 jweak NewWeakGlobalRef(JNIEnv *, jobject) {
   Log::trace("jnienv", "NewWeakGlobalRef");
@@ -1332,10 +1321,10 @@ JavaVM *jnivm::createJNIVM() {
           GetJavaVM,
           GetStringRegion,
           GetStringUTFRegion,
-          GetPrimitiveArrayCritical,
-          ReleasePrimitiveArrayCritical,
-          GetStringCritical,
-          ReleaseStringCritical,
+          GetArrayElements<void>,
+          ReleaseArrayElements<void>,
+          GetStringChars,
+          ReleaseStringChars,
           NewWeakGlobalRef,
           DeleteWeakGlobalRef,
           ExceptionCheck,
