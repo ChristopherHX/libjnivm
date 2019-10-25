@@ -925,8 +925,9 @@ const jchar *GetStringChars(JNIEnv * env, jstring str, jboolean * copy) {
   env->GetStringRegion(str, 0, length, jstr);
   return jstr;
 };
-void ReleaseStringChars(JNIEnv *, jstring, const jchar *) {
+void ReleaseStringChars(JNIEnv * env, jstring str, const jchar * cstr) {
   Log::trace("jnienv", "ReleaseStringChars");
+  delete cstr;
 };
 jstring NewStringUTF(JNIEnv *, const char *str) {
   Log::trace("jnienv", "NewStringUTF %s", str);
