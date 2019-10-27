@@ -38,11 +38,11 @@ const char *ParseJNIType(const char *cur, const char *end, std::string &type) {
     break;
   case '[':
     cur = ParseJNIType(cur + 1, end, type);
-    type = "Array<" + type + ">*";
+    type = "jnivm::Array<" + type + ">*";
     break;
   case 'L':
     auto cend = std::find(cur, end, ';');
-    type = "Object<" +
+    type = "jnivm::Object<" +
            std::regex_replace(std::string(cur + 1, cend), std::regex("(/|\\$)"),
                               "::") +
            ">*";
@@ -180,12 +180,9 @@ public:
     } else {
       ss << rettype << " " << name;
     }
-    ss << "(";
+    ss << "(JNIEnv *";
     for (int i = 0; i < parameters.size(); i++) {
-      if (i != 0) {
-        ss << ", ";
-      }
-      ss << parameters[i];
+      ss << ", " << parameters[i];
     }
     ss << ")"
        << ";";
@@ -223,12 +220,9 @@ public:
     } else {
       ss << rettype << " " << scope << name;
     }
-    ss << "(";
+    ss << "(JNIEnv *env";
     for (int i = 0; i < parameters.size(); i++) {
-      if (i != 0) {
-        ss << ", ";
-      }
-      ss << parameters[i] << " arg" << i;
+      ss << ", " << parameters[i] << " arg" << i;
     }
     ss << ") {\n    \n}\n\n";
     return ss.str();
@@ -272,9 +266,9 @@ public:
     } else {
       ss << rettype << " ";
     }
-    ss << std::regex_replace(scope, std::regex("::"), "_") << "(";
+    ss << std::regex_replace(scope, std::regex("::"), "_") << "(JNIEnv *env, ";
     if (!_static) {
-      ss << "Object<" << cl << ">* obj, ";
+      ss << "jnivm::Object<" << cl << ">* obj, ";
     }
     ss << "jvalue* values) {\n    ";
     if (!_static) {
@@ -286,12 +280,9 @@ public:
     } else {
       ss << "return " << scope;
     }
-    ss << "(";
+    ss << "(env";
     for (int i = 0; i < parameters.size(); i++) {
-      if (i != 0) {
-        ss << ", ";
-      }
-      ss << "(" << parameters[i] << "&)values[" << i << "]";
+      ss << ", (" << parameters[i] << "&)values[" << i << "]";
     }
     ss << ");\n}\n";
     return ss.str();
@@ -322,7 +313,7 @@ public:
     std::ostringstream ss;
     std::string rettype;
     ParseJNIType(type.data(), type.data() + type.length(), rettype);
-    ss << rettype << " " << scope << name << " = " << rettype << "();\n\n";
+    ss << rettype << " " << scope << name << " = {};\n\n";
     return ss.str();
   }
 
@@ -334,7 +325,7 @@ public:
     scope = std::regex_replace(scope, std::regex("::"), "_") + name;
     ss << "extern \"C\" " << rettype << " get_" << scope << "(";
     if (!_static) {
-      ss << "Object<" << cl << ">* obj";
+      ss << "jnivm::Object<" << cl << ">* obj";
     }
     ss << ") {\n    return ";
     if (_static) {
@@ -345,7 +336,7 @@ public:
     ss << ";\n}\n\n";
     ss << "extern \"C\" void set_" << scope << "(";
     if (!_static) {
-      ss << "Object<" << cl << ">* obj, ";
+      ss << "jnivm::Object<" << cl << ">* obj, ";
     }
     ss << rettype << " value) {\n    ";
     if (_static) {
@@ -596,7 +587,7 @@ jint ThrowNew(JNIEnv *, jclass, const char *) {
 };
 jthrowable ExceptionOccurred(JNIEnv *) {
   Log::trace("jnienv", "ExceptionOccurred");
-  return (jthrowable)1;
+  return (jthrowable)0;
 };
 void ExceptionDescribe(JNIEnv *) { Log::trace("jnienv", "ExceptionDescribe"); };
 void ExceptionClear(JNIEnv *) { Log::trace("jnienv", "ExceptionClear"); };
@@ -618,7 +609,10 @@ void DeleteLocalRef(JNIEnv *, jobject) {
 jboolean IsSameObject(JNIEnv *, jobject, jobject) {
   Log::trace("jnienv", "IsSameObject");
 };
-jobject NewLocalRef(JNIEnv *, jobject) { Log::trace("jnienv", "NewLocalRef"); };
+jobject NewLocalRef(JNIEnv *, jobject obj) { 
+  Log::trace("jnienv", "NewLocalRef"); 
+  return obj;
+  };
 jint EnsureLocalCapacity(JNIEnv *, jint) {
   Log::trace("jnienv", "EnsureLocalCapacity");
 };
@@ -672,6 +666,8 @@ jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
                          (!strcmp(str0, "<init>") ? classname : str0);
     if (!(next->nativehandle = dlsym(This, symbol.data()))) {
       Log::trace("JNIBinding", "Unresolved symbol %s", symbol.data());
+      Log::debug("MissingHeader", "%s", next->GenerateHeader(((Class *)cl)->nativeprefix).data());
+      Log::debug("MissingStub", "%s", next->GenerateStubs(((Class *)cl)->nativeprefix, "").data());
       Log::debug("Missing wrapper", "%s", next->GenerateJNIBinding(((Class *)cl)->nativeprefix, "").data());
     }
     dlclose(This);
@@ -684,7 +680,7 @@ T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
   auto mid = ((Method *)id);
   Log::trace("jnienv", "CallMethod %s", mid->name.data());
   if (mid->nativehandle) {
-    return ((T(*)(jobject, jvalue *))mid->nativehandle)(obj, param);
+    return ((T(*)(JNIEnv*, jobject, jvalue *))mid->nativehandle)(env, obj, param);
   }
 };
 
@@ -707,7 +703,7 @@ T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, jvalu
   auto mid = ((Method *)id);
   Log::trace("jnienv", "CallNonvirtualMethod %s", mid->name.data());
   if (mid->nativehandle) {
-    return ((T(*)(jobject, jvalue *))mid->nativehandle)(obj, param);
+    return ((T(*)(JNIEnv*, jobject, jvalue *))mid->nativehandle)(env, obj, param);
   }
 };
 
@@ -816,7 +812,7 @@ T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
   auto mid = ((Method *)id);
   Log::trace("jnienv", "CallStaticMethod %s", mid->name.data());
   if (mid->nativehandle) {
-    return ((T(*)(jvalue *))mid->nativehandle)(param);
+    return ((T(*)(JNIEnv*, jvalue *))mid->nativehandle)(env, param);
   }
 };
 
@@ -1005,7 +1001,11 @@ void SetArrayRegion(JNIEnv *, typename JNITypes<T>::Array a, jsize start, jsize 
 
 jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method,
                      jint i) {
-  Log::trace("jnienv", "RegisterNatives");
+  Log::trace("jnienv", "RegisterNatives %s", ((Class*)c)->name.data());
+  while(i--) {
+    Log::trace("Native", "%s, %s, %x", method->name, method->signature, (int)method->fnPtr);
+    method++;
+  }
 };
 jint UnregisterNatives(JNIEnv *, jclass) {
   Log::trace("jnienv", "UnregisterNatives");
@@ -1043,13 +1043,16 @@ void GetStringUTFRegion(JNIEnv *, jstring str, jsize start, jsize len, char * bu
     cur += count, buf++;
   }
 };
-jweak NewWeakGlobalRef(JNIEnv *, jobject) {
+jweak NewWeakGlobalRef(JNIEnv *, jobject obj) {
   Log::trace("jnienv", "NewWeakGlobalRef");
+  return obj;
 };
 void DeleteWeakGlobalRef(JNIEnv *, jweak) {
   Log::trace("jnienv", "DeleteWeakGlobalRef");
 };
-jboolean ExceptionCheck(JNIEnv *) { Log::trace("jnienv", "ExceptionCheck"); };
+jboolean ExceptionCheck(JNIEnv *) { Log::trace("jnienv", "ExceptionCheck");
+return JNI_FALSE;
+ };
 jobject NewDirectByteBuffer(JNIEnv *, void *, jlong) {
   Log::trace("jnienv", "NewDirectByteBuffer");
 };
