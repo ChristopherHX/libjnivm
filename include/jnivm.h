@@ -14,7 +14,7 @@ namespace jnivm {
     public:
         jclass cl;
         T* value;
-        size_t length;
+        jsize length;
     };
 
     template <class T> struct JNITypes { using Array = jarray; };
