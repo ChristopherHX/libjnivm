@@ -592,9 +592,9 @@ jthrowable ExceptionOccurred(JNIEnv *) {
 void ExceptionDescribe(JNIEnv *) {  };
 void ExceptionClear(JNIEnv *) {  };
 void FatalError(JNIEnv *, const char *) {  };
-jint PushLocalFrame(JNIEnv *, jint) {  };
+jint PushLocalFrame(JNIEnv *, jint) { return 0; };
 jobject PopLocalFrame(JNIEnv *, jobject ob) {
-  
+  return 0;
 };
 jobject NewGlobalRef(JNIEnv *, jobject obj) {
   
@@ -999,9 +999,10 @@ jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method,
     
     method++;
   }
+  return 0;
 };
 jint UnregisterNatives(JNIEnv *, jclass) {
-  
+  return 0;
 };
 jint MonitorEnter(JNIEnv *, jobject) {  };
 jint MonitorExit(JNIEnv *, jobject) {  };
