@@ -592,9 +592,10 @@ jthrowable ExceptionOccurred(JNIEnv *) {
 void ExceptionDescribe(JNIEnv *) { Log::trace("jnienv", "ExceptionDescribe"); };
 void ExceptionClear(JNIEnv *) { Log::trace("jnienv", "ExceptionClear"); };
 void FatalError(JNIEnv *, const char *) { Log::trace("jnienv", "FatalError"); };
-jint PushLocalFrame(JNIEnv *, jint) { Log::trace("jnienv", "PushLocalFrame"); };
+jint PushLocalFrame(JNIEnv *, jint) { Log::trace("jnienv", "PushLocalFrame"); return 0; };
 jobject PopLocalFrame(JNIEnv *, jobject ob) {
   Log::trace("jnienv", "PopLocalFrame");
+  return 0;
 };
 jobject NewGlobalRef(JNIEnv *, jobject obj) {
   Log::trace("jnienv", "NewGlobalRef %d", (int)obj);
@@ -1006,9 +1007,11 @@ jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method,
     Log::trace("Native", "%s, %s, %x", method->name, method->signature, (int)method->fnPtr);
     method++;
   }
+  return 0;
 };
 jint UnregisterNatives(JNIEnv *, jclass) {
   Log::trace("jnienv", "UnregisterNatives");
+  return 0;
 };
 jint MonitorEnter(JNIEnv *, jobject) { Log::trace("jnienv", "MonitorEnter"); };
 jint MonitorExit(JNIEnv *, jobject) { Log::trace("jnienv", "MonitorExit"); };
