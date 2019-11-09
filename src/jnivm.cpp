@@ -7,6 +7,7 @@
 #include <string>
 #include <climits>
 #include <sstream>
+#include <unordered_map>
 
 using namespace jnivm;
 
@@ -52,7 +53,7 @@ const char *ParseJNIType(const char *cur, const char *end, std::string &type) {
   return cur;
 }
 
-const char * ParseJNIValue(const char *cur, const char *end, va_list list, jvalue *value) {
+const char * SkipJNIType(const char *cur, const char *end) {
     switch (*cur) {
     case 'V':
         // Void has size 0 ignore it
@@ -60,32 +61,24 @@ const char * ParseJNIValue(const char *cur, const char *end, va_list list, jvalu
     case 'Z':
     case 'B':
     case 'S':
-        // These are promoted to int (gcc warning)
-        if(value) value->z = va_arg(list, int);
-        break;
     case 'I':
-        if(value) value->i = va_arg(list, jint);
-        break;
     case 'J':
-        if(value) value->j = va_arg(list, jlong);
-        break;
     case 'F':
     case 'D':
-        if(value) value->d = va_arg(list, jdouble);
         break;
     case '[':
-        cur = ParseJNIValue(cur + 1, end, list, nullptr);
-        if(value) value->l = va_arg(list, jobject);
+        cur = SkipJNIType(cur + 1, end);
         break;
     case 'L':
         cur = std::find(cur, end, ';');
-        if(value) value->l = va_arg(list, jobject);
         break;
     case '(':
-        return ParseJNIValue(cur + 1, end, list, value);
+        return SkipJNIType(cur + 1, end);
     }
     return cur + 1;
 }
+
+
 
 const char * GetParamCount(const char *cur, const char *end, size_t& count) {
     switch (*cur) {
@@ -122,7 +115,36 @@ std::vector<jvalue> JValuesfromValist(va_list list, const char* signature) {
     const char* end = signature + strlen(signature);
     for(size_t i = 0; *signature != ')' && signature != end; ++i) {
         values.emplace_back();
-        signature = ParseJNIValue(signature, end, list, &values.back());
+        switch (*signature) {
+        case 'V':
+            // Void has size 0 ignore it
+            break;
+        case 'Z':
+        case 'B':
+        case 'S':
+            // These are promoted to int (gcc warning)
+            values.back().z = va_arg(list, int);
+            break;
+        case 'I':
+            values.back().i = va_arg(list, jint);
+            break;
+        case 'J':
+            values.back().j = va_arg(list, jlong);
+            break;
+        case 'F':
+        case 'D':
+            values.back().d = va_arg(list, jdouble);
+            break;
+        case '[':
+            signature = SkipJNIType(signature + 1, end);
+            values.back().l = va_arg(list, jobject);
+            break;
+        case 'L':
+            signature = std::find(signature, end, ';');
+            values.back().l = va_arg(list, jobject);
+            break;
+        }
+        signature++;
     }
     return values;
 }
@@ -351,6 +373,7 @@ public:
 
 class Class {
 public:
+  std::unordered_map<std::string, void*> natives;
   std::string name;
   std::string nativeprefix;
   std::vector<std::shared_ptr<Class>> classes;
@@ -625,7 +648,7 @@ jobject NewObject(JNIEnv *, jclass, jmethodID, ...) {
 };
 jobject NewObjectV(JNIEnv *env, jclass cl, jmethodID mid, va_list list) {
   
-  auto obj = new Object<void>{.cl = cl, .value = 0};
+  auto obj = new Object<void>{.cl = cl, .value = new int[10]};
   env->CallVoidMethodV((jobject)obj, mid, list);
   return (jobject)obj;
 };
@@ -996,7 +1019,7 @@ jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method,
                      jint i) {
   
   while(i--) {
-    
+    ((Class*)c)->natives[method->name] = method->fnPtr;
     method++;
   }
   return 0;
