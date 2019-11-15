@@ -819,7 +819,7 @@ jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
     auto This = dlopen(nullptr, RTLD_LAZY);
     std::string symbol = ((Class *)cl)->nativeprefix + str0;
     if (!(next->nativehandle = dlsym(This, symbol.data()))) {
-      
+      Log::trace("JNIBinding", "Unresolved symbol %s", symbol.data());      
     }
     dlclose(This);
   }
