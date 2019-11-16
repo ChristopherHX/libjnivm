@@ -630,21 +630,21 @@ void DeleteLocalRef(JNIEnv *, jobject) {
   
 };
 jboolean IsSameObject(JNIEnv *, jobject, jobject) {
-  
+  return 0;
 };
 jobject NewLocalRef(JNIEnv *, jobject obj) { 
    
   return obj;
   };
 jint EnsureLocalCapacity(JNIEnv *, jint) {
-  
+  return 0;
 };
 jobject AllocObject(JNIEnv *env, jclass cl) {
   
   return (jobject) new Object<void> { cl = cl };
 };
 jobject NewObject(JNIEnv *, jclass, jmethodID, ...) {
-  
+  return 0;
 };
 jobject NewObjectV(JNIEnv *env, jclass cl, jmethodID mid, va_list list) {
   
@@ -653,14 +653,14 @@ jobject NewObjectV(JNIEnv *env, jclass cl, jmethodID mid, va_list list) {
   return (jobject)obj;
 };
 jobject NewObjectA(JNIEnv *, jclass, jmethodID, jvalue *) {
-  
+  return 0;
 };
 jclass GetObjectClass(JNIEnv *env, jobject jo) {
   
   return ((Object<void> *)jo)->cl;
 };
 jboolean IsInstanceOf(JNIEnv *, jobject, jclass) {
-  
+  return 0;
 };
 jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
                       const char *str1) {
