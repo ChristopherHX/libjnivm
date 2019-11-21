@@ -521,9 +521,9 @@ public:
   }
 };
 
-jint GetVersion(JNIEnv *) {  };
+jint GetVersion(JNIEnv *) { return 0; };
 jclass DefineClass(JNIEnv *, const char *, jobject, const jbyte *, jsize) {
-  
+  return 0;
 };
 jclass FindClass(JNIEnv *env, const char *name) {
   
@@ -585,28 +585,28 @@ jclass FindClass(JNIEnv *env, const char *name) {
   return (jclass)curc;
 };
 jmethodID FromReflectedMethod(JNIEnv *, jobject) {
-  
+  return 0;  
 };
 jfieldID FromReflectedField(JNIEnv *, jobject) {
-  
+  return 0;
 };
 /* spec doesn't show jboolean parameter */
 jobject ToReflectedMethod(JNIEnv *, jclass, jmethodID, jboolean) {
-  
+  return 0;
 };
 jclass GetSuperclass(JNIEnv *, jclass) {
-  
+  return 0;
 };
 jboolean IsAssignableFrom(JNIEnv *, jclass, jclass) {
-  
+  return 0;
 };
 /* spec doesn't show jboolean parameter */
 jobject ToReflectedField(JNIEnv *, jclass, jfieldID, jboolean) {
-  
+  return 0;
 };
-jint Throw(JNIEnv *, jthrowable) {  };
+jint Throw(JNIEnv *, jthrowable) { return 0; };
 jint ThrowNew(JNIEnv *, jclass, const char *) {
-  
+  return 0;
 };
 jthrowable ExceptionOccurred(JNIEnv *) {
   
@@ -694,6 +694,16 @@ jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
   return (jmethodID)next;
 };
 
+void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
+  auto mid = ((Method *)id);
+  
+  if (mid->nativehandle) {
+    return ((void(*)(JNIEnv*, jobject, jvalue *))mid->nativehandle)(env, obj, param);
+  } else {
+    Log::debug("Error", "Unknown Function %s", mid->name.data());
+  }
+};
+
 template <class T>
 T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
   auto mid = ((Method *)id);
@@ -702,7 +712,12 @@ T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
     return ((T(*)(JNIEnv*, jobject, jvalue *))mid->nativehandle)(env, obj, param);
   } else {
     Log::debug("Error", "Unknown Function %s", mid->name.data());
+    return {};
   }
+};
+
+void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
+    return CallMethodV(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
 };
 
 template <class T>
@@ -713,10 +728,14 @@ T CallMethod(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
 template <class T>
 T CallMethod(JNIEnv * env, jobject obj, jmethodID id, ...) {
     ScopedVaList param;
-    size_t count;
-    GetParamCount(((Method *)id)->signature.data(), ((Method *)id)->signature.data() + ((Method *)id)->signature.length(), count);
-    va_start(param.list, count);
+    va_start(param.list, id);
     return CallMethod<T>(env, obj, id, param.list);
+};
+
+void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, ...) {
+    ScopedVaList param;
+    va_start(param.list, id);
+    return CallMethodV(env, obj, id, param.list);
 };
 
 template <class T>
@@ -725,6 +744,19 @@ T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, jvalu
   
   if (mid->nativehandle) {
     return ((T(*)(JNIEnv*, jobject, jvalue *))mid->nativehandle)(env, obj, param);
+  } else {
+    Log::debug("Error", "Unknown Function %s", mid->name.data());
+    return {};
+  }
+};
+
+void CallNonvirtualMethodV(JNIEnv * env, jobject obj, jclass cl, jmethodID id, jvalue * param) {
+  auto mid = ((Method *)id);
+  
+  if (mid->nativehandle) {
+    return ((void(*)(JNIEnv*, jobject, jvalue *))mid->nativehandle)(env, obj, param);
+  } else {
+    Log::debug("Error", "Unknown Function %s", mid->name.data());
   }
 };
 
@@ -733,13 +765,21 @@ T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, va_li
     return CallNonvirtualMethod<T>(env, obj, cl, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
 };
 
+void CallNonvirtualMethodV(JNIEnv * env, jobject obj, jclass cl, jmethodID id, va_list param) {
+    return CallNonvirtualMethodV(env, obj, cl, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
+};
+
 template <class T>
 T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, ...) {
     ScopedVaList param;
-    size_t count;
-    GetParamCount(((Method *)id)->signature.data(), ((Method *)id)->signature.data() + ((Method *)id)->signature.length(), count);
-    va_start(param.list, count);
+    va_start(param.list, id);
     return CallNonvirtualMethod<T>(env, obj, cl, id, param.list);
+};
+
+void CallNonvirtualMethodV(JNIEnv * env, jobject obj, jclass cl, jmethodID id, ...) {
+    ScopedVaList param;
+    va_start(param.list, id);
+    return CallNonvirtualMethodV(env, obj, cl, id, param.list);
 };
 
 jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name,
@@ -783,6 +823,9 @@ template <class T> T GetField(JNIEnv *, jobject obj, jfieldID id) {
   
   if (fid->getnativehandle) {
     return ((T(*)(jobject))fid->getnativehandle)(obj);
+  } else {
+    Log::debug("Error", "Unknown Field Getter %s", fid->name.data());
+    return {};
   }
 }
 
@@ -791,6 +834,8 @@ template <class T> void SetField(JNIEnv *, jobject obj, jfieldID id, T value) {
   
   if (fid->getnativehandle) {
     ((void (*)(jobject, T))fid->setnativehandle)(obj, value);
+  } else {
+    Log::debug("Error", "Unknown Field Setter %s", fid->name.data());
   }
 }
 
@@ -834,6 +879,17 @@ T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
     return ((T(*)(JNIEnv*, jvalue *))mid->nativehandle)(env, param);
   } else {
     Log::debug("Error", "Unknown Function %s", mid->name.data());
+    return {};
+  }
+};
+
+void CallStaticMethodV(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
+  auto mid = ((Method *)id);
+  
+  if (mid->nativehandle) {
+    return ((void(*)(JNIEnv*, jvalue *))mid->nativehandle)(env, param);
+  } else {
+    Log::debug("Error", "Unknown Function %s", mid->name.data());
   }
 };
 
@@ -842,13 +898,21 @@ T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, va_list param) {
     return CallStaticMethod<T>(env, cl, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
 };
 
+void CallStaticMethodV(JNIEnv * env, jclass cl, jmethodID id, va_list param) {
+    return CallStaticMethodV(env, cl, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
+};
+
 template <class T>
 T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, ...) {
     ScopedVaList param;
-    size_t count;
-    GetParamCount(((Method *)id)->signature.data(), ((Method *)id)->signature.data() + ((Method *)id)->signature.length(), count);
-    va_start(param.list, count);
+    va_start(param.list, id);
     return CallStaticMethod<T>(env, cl, id, param.list);
+};
+
+void CallStaticMethodV(JNIEnv * env, jclass cl, jmethodID id, ...) {
+    ScopedVaList param;
+    va_start(param.list, id);
+    return CallStaticMethodV(env, cl, id, param.list);
 };
 
 jfieldID GetStaticFieldID(JNIEnv *env, jclass cl, const char *name,
@@ -893,6 +957,9 @@ template <class T> T GetStaticField(JNIEnv *, jclass cl, jfieldID id) {
   
   if (fid->getnativehandle) {
     return ((T(*)())fid->getnativehandle)();
+  } else {
+    Log::debug("Error", "Unknown Field Getter %s", fid->name.data());
+    return {};
   }
 }
 
@@ -902,6 +969,8 @@ void SetStaticField(JNIEnv *, jclass cl, jfieldID id, T value) {
   
   if (fid->getnativehandle) {
     ((void (*)(T))fid->setnativehandle)(value);
+  } else {
+    Log::debug("Error", "Unknown Field Setter %s", fid->name.data());
   }
 }
 
@@ -918,6 +987,7 @@ jstring NewString(JNIEnv *, const jchar * str, jsize size) {
   // }
   // return (jstring)(
   //     new Object<std::string>{.cl = 0, .value = new std::string(ss.str())});
+  return 0;
 };
 jsize GetStringLength(JNIEnv *env, jstring str) {
   
@@ -930,6 +1000,7 @@ jsize GetStringLength(JNIEnv *env, jstring str) {
   // while(cur != end && (count = std::mbrtoc16((char16_t*)&dummy, cur, end - cur, &state)) > 0) {
   //   cur += count, length++;
   // }
+  return 0;
 };
 const jchar *GetStringChars(JNIEnv * env, jstring str, jboolean * copy) {
   
@@ -963,7 +1034,7 @@ const char *GetStringUTFChars(JNIEnv *, jstring str, jboolean *copy) {
   
   return str && ((Object<std::string> *)str)->value
              ? ((Object<std::string> *)str)->value->data()
-             : "daa78df1-373a-444d-9b1d-4c71a14bb559";
+             : nullptr;
 };
 void ReleaseStringUTFChars(JNIEnv *, jstring, const char *) {
   
@@ -1031,8 +1102,8 @@ jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method,
 jint UnregisterNatives(JNIEnv *, jclass) {
   return 0;
 };
-jint MonitorEnter(JNIEnv *, jobject) {  };
-jint MonitorExit(JNIEnv *, jobject) {  };
+jint MonitorEnter(JNIEnv *, jobject) { return 0; };
+jint MonitorExit(JNIEnv *, jobject) { return 0; };
 jint GetJavaVM(JNIEnv * env, JavaVM ** vm) {
   *vm = (JavaVM *)env->functions->reserved1;
   return 0;
@@ -1078,17 +1149,17 @@ jboolean ExceptionCheck(JNIEnv *) {
 return JNI_FALSE;
  };
 jobject NewDirectByteBuffer(JNIEnv *, void *, jlong) {
-  
+  return 0;  
 };
 void *GetDirectBufferAddress(JNIEnv *, jobject) {
-  
+  return 0;  
 };
 jlong GetDirectBufferCapacity(JNIEnv *, jobject) {
-  
+  return 0;
 };
 /* added in JNI 1.6 */
 jobjectRefType GetObjectRefType(JNIEnv *, jobject) {
-  
+  return jobjectRefType::JNIInvalidRefType;
 };
 
 JavaVM *jnivm::createJNIVM() {
@@ -1157,9 +1228,9 @@ JavaVM *jnivm::createJNIVM() {
       CallMethod<jdouble>,
       CallMethod<jdouble>,
       CallMethod<jdouble>,
-      CallMethod<void>,
-      CallMethod<void>,
-      CallMethod<void>,
+      CallMethodV,
+      CallMethodV,
+      CallMethodV,
       CallNonvirtualMethod<jobject>,
       CallNonvirtualMethod<jobject>,
       CallNonvirtualMethod<jobject>,
@@ -1187,9 +1258,9 @@ JavaVM *jnivm::createJNIVM() {
       CallNonvirtualMethod<jdouble>,
       CallNonvirtualMethod<jdouble>,
       CallNonvirtualMethod<jdouble>,
-      CallNonvirtualMethod<void>,
-      CallNonvirtualMethod<void>,
-      CallNonvirtualMethod<void>,
+      CallNonvirtualMethodV,
+      CallNonvirtualMethodV,
+      CallNonvirtualMethodV,
       GetFieldID,
       GetField<jobject>,
       GetField<jboolean>,
@@ -1237,9 +1308,9 @@ JavaVM *jnivm::createJNIVM() {
       CallStaticMethod<jdouble>,
       CallStaticMethod<jdouble>,
       CallStaticMethod<jdouble>,
-      CallStaticMethod<void>,
-      CallStaticMethod<void>,
-      CallStaticMethod<void>,
+      CallStaticMethodV,
+      CallStaticMethodV,
+      CallStaticMethodV,
       GetStaticFieldID,
       GetStaticField<jobject>,
       GetStaticField<jboolean>,
@@ -1335,7 +1406,7 @@ JavaVM *jnivm::createJNIVM() {
   }};
   auto vm = new JavaVM{new JNIInvokeInterface{
       env,
-      NULL,
+      new Lifecycle(),
       NULL,
       [](JavaVM *) -> jint {
         

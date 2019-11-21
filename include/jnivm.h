@@ -1,6 +1,9 @@
 #pragma once
 #include <string>
 #include <jni.h>
+#include <stack>
+#include <vector>
+#include <memory>
 
 namespace jnivm {
 
@@ -16,6 +19,8 @@ namespace jnivm {
         T* value;
         jsize length;
     };
+
+    using Lifecycle = std::stack<std::vector<std::shared_ptr<Object<void>>>>;
 
     template <class T> struct JNITypes { using Array = jarray; };
 
