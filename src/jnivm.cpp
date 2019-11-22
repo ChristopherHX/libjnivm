@@ -7,6 +7,7 @@
 #include <string>
 #include <climits>
 #include <sstream>
+#include <unordered_map>
 
 using namespace jnivm;
 
@@ -52,7 +53,7 @@ const char *ParseJNIType(const char *cur, const char *end, std::string &type) {
   return cur;
 }
 
-const char * ParseJNIValue(const char *cur, const char *end, va_list list, jvalue *value) {
+const char * SkipJNIType(const char *cur, const char *end) {
     switch (*cur) {
     case 'V':
         // Void has size 0 ignore it
@@ -60,32 +61,24 @@ const char * ParseJNIValue(const char *cur, const char *end, va_list list, jvalu
     case 'Z':
     case 'B':
     case 'S':
-        // These are promoted to int (gcc warning)
-        if(value) value->z = va_arg(list, int);
-        break;
     case 'I':
-        if(value) value->i = va_arg(list, jint);
-        break;
     case 'J':
-        if(value) value->j = va_arg(list, jlong);
-        break;
     case 'F':
     case 'D':
-        if(value) value->d = va_arg(list, jdouble);
         break;
     case '[':
-        cur = ParseJNIValue(cur + 1, end, list, nullptr);
-        if(value) value->l = va_arg(list, jobject);
+        cur = SkipJNIType(cur + 1, end);
         break;
     case 'L':
         cur = std::find(cur, end, ';');
-        if(value) value->l = va_arg(list, jobject);
         break;
     case '(':
-        return ParseJNIValue(cur + 1, end, list, value);
+        return SkipJNIType(cur + 1, end);
     }
     return cur + 1;
 }
+
+
 
 const char * GetParamCount(const char *cur, const char *end, size_t& count) {
     switch (*cur) {
@@ -122,7 +115,36 @@ std::vector<jvalue> JValuesfromValist(va_list list, const char* signature) {
     const char* end = signature + strlen(signature);
     for(size_t i = 0; *signature != ')' && signature != end; ++i) {
         values.emplace_back();
-        signature = ParseJNIValue(signature, end, list, &values.back());
+        switch (*signature) {
+        case 'V':
+            // Void has size 0 ignore it
+            break;
+        case 'Z':
+        case 'B':
+        case 'S':
+            // These are promoted to int (gcc warning)
+            values.back().z = va_arg(list, int);
+            break;
+        case 'I':
+            values.back().i = va_arg(list, jint);
+            break;
+        case 'J':
+            values.back().j = va_arg(list, jlong);
+            break;
+        case 'F':
+        case 'D':
+            values.back().d = va_arg(list, jdouble);
+            break;
+        case '[':
+            signature = SkipJNIType(signature + 1, end);
+            values.back().l = va_arg(list, jobject);
+            break;
+        case 'L':
+            signature = std::find(signature, end, ';');
+            values.back().l = va_arg(list, jobject);
+            break;
+        }
+        signature++;
     }
     return values;
 }
@@ -351,6 +373,7 @@ public:
 
 class Class {
 public:
+  std::unordered_map<std::string, void*> natives;
   std::string name;
   std::string nativeprefix;
   std::vector<std::shared_ptr<Class>> classes;
@@ -498,12 +521,12 @@ public:
   }
 };
 
-jint GetVersion(JNIEnv *) { Log::trace("jnienv", "GetVersion"); };
+jint GetVersion(JNIEnv *) { return 0; };
 jclass DefineClass(JNIEnv *, const char *, jobject, const jbyte *, jsize) {
-  Log::trace("jnienv", "DefineClass");
+  return 0;
 };
 jclass FindClass(JNIEnv *env, const char *name) {
-  Log::trace("jnienv", "FindClass %s", name);
+  
   auto prefix = std::regex_replace(name, std::regex("(/|\\$)"), "_") + '_';
   auto end = name + strlen(name);
   auto pos = name;
@@ -562,33 +585,34 @@ jclass FindClass(JNIEnv *env, const char *name) {
   return (jclass)curc;
 };
 jmethodID FromReflectedMethod(JNIEnv *, jobject) {
-  Log::trace("jnienv", "FromReflectedMethod");
+  return 0;  
 };
 jfieldID FromReflectedField(JNIEnv *, jobject) {
-  Log::trace("jnienv", "FromReflectedField");
+  return 0;
 };
 /* spec doesn't show jboolean parameter */
 jobject ToReflectedMethod(JNIEnv *, jclass, jmethodID, jboolean) {
-  Log::trace("jnienv", "ToReflectedMethod");
+  return 0;
 };
 jclass GetSuperclass(JNIEnv *, jclass) {
-  Log::trace("jnienv", "GetSuperclass");
+  return 0;
 };
 jboolean IsAssignableFrom(JNIEnv *, jclass, jclass) {
-  Log::trace("jnienv", "IsAssignableFrom");
+  return 0;
 };
 /* spec doesn't show jboolean parameter */
 jobject ToReflectedField(JNIEnv *, jclass, jfieldID, jboolean) {
-  Log::trace("jnienv", "ToReflectedField");
+  return 0;
 };
-jint Throw(JNIEnv *, jthrowable) { Log::trace("jnienv", "Throw"); };
+jint Throw(JNIEnv *, jthrowable) { return 0; };
 jint ThrowNew(JNIEnv *, jclass, const char *) {
-  Log::trace("jnienv", "ThrowNew");
+  return 0;
 };
 jthrowable ExceptionOccurred(JNIEnv *) {
-  Log::trace("jnienv", "ExceptionOccurred");
+  
   return (jthrowable)0;
 };
+<<<<<<< HEAD
 void ExceptionDescribe(JNIEnv *) { Log::trace("jnienv", "ExceptionDescribe"); };
 void ExceptionClear(JNIEnv *) { Log::trace("jnienv", "ExceptionClear"); };
 void FatalError(JNIEnv *, const char *) { Log::trace("jnienv", "FatalError"); };
@@ -598,53 +622,52 @@ jobject PopLocalFrame(JNIEnv *, jobject ob) {
   return 0;
 };
 jobject NewGlobalRef(JNIEnv *, jobject obj) {
-  Log::trace("jnienv", "NewGlobalRef %d", (int)obj);
+  
   return obj;
 };
 void DeleteGlobalRef(JNIEnv *, jobject) {
-  Log::trace("jnienv", "DeleteGlobalRef");
+  
 };
 void DeleteLocalRef(JNIEnv *, jobject) {
-  Log::trace("jnienv", "DeleteLocalRef");
+  
 };
 jboolean IsSameObject(JNIEnv *, jobject, jobject) {
-  Log::trace("jnienv", "IsSameObject");
+  return 0;
 };
 jobject NewLocalRef(JNIEnv *, jobject obj) { 
-  Log::trace("jnienv", "NewLocalRef"); 
+   
   return obj;
   };
 jint EnsureLocalCapacity(JNIEnv *, jint) {
-  Log::trace("jnienv", "EnsureLocalCapacity");
+  return 0;
 };
 jobject AllocObject(JNIEnv *env, jclass cl) {
-  Log::trace("jnienv", "AllocObject");
-  // return (jobject) new Object<> { cl = cl };
+  
+  return (jobject) new Object<void> { cl = cl };
 };
 jobject NewObject(JNIEnv *, jclass, jmethodID, ...) {
-  Log::trace("jnienv", "NewObject");
+  return 0;
 };
 jobject NewObjectV(JNIEnv *env, jclass cl, jmethodID mid, va_list list) {
-  Log::trace("jnienv", "NewObjectV");
-  auto obj = new Object<void>{.cl = cl, .value = 0};
+  
+  auto obj = new Object<void>{.cl = cl, .value = new int[10]};
   env->CallVoidMethodV((jobject)obj, mid, list);
   return (jobject)obj;
 };
 jobject NewObjectA(JNIEnv *, jclass, jmethodID, jvalue *) {
-  Log::trace("jnienv", "NewObjectA");
+  return 0;
 };
 jclass GetObjectClass(JNIEnv *env, jobject jo) {
-  Log::trace("jnienv", "GetObjectClass %d", jo);
+  
   return ((Object<void> *)jo)->cl;
 };
 jboolean IsInstanceOf(JNIEnv *, jobject, jclass) {
-  Log::trace("jnienv", "IsInstanceOf");
+  return 0;
 };
 jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
                       const char *str1) {
   std::string &classname = ((Class *)cl)->name;
-  Log::trace("jnienv", "GetMethodID(%s, '%s','%s')", classname.data(), str0,
-             str1);
+  
   auto cur = (Class *)cl;
   auto sname = str0;
   auto ssig = str1;
@@ -667,22 +690,36 @@ jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
                          (!strcmp(str0, "<init>") ? classname : str0);
     if (!(next->nativehandle = dlsym(This, symbol.data()))) {
       Log::trace("JNIBinding", "Unresolved symbol %s", symbol.data());
-      Log::debug("MissingHeader", "%s", next->GenerateHeader(((Class *)cl)->nativeprefix).data());
-      Log::debug("MissingStub", "%s", next->GenerateStubs(((Class *)cl)->nativeprefix, "").data());
-      Log::debug("Missing wrapper", "%s", next->GenerateJNIBinding(((Class *)cl)->nativeprefix, "").data());
     }
     dlclose(This);
   }
   return (jmethodID)next;
 };
 
+void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
+  auto mid = ((Method *)id);
+  
+  if (mid->nativehandle) {
+    return ((void(*)(JNIEnv*, jobject, jvalue *))mid->nativehandle)(env, obj, param);
+  } else {
+    Log::debug("Error", "Unknown Function %s", mid->name.data());
+  }
+};
+
 template <class T>
 T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
   auto mid = ((Method *)id);
-  Log::trace("jnienv", "CallMethod %s", mid->name.data());
+  
   if (mid->nativehandle) {
     return ((T(*)(JNIEnv*, jobject, jvalue *))mid->nativehandle)(env, obj, param);
+  } else {
+    Log::debug("Error", "Unknown Function %s", mid->name.data());
+    return {};
   }
+};
+
+void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
+    return CallMethodV(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
 };
 
 template <class T>
@@ -693,18 +730,35 @@ T CallMethod(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
 template <class T>
 T CallMethod(JNIEnv * env, jobject obj, jmethodID id, ...) {
     ScopedVaList param;
-    size_t count;
-    GetParamCount(((Method *)id)->signature.data(), ((Method *)id)->signature.data() + ((Method *)id)->signature.length(), count);
-    va_start(param.list, count);
+    va_start(param.list, id);
     return CallMethod<T>(env, obj, id, param.list);
+};
+
+void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, ...) {
+    ScopedVaList param;
+    va_start(param.list, id);
+    return CallMethodV(env, obj, id, param.list);
 };
 
 template <class T>
 T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, jvalue * param) {
   auto mid = ((Method *)id);
-  Log::trace("jnienv", "CallNonvirtualMethod %s", mid->name.data());
+  
   if (mid->nativehandle) {
     return ((T(*)(JNIEnv*, jobject, jvalue *))mid->nativehandle)(env, obj, param);
+  } else {
+    Log::debug("Error", "Unknown Function %s", mid->name.data());
+    return {};
+  }
+};
+
+void CallNonvirtualMethodV(JNIEnv * env, jobject obj, jclass cl, jmethodID id, jvalue * param) {
+  auto mid = ((Method *)id);
+  
+  if (mid->nativehandle) {
+    return ((void(*)(JNIEnv*, jobject, jvalue *))mid->nativehandle)(env, obj, param);
+  } else {
+    Log::debug("Error", "Unknown Function %s", mid->name.data());
   }
 };
 
@@ -713,20 +767,27 @@ T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, va_li
     return CallNonvirtualMethod<T>(env, obj, cl, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
 };
 
+void CallNonvirtualMethodV(JNIEnv * env, jobject obj, jclass cl, jmethodID id, va_list param) {
+    return CallNonvirtualMethodV(env, obj, cl, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
+};
+
 template <class T>
 T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, ...) {
     ScopedVaList param;
-    size_t count;
-    GetParamCount(((Method *)id)->signature.data(), ((Method *)id)->signature.data() + ((Method *)id)->signature.length(), count);
-    va_start(param.list, count);
+    va_start(param.list, id);
     return CallNonvirtualMethod<T>(env, obj, cl, id, param.list);
+};
+
+void CallNonvirtualMethodV(JNIEnv * env, jobject obj, jclass cl, jmethodID id, ...) {
+    ScopedVaList param;
+    va_start(param.list, id);
+    return CallNonvirtualMethodV(env, obj, cl, id, param.list);
 };
 
 jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name,
                     const char *type) {
   std::string &classname = ((Class *)cl)->name;
-  Log::trace("jnienv", "GetFieldID(%s, '%s','%s')", classname.data(), name,
-             type);
+  
   auto cur = (Class *)cl;
   auto sname = name;
   auto ssig = type;
@@ -749,10 +810,10 @@ jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name,
     std::string gsymbol = "get_" + symbol;
     std::string ssymbol = "set_" + symbol;
     if (!(next->setnativehandle = dlsym(This, ssymbol.data()))) {
-      Log::trace("JNIBinding", "Unresolved symbol %s", symbol.data());
+      
     }
     if (!(next->getnativehandle = dlsym(This, gsymbol.data()))) {
-      Log::trace("JNIBinding", "Unresolved symbol %s", symbol.data());
+      
     }
     dlclose(This);
   }
@@ -761,25 +822,29 @@ jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name,
 
 template <class T> T GetField(JNIEnv *, jobject obj, jfieldID id) {
   auto fid = ((Field *)id);
-  Log::trace("jnienv", "GetField %s", fid->name.data());
+  
   if (fid->getnativehandle) {
     return ((T(*)(jobject))fid->getnativehandle)(obj);
+  } else {
+    Log::debug("Error", "Unknown Field Getter %s", fid->name.data());
+    return {};
   }
 }
 
 template <class T> void SetField(JNIEnv *, jobject obj, jfieldID id, T value) {
   auto fid = ((Field *)id);
-  Log::trace("jnienv", "SetField %s", fid->name.data());
+  
   if (fid->getnativehandle) {
     ((void (*)(jobject, T))fid->setnativehandle)(obj, value);
+  } else {
+    Log::debug("Error", "Unknown Field Setter %s", fid->name.data());
   }
 }
 
 jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
                             const char *str1) {
   std::string &classname = ((Class *)cl)->name;
-  Log::trace("jnienv", "GetStaticMethodID(%s, '%s','%s')", classname.data(),
-             str0, str1);
+  
   auto cur = (Class *)cl;
   auto sname = str0;
   auto ssig = str1;
@@ -801,7 +866,7 @@ jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
     auto This = dlopen(nullptr, RTLD_LAZY);
     std::string symbol = ((Class *)cl)->nativeprefix + str0;
     if (!(next->nativehandle = dlsym(This, symbol.data()))) {
-      Log::trace("JNIBinding", "Unresolved symbol %s", symbol.data());
+      Log::trace("JNIBinding", "Unresolved symbol %s", symbol.data());      
     }
     dlclose(This);
   }
@@ -811,9 +876,22 @@ jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
 template <class T>
 T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
   auto mid = ((Method *)id);
-  Log::trace("jnienv", "CallStaticMethod %s", mid->name.data());
+  
   if (mid->nativehandle) {
     return ((T(*)(JNIEnv*, jvalue *))mid->nativehandle)(env, param);
+  } else {
+    Log::debug("Error", "Unknown Function %s", mid->name.data());
+    return {};
+  }
+};
+
+void CallStaticMethodV(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
+  auto mid = ((Method *)id);
+  
+  if (mid->nativehandle) {
+    return ((void(*)(JNIEnv*, jvalue *))mid->nativehandle)(env, param);
+  } else {
+    Log::debug("Error", "Unknown Function %s", mid->name.data());
   }
 };
 
@@ -822,20 +900,27 @@ T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, va_list param) {
     return CallStaticMethod<T>(env, cl, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
 };
 
+void CallStaticMethodV(JNIEnv * env, jclass cl, jmethodID id, va_list param) {
+    return CallStaticMethodV(env, cl, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
+};
+
 template <class T>
 T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, ...) {
     ScopedVaList param;
-    size_t count;
-    GetParamCount(((Method *)id)->signature.data(), ((Method *)id)->signature.data() + ((Method *)id)->signature.length(), count);
-    va_start(param.list, count);
+    va_start(param.list, id);
     return CallStaticMethod<T>(env, cl, id, param.list);
+};
+
+void CallStaticMethodV(JNIEnv * env, jclass cl, jmethodID id, ...) {
+    ScopedVaList param;
+    va_start(param.list, id);
+    return CallStaticMethodV(env, cl, id, param.list);
 };
 
 jfieldID GetStaticFieldID(JNIEnv *env, jclass cl, const char *name,
                           const char *type) {
   std::string &classname = ((Class *)cl)->name;
-  Log::trace("jnienv", "GetStaticFieldID(%s, '%s','%s')", classname.data(), name,
-             type);
+  
   auto cur = (Class *)cl;
   auto sname = name;
   auto ssig = type;
@@ -859,10 +944,10 @@ jfieldID GetStaticFieldID(JNIEnv *env, jclass cl, const char *name,
     std::string gsymbol = "get_" + symbol;
     std::string ssymbol = "set_" + symbol;
     if (!(next->setnativehandle = dlsym(This, ssymbol.data()))) {
-      Log::trace("JNIBinding", "Unresolved symbol %s", symbol.data());
+      
     }
     if (!(next->getnativehandle = dlsym(This, gsymbol.data()))) {
-      Log::trace("JNIBinding", "Unresolved symbol %s", symbol.data());
+      
     }
     dlclose(This);
   }
@@ -871,23 +956,28 @@ jfieldID GetStaticFieldID(JNIEnv *env, jclass cl, const char *name,
 
 template <class T> T GetStaticField(JNIEnv *, jclass cl, jfieldID id) {
   auto fid = ((Field *)id);
-  Log::trace("jnienv", "GetStaticField %s", fid->name.data());
+  
   if (fid->getnativehandle) {
     return ((T(*)())fid->getnativehandle)();
+  } else {
+    Log::debug("Error", "Unknown Field Getter %s", fid->name.data());
+    return {};
   }
 }
 
 template <class T>
 void SetStaticField(JNIEnv *, jclass cl, jfieldID id, T value) {
   auto fid = ((Field *)id);
-  Log::trace("jnienv", "SetStaticField %s", fid->name.data());
+  
   if (fid->getnativehandle) {
     ((void (*)(T))fid->setnativehandle)(value);
+  } else {
+    Log::debug("Error", "Unknown Field Setter %s", fid->name.data());
   }
 }
 
 jstring NewString(JNIEnv *, const jchar * str, jsize size) {
-  Log::trace("jnienv", "NewString");
+  
   // std::stringstream ss;
   // std::mbstate_t state{};
   // char out[MB_LEN_MAX]{};
@@ -899,9 +989,10 @@ jstring NewString(JNIEnv *, const jchar * str, jsize size) {
   // }
   // return (jstring)(
   //     new Object<std::string>{.cl = 0, .value = new std::string(ss.str())});
+  return 0;
 };
 jsize GetStringLength(JNIEnv *env, jstring str) {
-  Log::trace("jnienv", "GetStringLength");
+  
   // std::mbstate_t state{};
   // std::string * cstr = ((Object<std::string>*)str)->value;
   // size_t count = 0;
@@ -911,9 +1002,10 @@ jsize GetStringLength(JNIEnv *env, jstring str) {
   // while(cur != end && (count = std::mbrtoc16((char16_t*)&dummy, cur, end - cur, &state)) > 0) {
   //   cur += count, length++;
   // }
+  return 0;
 };
 const jchar *GetStringChars(JNIEnv * env, jstring str, jboolean * copy) {
-  Log::trace("jnienv", "GetStringChars");
+  
   if(copy) {
     *copy = true;
   }
@@ -923,16 +1015,16 @@ const jchar *GetStringChars(JNIEnv * env, jstring str, jboolean * copy) {
   return jstr;
 };
 void ReleaseStringChars(JNIEnv * env, jstring str, const jchar * cstr) {
-  Log::trace("jnienv", "ReleaseStringChars");
+  
   delete cstr;
 };
 jstring NewStringUTF(JNIEnv *, const char *str) {
-  Log::trace("jnienv", "NewStringUTF %s", str);
+  
   return (jstring)(
       new Object<std::string>{.cl = 0, .value = new std::string(str)});
 };
 jsize GetStringUTFLength(JNIEnv *, jstring str) {
-  Log::trace("jnienv", "GetStringUTFLength");
+  
   return str && ((Object<std::string> *)str)->value
              ? ((Object<std::string> *)str)->value->length() : 36;
 };
@@ -941,39 +1033,39 @@ const char *GetStringUTFChars(JNIEnv *, jstring str, jboolean *copy) {
   if (copy) {
     *copy = false;
   }
-  Log::trace("jnienv", "GetStringUTFChars");
+  
   return str && ((Object<std::string> *)str)->value
              ? ((Object<std::string> *)str)->value->data()
-             : "daa78df1-373a-444d-9b1d-4c71a14bb559";
+             : nullptr;
 };
 void ReleaseStringUTFChars(JNIEnv *, jstring, const char *) {
-  Log::trace("jnienv", "ReleaseStringUTFChars");
+  
 };
 jsize GetArrayLength(JNIEnv *, jarray a) {
-  Log::trace("jnienv", "GetArrayLength");
+  
   return a ? ((Array<void> *)a)->length : 0;
 };
 jobjectArray NewObjectArray(JNIEnv *, jsize size, jclass c, jobject init) {
-  Log::trace("jnienv", "NewObjectArray");
+  
   return (jobjectArray)new Array<jobject> { .cl = 0, .value = new jobject[size] {init} , .length = size };
 };
 jobject GetObjectArrayElement(JNIEnv *, jobjectArray a, jsize i ) {
-  Log::trace("jnienv", "GetObjectArrayElement");
+  
   return ((Array<jobject>*)a)->value[i];
 };
 void SetObjectArrayElement(JNIEnv *, jobjectArray a, jsize i, jobject v) {
-  Log::trace("jnienv", "SetObjectArrayElement");
+  
   ((Array<jobject>*)a)->value[i] = v;
 };
 
 template <class T> typename JNITypes<T>::Array NewArray(JNIEnv * env, jsize size) {
-  Log::trace("jnienv", "NewArray");
+  
   return (typename JNITypes<T>::Array)new Array<T> { .cl = 0, .value = new T[size], .length = size };
 };
 
 template <class T>
 T *GetArrayElements(JNIEnv *, typename JNITypes<T>::Array a, jboolean *iscopy) {
-  Log::trace("jnienv", "GetArrayElements");
+  
   if (iscopy) {
     *iscopy = false;
   }
@@ -982,12 +1074,12 @@ T *GetArrayElements(JNIEnv *, typename JNITypes<T>::Array a, jboolean *iscopy) {
 
 template <class T>
 void ReleaseArrayElements(JNIEnv *, typename JNITypes<T>::Array a, T *carr, jint) {
-  Log::trace("jnienv", "ReleaseArrayElements");
+  
 };
 
 template <class T>
 void GetArrayRegion(JNIEnv *, typename JNITypes<T>::Array a, jsize start, jsize len, T * buf) {
-  Log::trace("jnienv", "GetArrayRegion");
+  
   auto arr = (Array<T> *)a;
   std::copy(arr->value + start, arr->value + start + len, buf);
 };
@@ -995,16 +1087,16 @@ void GetArrayRegion(JNIEnv *, typename JNITypes<T>::Array a, jsize start, jsize 
 /* spec shows these without const; some jni.h do, some don't */
 template <class T>
 void SetArrayRegion(JNIEnv *, typename JNITypes<T>::Array a, jsize start, jsize len, const T * buf) {
-  Log::trace("jnienv", "SetArrayRegion");
+  
   auto arr = (Array<T> *)a;
   std::copy(buf, buf + len, arr->value + start);
 };
 
 jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method,
                      jint i) {
-  Log::trace("jnienv", "RegisterNatives %s", ((Class*)c)->name.data());
+  
   while(i--) {
-    Log::trace("Native", "%s, %s, %x", method->name, method->signature, (int)method->fnPtr);
+    ((Class*)c)->natives[method->name] = method->fnPtr;
     method++;
   }
   return 0;
@@ -1013,11 +1105,14 @@ jint UnregisterNatives(JNIEnv *, jclass) {
   Log::trace("jnienv", "UnregisterNatives");
   return 0;
 };
-jint MonitorEnter(JNIEnv *, jobject) { Log::trace("jnienv", "MonitorEnter"); };
-jint MonitorExit(JNIEnv *, jobject) { Log::trace("jnienv", "MonitorExit"); };
-jint GetJavaVM(JNIEnv *, JavaVM **) { Log::trace("jnienv", "GetJavaVM"); };
+jint MonitorEnter(JNIEnv *, jobject) { return 0; };
+jint MonitorExit(JNIEnv *, jobject) { return 0; };
+jint GetJavaVM(JNIEnv * env, JavaVM ** vm) {
+  *vm = (JavaVM *)env->functions->reserved1;
+  return 0;
+};
 void GetStringRegion(JNIEnv *, jstring str, jsize start, jsize length, jchar * buf) {
-  // Log::trace("jnienv", "GetStringRegion");
+  // 
   // std::mbstate_t state{};
   // std::string * cstr = ((Object<std::string>*)str)->value;
   // int count = 0;
@@ -1031,7 +1126,7 @@ void GetStringRegion(JNIEnv *, jstring str, jsize start, jsize length, jchar * b
   // }
 };
 void GetStringUTFRegion(JNIEnv *, jstring str, jsize start, jsize len, char * buf) {
-  // Log::trace("jnienv", "GetStringUTFRegion");
+  // 
   // std::mbstate_t state{};
   // std::string * cstr = ((Object<std::string>*)str)->value;
   // int count = 0;
@@ -1047,298 +1142,302 @@ void GetStringUTFRegion(JNIEnv *, jstring str, jsize start, jsize len, char * bu
   // }
 };
 jweak NewWeakGlobalRef(JNIEnv *, jobject obj) {
-  Log::trace("jnienv", "NewWeakGlobalRef");
+  
   return obj;
 };
 void DeleteWeakGlobalRef(JNIEnv *, jweak) {
-  Log::trace("jnienv", "DeleteWeakGlobalRef");
+  
 };
-jboolean ExceptionCheck(JNIEnv *) { Log::trace("jnienv", "ExceptionCheck");
+jboolean ExceptionCheck(JNIEnv *) { 
 return JNI_FALSE;
  };
 jobject NewDirectByteBuffer(JNIEnv *, void *, jlong) {
-  Log::trace("jnienv", "NewDirectByteBuffer");
+  return 0;  
 };
 void *GetDirectBufferAddress(JNIEnv *, jobject) {
-  Log::trace("jnienv", "GetDirectBufferAddress");
+  return 0;  
 };
 jlong GetDirectBufferCapacity(JNIEnv *, jobject) {
-  Log::trace("jnienv", "GetDirectBufferCapacity");
+  return 0;
 };
 /* added in JNI 1.6 */
 jobjectRefType GetObjectRefType(JNIEnv *, jobject) {
-  Log::trace("jnienv", "GetObjectRefType");
+  return jobjectRefType::JNIInvalidRefType;
 };
 
 JavaVM *jnivm::createJNIVM() {
-  return new JavaVM{new JNIInvokeInterface{
-      new JNIEnv{new JNINativeInterface{
-          new Namespace(),
-          NULL,
-          NULL,
-          NULL,
-          GetVersion,
-          DefineClass,
-          FindClass,
-          FromReflectedMethod,
-          FromReflectedField,
-          /* spec doesn't show jboolean parameter */
-          ToReflectedMethod,
-          GetSuperclass,
-          IsAssignableFrom,
-          /* spec doesn't show jboolean parameter */
-          ToReflectedField,
-          Throw,
-          ThrowNew,
-          ExceptionOccurred,
-          ExceptionDescribe,
-          ExceptionClear,
-          FatalError,
-          PushLocalFrame,
-          PopLocalFrame,
-          NewGlobalRef,
-          DeleteGlobalRef,
-          DeleteLocalRef,
-          IsSameObject,
-          NewLocalRef,
-          EnsureLocalCapacity,
-          AllocObject,
-          NewObject,
-          NewObjectV,
-          NewObjectA,
-          GetObjectClass,
-          IsInstanceOf,
-          GetMethodID,
-          CallMethod<jobject>,
-          CallMethod<jobject>,
-          CallMethod<jobject>,
-          CallMethod<jboolean>,
-          CallMethod<jboolean>,
-          CallMethod<jboolean>,
-          CallMethod<jbyte>,
-          CallMethod<jbyte>,
-          CallMethod<jbyte>,
-          CallMethod<jchar>,
-          CallMethod<jchar>,
-          CallMethod<jchar>,
-          CallMethod<jshort>,
-          CallMethod<jshort>,
-          CallMethod<jshort>,
-          CallMethod<jint>,
-          CallMethod<jint>,
-          CallMethod<jint>,
-          CallMethod<jlong>,
-          CallMethod<jlong>,
-          CallMethod<jlong>,
-          CallMethod<jfloat>,
-          CallMethod<jfloat>,
-          CallMethod<jfloat>,
-          CallMethod<jdouble>,
-          CallMethod<jdouble>,
-          CallMethod<jdouble>,
-          CallMethod<void>,
-          CallMethod<void>,
-          CallMethod<void>,
-          CallNonvirtualMethod<jobject>,
-          CallNonvirtualMethod<jobject>,
-          CallNonvirtualMethod<jobject>,
-          CallNonvirtualMethod<jboolean>,
-          CallNonvirtualMethod<jboolean>,
-          CallNonvirtualMethod<jboolean>,
-          CallNonvirtualMethod<jbyte>,
-          CallNonvirtualMethod<jbyte>,
-          CallNonvirtualMethod<jbyte>,
-          CallNonvirtualMethod<jchar>,
-          CallNonvirtualMethod<jchar>,
-          CallNonvirtualMethod<jchar>,
-          CallNonvirtualMethod<jshort>,
-          CallNonvirtualMethod<jshort>,
-          CallNonvirtualMethod<jshort>,
-          CallNonvirtualMethod<jint>,
-          CallNonvirtualMethod<jint>,
-          CallNonvirtualMethod<jint>,
-          CallNonvirtualMethod<jlong>,
-          CallNonvirtualMethod<jlong>,
-          CallNonvirtualMethod<jlong>,
-          CallNonvirtualMethod<jfloat>,
-          CallNonvirtualMethod<jfloat>,
-          CallNonvirtualMethod<jfloat>,
-          CallNonvirtualMethod<jdouble>,
-          CallNonvirtualMethod<jdouble>,
-          CallNonvirtualMethod<jdouble>,
-          CallNonvirtualMethod<void>,
-          CallNonvirtualMethod<void>,
-          CallNonvirtualMethod<void>,
-          GetFieldID,
-          GetField<jobject>,
-          GetField<jboolean>,
-          GetField<jbyte>,
-          GetField<jchar>,
-          GetField<jshort>,
-          GetField<jint>,
-          GetField<jlong>,
-          GetField<jfloat>,
-          GetField<jdouble>,
-          SetField<jobject>,
-          SetField<jboolean>,
-          SetField<jbyte>,
-          SetField<jchar>,
-          SetField<jshort>,
-          SetField<jint>,
-          SetField<jlong>,
-          SetField<jfloat>,
-          SetField<jdouble>,
-          GetStaticMethodID,
-          CallStaticMethod<jobject>,
-          CallStaticMethod<jobject>,
-          CallStaticMethod<jobject>,
-          CallStaticMethod<jboolean>,
-          CallStaticMethod<jboolean>,
-          CallStaticMethod<jboolean>,
-          CallStaticMethod<jbyte>,
-          CallStaticMethod<jbyte>,
-          CallStaticMethod<jbyte>,
-          CallStaticMethod<jchar>,
-          CallStaticMethod<jchar>,
-          CallStaticMethod<jchar>,
-          CallStaticMethod<jshort>,
-          CallStaticMethod<jshort>,
-          CallStaticMethod<jshort>,
-          CallStaticMethod<jint>,
-          CallStaticMethod<jint>,
-          CallStaticMethod<jint>,
-          CallStaticMethod<jlong>,
-          CallStaticMethod<jlong>,
-          CallStaticMethod<jlong>,
-          CallStaticMethod<jfloat>,
-          CallStaticMethod<jfloat>,
-          CallStaticMethod<jfloat>,
-          CallStaticMethod<jdouble>,
-          CallStaticMethod<jdouble>,
-          CallStaticMethod<jdouble>,
-          CallStaticMethod<void>,
-          CallStaticMethod<void>,
-          CallStaticMethod<void>,
-          GetStaticFieldID,
-          GetStaticField<jobject>,
-          GetStaticField<jboolean>,
-          GetStaticField<jbyte>,
-          GetStaticField<jchar>,
-          GetStaticField<jshort>,
-          GetStaticField<jint>,
-          GetStaticField<jlong>,
-          GetStaticField<jfloat>,
-          GetStaticField<jdouble>,
-          SetStaticField<jobject>,
-          SetStaticField<jboolean>,
-          SetStaticField<jbyte>,
-          SetStaticField<jchar>,
-          SetStaticField<jshort>,
-          SetStaticField<jint>,
-          SetStaticField<jlong>,
-          SetStaticField<jfloat>,
-          SetStaticField<jdouble>,
-          NewString,
-          GetStringLength,
-          GetStringChars,
-          ReleaseStringChars,
-          NewStringUTF,
-          GetStringUTFLength,
-          /* JNI spec says this returns const jbyte*, but that's inconsistent */
-          GetStringUTFChars,
-          ReleaseStringUTFChars,
-          GetArrayLength,
-          NewObjectArray,
-          GetObjectArrayElement,
-          SetObjectArrayElement,
-          NewArray<jboolean>,
-          NewArray<jbyte>,
-          NewArray<jchar>,
-          NewArray<jshort>,
-          NewArray<jint>,
-          NewArray<jlong>,
-          NewArray<jfloat>,
-          NewArray<jdouble>,
-          GetArrayElements<jboolean>,
-          GetArrayElements<jbyte>,
-          GetArrayElements<jchar>,
-          GetArrayElements<jshort>,
-          GetArrayElements<jint>,
-          GetArrayElements<jlong>,
-          GetArrayElements<jfloat>,
-          GetArrayElements<jdouble>,
-          ReleaseArrayElements<jboolean>,
-          ReleaseArrayElements<jbyte>,
-          ReleaseArrayElements<jchar>,
-          ReleaseArrayElements<jshort>,
-          ReleaseArrayElements<jint>,
-          ReleaseArrayElements<jlong>,
-          ReleaseArrayElements<jfloat>,
-          ReleaseArrayElements<jdouble>,
-          GetArrayRegion<jboolean>,
-          GetArrayRegion<jbyte>,
-          GetArrayRegion<jchar>,
-          GetArrayRegion<jshort>,
-          GetArrayRegion<jint>,
-          GetArrayRegion<jlong>,
-          GetArrayRegion<jfloat>,
-          GetArrayRegion<jdouble>,
-          /* spec shows these without const; some jni.h do, some don't */
-          SetArrayRegion<jboolean>,
-          SetArrayRegion<jbyte>,
-          SetArrayRegion<jchar>,
-          SetArrayRegion<jshort>,
-          SetArrayRegion<jint>,
-          SetArrayRegion<jlong>,
-          SetArrayRegion<jfloat>,
-          SetArrayRegion<jdouble>,
-          RegisterNatives,
-          UnregisterNatives,
-          MonitorEnter,
-          MonitorExit,
-          GetJavaVM,
-          GetStringRegion,
-          GetStringUTFRegion,
-          GetArrayElements<void>,
-          ReleaseArrayElements<void>,
-          GetStringChars,
-          ReleaseStringChars,
-          NewWeakGlobalRef,
-          DeleteWeakGlobalRef,
-          ExceptionCheck,
-          NewDirectByteBuffer,
-          GetDirectBufferAddress,
-          GetDirectBufferCapacity,
-          /* added in JNI 1.6 */
-          GetObjectRefType,
-      }},
+  auto env = new JNIEnv{
+    new JNINativeInterface{
+      new Namespace(),
       NULL,
+      NULL,
+      NULL,
+      GetVersion,
+      DefineClass,
+      FindClass,
+      FromReflectedMethod,
+      FromReflectedField,
+      /* spec doesn't show jboolean parameter */
+      ToReflectedMethod,
+      GetSuperclass,
+      IsAssignableFrom,
+      /* spec doesn't show jboolean parameter */
+      ToReflectedField,
+      Throw,
+      ThrowNew,
+      ExceptionOccurred,
+      ExceptionDescribe,
+      ExceptionClear,
+      FatalError,
+      PushLocalFrame,
+      PopLocalFrame,
+      NewGlobalRef,
+      DeleteGlobalRef,
+      DeleteLocalRef,
+      IsSameObject,
+      NewLocalRef,
+      EnsureLocalCapacity,
+      AllocObject,
+      NewObject,
+      NewObjectV,
+      NewObjectA,
+      GetObjectClass,
+      IsInstanceOf,
+      GetMethodID,
+      CallMethod<jobject>,
+      CallMethod<jobject>,
+      CallMethod<jobject>,
+      CallMethod<jboolean>,
+      CallMethod<jboolean>,
+      CallMethod<jboolean>,
+      CallMethod<jbyte>,
+      CallMethod<jbyte>,
+      CallMethod<jbyte>,
+      CallMethod<jchar>,
+      CallMethod<jchar>,
+      CallMethod<jchar>,
+      CallMethod<jshort>,
+      CallMethod<jshort>,
+      CallMethod<jshort>,
+      CallMethod<jint>,
+      CallMethod<jint>,
+      CallMethod<jint>,
+      CallMethod<jlong>,
+      CallMethod<jlong>,
+      CallMethod<jlong>,
+      CallMethod<jfloat>,
+      CallMethod<jfloat>,
+      CallMethod<jfloat>,
+      CallMethod<jdouble>,
+      CallMethod<jdouble>,
+      CallMethod<jdouble>,
+      CallMethodV,
+      CallMethodV,
+      CallMethodV,
+      CallNonvirtualMethod<jobject>,
+      CallNonvirtualMethod<jobject>,
+      CallNonvirtualMethod<jobject>,
+      CallNonvirtualMethod<jboolean>,
+      CallNonvirtualMethod<jboolean>,
+      CallNonvirtualMethod<jboolean>,
+      CallNonvirtualMethod<jbyte>,
+      CallNonvirtualMethod<jbyte>,
+      CallNonvirtualMethod<jbyte>,
+      CallNonvirtualMethod<jchar>,
+      CallNonvirtualMethod<jchar>,
+      CallNonvirtualMethod<jchar>,
+      CallNonvirtualMethod<jshort>,
+      CallNonvirtualMethod<jshort>,
+      CallNonvirtualMethod<jshort>,
+      CallNonvirtualMethod<jint>,
+      CallNonvirtualMethod<jint>,
+      CallNonvirtualMethod<jint>,
+      CallNonvirtualMethod<jlong>,
+      CallNonvirtualMethod<jlong>,
+      CallNonvirtualMethod<jlong>,
+      CallNonvirtualMethod<jfloat>,
+      CallNonvirtualMethod<jfloat>,
+      CallNonvirtualMethod<jfloat>,
+      CallNonvirtualMethod<jdouble>,
+      CallNonvirtualMethod<jdouble>,
+      CallNonvirtualMethod<jdouble>,
+      CallNonvirtualMethodV,
+      CallNonvirtualMethodV,
+      CallNonvirtualMethodV,
+      GetFieldID,
+      GetField<jobject>,
+      GetField<jboolean>,
+      GetField<jbyte>,
+      GetField<jchar>,
+      GetField<jshort>,
+      GetField<jint>,
+      GetField<jlong>,
+      GetField<jfloat>,
+      GetField<jdouble>,
+      SetField<jobject>,
+      SetField<jboolean>,
+      SetField<jbyte>,
+      SetField<jchar>,
+      SetField<jshort>,
+      SetField<jint>,
+      SetField<jlong>,
+      SetField<jfloat>,
+      SetField<jdouble>,
+      GetStaticMethodID,
+      CallStaticMethod<jobject>,
+      CallStaticMethod<jobject>,
+      CallStaticMethod<jobject>,
+      CallStaticMethod<jboolean>,
+      CallStaticMethod<jboolean>,
+      CallStaticMethod<jboolean>,
+      CallStaticMethod<jbyte>,
+      CallStaticMethod<jbyte>,
+      CallStaticMethod<jbyte>,
+      CallStaticMethod<jchar>,
+      CallStaticMethod<jchar>,
+      CallStaticMethod<jchar>,
+      CallStaticMethod<jshort>,
+      CallStaticMethod<jshort>,
+      CallStaticMethod<jshort>,
+      CallStaticMethod<jint>,
+      CallStaticMethod<jint>,
+      CallStaticMethod<jint>,
+      CallStaticMethod<jlong>,
+      CallStaticMethod<jlong>,
+      CallStaticMethod<jlong>,
+      CallStaticMethod<jfloat>,
+      CallStaticMethod<jfloat>,
+      CallStaticMethod<jfloat>,
+      CallStaticMethod<jdouble>,
+      CallStaticMethod<jdouble>,
+      CallStaticMethod<jdouble>,
+      CallStaticMethodV,
+      CallStaticMethodV,
+      CallStaticMethodV,
+      GetStaticFieldID,
+      GetStaticField<jobject>,
+      GetStaticField<jboolean>,
+      GetStaticField<jbyte>,
+      GetStaticField<jchar>,
+      GetStaticField<jshort>,
+      GetStaticField<jint>,
+      GetStaticField<jlong>,
+      GetStaticField<jfloat>,
+      GetStaticField<jdouble>,
+      SetStaticField<jobject>,
+      SetStaticField<jboolean>,
+      SetStaticField<jbyte>,
+      SetStaticField<jchar>,
+      SetStaticField<jshort>,
+      SetStaticField<jint>,
+      SetStaticField<jlong>,
+      SetStaticField<jfloat>,
+      SetStaticField<jdouble>,
+      NewString,
+      GetStringLength,
+      GetStringChars,
+      ReleaseStringChars,
+      NewStringUTF,
+      GetStringUTFLength,
+      /* JNI spec says this returns const jbyte*, but that's inconsistent */
+      GetStringUTFChars,
+      ReleaseStringUTFChars,
+      GetArrayLength,
+      NewObjectArray,
+      GetObjectArrayElement,
+      SetObjectArrayElement,
+      NewArray<jboolean>,
+      NewArray<jbyte>,
+      NewArray<jchar>,
+      NewArray<jshort>,
+      NewArray<jint>,
+      NewArray<jlong>,
+      NewArray<jfloat>,
+      NewArray<jdouble>,
+      GetArrayElements<jboolean>,
+      GetArrayElements<jbyte>,
+      GetArrayElements<jchar>,
+      GetArrayElements<jshort>,
+      GetArrayElements<jint>,
+      GetArrayElements<jlong>,
+      GetArrayElements<jfloat>,
+      GetArrayElements<jdouble>,
+      ReleaseArrayElements<jboolean>,
+      ReleaseArrayElements<jbyte>,
+      ReleaseArrayElements<jchar>,
+      ReleaseArrayElements<jshort>,
+      ReleaseArrayElements<jint>,
+      ReleaseArrayElements<jlong>,
+      ReleaseArrayElements<jfloat>,
+      ReleaseArrayElements<jdouble>,
+      GetArrayRegion<jboolean>,
+      GetArrayRegion<jbyte>,
+      GetArrayRegion<jchar>,
+      GetArrayRegion<jshort>,
+      GetArrayRegion<jint>,
+      GetArrayRegion<jlong>,
+      GetArrayRegion<jfloat>,
+      GetArrayRegion<jdouble>,
+      /* spec shows these without const; some jni.h do, some don't */
+      SetArrayRegion<jboolean>,
+      SetArrayRegion<jbyte>,
+      SetArrayRegion<jchar>,
+      SetArrayRegion<jshort>,
+      SetArrayRegion<jint>,
+      SetArrayRegion<jlong>,
+      SetArrayRegion<jfloat>,
+      SetArrayRegion<jdouble>,
+      RegisterNatives,
+      UnregisterNatives,
+      MonitorEnter,
+      MonitorExit,
+      GetJavaVM,
+      GetStringRegion,
+      GetStringUTFRegion,
+      GetArrayElements<void>,
+      ReleaseArrayElements<void>,
+      GetStringChars,
+      ReleaseStringChars,
+      NewWeakGlobalRef,
+      DeleteWeakGlobalRef,
+      ExceptionCheck,
+      NewDirectByteBuffer,
+      GetDirectBufferAddress,
+      GetDirectBufferCapacity,
+      /* added in JNI 1.6 */
+      GetObjectRefType,
+  }};
+  auto vm = new JavaVM{new JNIInvokeInterface{
+      env,
+      new Lifecycle(),
       NULL,
       [](JavaVM *) -> jint {
-        Log::trace("jnivm", "DestroyJavaVM");
+        
         return JNI_OK;
       },
       [](JavaVM *vm, JNIEnv **penv, void * args) -> jint {
-        Log::trace("jnivm", "AttachCurrentThread");
+        
         if(penv) {
           *penv = (JNIEnv *)vm->functions->reserved0;
         }
         return JNI_OK;
       },
       [](JavaVM *) -> jint { 
-        Log::trace("jnivm", "DetachCurrentThread");
+        
         return JNI_OK;
       },
       [](JavaVM *vm, void **penv, jint) -> jint {
-        Log::trace("jnivm", "GetEnv");
+        
         *penv = vm->functions->reserved0;
         return JNI_OK;
       },
       [](JavaVM * vm, JNIEnv ** penv, void * args) -> jint {
-        Log::trace("jnivm", "AttachCurrentThreadAsDaemon");
+        
         return vm->AttachCurrentThread(penv, args);
       },
   }};
+  ((JNINativeInterface *)env->functions)->reserved1 = vm;
+  return vm;
 }
 
 std::string jnivm::GeneratePreDeclaration(JNIEnv * env) {
