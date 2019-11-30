@@ -276,14 +276,6 @@ std::string Method::GenerateJNIBinding(std::string scope, const std::string &cna
   return ss.str();
 }
 
-class Field {
-public:
-  std::string name;
-  std::string type;
-  bool _static = false;
-  void *getnativehandle;
-  void *setnativehandle;
-
 std::string Field::GenerateHeader() {
   std::ostringstream ss;
   std::string ctype;
