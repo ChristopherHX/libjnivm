@@ -78,33 +78,6 @@ const char * SkipJNIType(const char *cur, const char *end) {
     return cur + 1;
 }
 
-
-
-const char * GetParamCount(const char *cur, const char *end, size_t& count) {
-    switch (*cur) {
-    case '[':
-        cur = GetParamCount(cur + 1, end, count);
-        break;
-    case 'L':
-        cur = std::find(cur, end, ';');
-        ++count;
-        cur = GetParamCount(cur + 1, end, count);
-        break;
-    case 'V':
-    case 'Z':
-    case 'B':
-    case 'S':
-    case 'I':
-    case 'J':
-    case 'F':
-    case 'D':
-        ++count;
-    case '(':
-        return GetParamCount(cur + 1, end, count);
-    }
-    return cur;
-}
-
 ScopedVaList::~ScopedVaList() {
     va_end(list);
 }
