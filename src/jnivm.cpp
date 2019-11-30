@@ -284,57 +284,56 @@ public:
   void *getnativehandle;
   void *setnativehandle;
 
-  std::string GenerateHeader() {
-    std::ostringstream ss;
-    std::string ctype;
-    ParseJNIType(type.data(), type.data() + type.length(), ctype);
-    if (_static) {
-      ss << "static ";
-    }
-    ss << ctype << " " << name << ";";
-    return ss.str();
+std::string Field::GenerateHeader() {
+  std::ostringstream ss;
+  std::string ctype;
+  ParseJNIType(type.data(), type.data() + type.length(), ctype);
+  if (_static) {
+    ss << "static ";
   }
+  ss << ctype << " " << name << ";";
+  return ss.str();
+}
 
-  std::string GenerateStubs(std::string scope, const std::string &cname) {
-    if(!_static) return std::string();
-    std::ostringstream ss;
-    std::string rettype;
-    ParseJNIType(type.data(), type.data() + type.length(), rettype);
-    ss << rettype << " " << scope << name << " = {};\n\n";
-    return ss.str();
-  }
+std::string Field::GenerateStubs(std::string scope, const std::string &cname) {
+  if(!_static) return std::string();
+  std::ostringstream ss;
+  std::string rettype;
+  ParseJNIType(type.data(), type.data() + type.length(), rettype);
+  ss << rettype << " " << scope << name << " = {};\n\n";
+  return ss.str();
+}
 
-  std::string GenerateJNIBinding(std::string scope) {
-    std::ostringstream ss;
-    std::string rettype;
-    ParseJNIType(type.data(), type.data() + type.length(), rettype);
-    auto cl = scope.substr(0, scope.length() - 2);
-    scope = std::regex_replace(scope, std::regex("::"), "_") + name;
-    ss << "extern \"C\" " << rettype << " get_" << scope << "(";
-    if (!_static) {
-      ss << "jnivm::Object<" << cl << ">* obj";
-    }
-    ss << ") {\n    return ";
-    if (_static) {
-      ss << cl << "::" << name;
-    } else {
-      ss << "obj->value->" << name;
-    }
-    ss << ";\n}\n\n";
-    ss << "extern \"C\" void set_" << scope << "(";
-    if (!_static) {
-      ss << "jnivm::Object<" << cl << ">* obj, ";
-    }
-    ss << rettype << " value) {\n    ";
-    if (_static) {
-      ss << cl << "::" << name;
-    } else {
-      ss << "obj->value->" << name;
-    }
-    ss << " = value;\n}\n\n";
-    return ss.str();
+std::string Field::GenerateJNIBinding(std::string scope) {
+  std::ostringstream ss;
+  std::string rettype;
+  ParseJNIType(type.data(), type.data() + type.length(), rettype);
+  auto cl = scope.substr(0, scope.length() - 2);
+  scope = std::regex_replace(scope, std::regex("::"), "_") + name;
+  ss << "extern \"C\" " << rettype << " get_" << scope << "(";
+  if (!_static) {
+    ss << "jnivm::Object<" << cl << ">* obj";
   }
-};
+  ss << ") {\n    return ";
+  if (_static) {
+    ss << cl << "::" << name;
+  } else {
+    ss << "obj->value->" << name;
+  }
+  ss << ";\n}\n\n";
+  ss << "extern \"C\" void set_" << scope << "(";
+  if (!_static) {
+    ss << "jnivm::Object<" << cl << ">* obj, ";
+  }
+  ss << rettype << " value) {\n    ";
+  if (_static) {
+    ss << cl << "::" << name;
+  } else {
+    ss << "obj->value->" << name;
+  }
+  ss << " = value;\n}\n\n";
+  return ss.str();
+}
 
 class Class {
 public:

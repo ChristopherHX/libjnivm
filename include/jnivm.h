@@ -32,6 +32,19 @@ namespace jnivm {
         std::string GenerateJNIBinding(std::string scope, const std::string &cname);
     };
 
+    class Field {
+    public:
+        std::string name;
+        std::string type;
+        bool _static = false;
+        void *getnativehandle;
+        void *setnativehandle;
+
+        std::string GenerateHeader();
+        std::string GenerateStubs(std::string scope, const std::string &cname);
+        std::string GenerateJNIBinding(std::string scope);
+    };
+
     using Lifecycle = std::stack<std::vector<std::shared_ptr<Object<void>>>>;
 
     template <class T> struct JNITypes { using Array = jarray; };
