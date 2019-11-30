@@ -335,78 +335,68 @@ std::string Field::GenerateJNIBinding(std::string scope) {
   return ss.str();
 }
 
-class Class {
-public:
-  std::unordered_map<std::string, void*> natives;
-  std::string name;
-  std::string nativeprefix;
-  std::vector<std::shared_ptr<Class>> classes;
-  std::vector<std::shared_ptr<Field>> fields;
-  std::vector<std::shared_ptr<Method>> methods;
-
-  std::string GenerateHeader(std::string scope) {
-    std::ostringstream ss;
-    scope += name;
-    ss << "class " << scope << " {\npublic:\n";
-    for (auto &cl : classes) {
-      ss << std::regex_replace(cl->GeneratePreDeclaration(),
-                               std::regex("(^|\n)([^\n]+)"), "$1    $2");
-      ss << "\n";
-    }
-    for (auto &field : fields) {
-      ss << std::regex_replace(field->GenerateHeader(),
-                               std::regex("(^|\n)([^\n]+)"), "$1    $2");
-      ss << "\n";
-    }
-    for (auto &method : methods) {
-      ss << std::regex_replace(method->GenerateHeader(name),
-                               std::regex("(^|\n)([^\n]+)"), "$1    $2");
-      ss << "\n";
-    }
-    ss << "};";
-    for (auto &cl : classes) {
-      ss << "\n";
-      ss << cl->GenerateHeader(scope + "::");
-    }
-    return ss.str();
+std::string Class::GenerateHeader(std::string scope) {
+  std::ostringstream ss;
+  scope += name;
+  ss << "class " << scope << " {\npublic:\n";
+  for (auto &cl : classes) {
+    ss << std::regex_replace(cl->GeneratePreDeclaration(),
+                              std::regex("(^|\n)([^\n]+)"), "$1    $2");
+    ss << "\n";
   }
-
-  std::string GeneratePreDeclaration() {
-    std::ostringstream ss;
-    ss << "class " << name << ";";
-    return ss.str();
+  for (auto &field : fields) {
+    ss << std::regex_replace(field->GenerateHeader(),
+                              std::regex("(^|\n)([^\n]+)"), "$1    $2");
+    ss << "\n";
   }
-
-  std::string GenerateStubs(std::string scope) {
-    std::ostringstream ss;
-    scope += name + "::";
-    for (auto &cl : classes) {
-      ss << cl->GenerateStubs(scope);
-    }
-    for (auto &field : fields) {
-      ss << field->GenerateStubs(scope, name);
-    }
-    for (auto &method : methods) {
-      ss << method->GenerateStubs(scope, name);
-    }
-    return ss.str();
+  for (auto &method : methods) {
+    ss << std::regex_replace(method->GenerateHeader(name),
+                              std::regex("(^|\n)([^\n]+)"), "$1    $2");
+    ss << "\n";
   }
-
-  std::string GenerateJNIBinding(std::string scope) {
-    std::ostringstream ss;
-    scope += name + "::";
-    for (auto &cl : classes) {
-      ss << cl->GenerateJNIBinding(scope);
-    }
-    for (auto &field : fields) {
-      ss << field->GenerateJNIBinding(scope);
-    }
-    for (auto &method : methods) {
-      ss << method->GenerateJNIBinding(scope, name);
-    }
-    return ss.str();
+  ss << "};";
+  for (auto &cl : classes) {
+    ss << "\n";
+    ss << cl->GenerateHeader(scope + "::");
   }
-};
+  return ss.str();
+}
+
+std::string Class::GeneratePreDeclaration() {
+  std::ostringstream ss;
+  ss << "class " << name << ";";
+  return ss.str();
+}
+
+std::string Class::GenerateStubs(std::string scope) {
+  std::ostringstream ss;
+  scope += name + "::";
+  for (auto &cl : classes) {
+    ss << cl->GenerateStubs(scope);
+  }
+  for (auto &field : fields) {
+    ss << field->GenerateStubs(scope, name);
+  }
+  for (auto &method : methods) {
+    ss << method->GenerateStubs(scope, name);
+  }
+  return ss.str();
+}
+
+std::string Class::GenerateJNIBinding(std::string scope) {
+  std::ostringstream ss;
+  scope += name + "::";
+  for (auto &cl : classes) {
+    ss << cl->GenerateJNIBinding(scope);
+  }
+  for (auto &field : fields) {
+    ss << field->GenerateJNIBinding(scope);
+  }
+  for (auto &method : methods) {
+    ss << method->GenerateJNIBinding(scope, name);
+  }
+  return ss.str();
+}
 
 class Namespace {
 public:

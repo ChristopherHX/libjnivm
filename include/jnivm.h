@@ -45,6 +45,21 @@ namespace jnivm {
         std::string GenerateJNIBinding(std::string scope);
     };
 
+    class Class {
+    public:
+        std::unordered_map<std::string, void*> natives;
+        std::string name;
+        std::string nativeprefix;
+        std::vector<std::shared_ptr<Class>> classes;
+        std::vector<std::shared_ptr<Field>> fields;
+        std::vector<std::shared_ptr<Method>> methods;
+
+        std::string GenerateHeader(std::string scope);
+        std::string GeneratePreDeclaration();
+        std::string GenerateStubs(std::string scope);
+        std::string GenerateJNIBinding(std::string scope);
+    };
+
     using Lifecycle = std::stack<std::vector<std::shared_ptr<Object<void>>>>;
 
     template <class T> struct JNITypes { using Array = jarray; };
