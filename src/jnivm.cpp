@@ -134,155 +134,147 @@ void Declare(JNIEnv *env, const char *signature) {
   }
 }
 
-class Method {
-public:
-  std::string name;
-  std::string signature;
-  bool _static = false;
-  void *nativehandle = 0;
-
-  std::string GenerateHeader(const std::string &cname) {
-    std::ostringstream ss;
-    std::vector<std::string> parameters;
-    std::string rettype;
-    bool inarg = false;
-    for (const char *cur = signature.data(), *end = cur + signature.length();
-         cur != end; cur++) {
-      std::string type;
-      switch (*cur) {
-      case '(':
-        inarg = true;
-        break;
-      case ')':
-        inarg = false;
-        break;
-      default:
-        cur = ParseJNIType(cur, end, type);
-      }
-      if (!type.empty()) {
-        if (inarg) {
-          parameters.emplace_back(std::move(type));
-        } else {
-          rettype = std::move(type);
-        }
-      }
+std::string Method::GenerateHeader(const std::string &cname) {
+  std::ostringstream ss;
+  std::vector<std::string> parameters;
+  std::string rettype;
+  bool inarg = false;
+  for (const char *cur = signature.data(), *end = cur + signature.length();
+        cur != end; cur++) {
+    std::string type;
+    switch (*cur) {
+    case '(':
+      inarg = true;
+      break;
+    case ')':
+      inarg = false;
+      break;
+    default:
+      cur = ParseJNIType(cur, end, type);
     }
-    if (_static) {
-      ss << "static ";
-    }
-    if (name == "<init>") {
-      ss << cname;
-    } else {
-      ss << rettype << " " << name;
-    }
-    ss << "(JNIEnv *";
-    for (int i = 0; i < parameters.size(); i++) {
-      ss << ", " << parameters[i];
-    }
-    ss << ")"
-       << ";";
-    return ss.str();
-  }
-
-  std::string GenerateStubs(std::string scope, const std::string &cname) {
-    std::ostringstream ss;
-    std::vector<std::string> parameters;
-    std::string rettype;
-    bool inarg = false;
-    for (const char *cur = signature.data(), *end = cur + signature.length();
-         cur != end; cur++) {
-      std::string type;
-      switch (*cur) {
-      case '(':
-        inarg = true;
-        break;
-      case ')':
-        inarg = false;
-        break;
-      default:
-        cur = ParseJNIType(cur, end, type);
-      }
-      if (!type.empty()) {
-        if (inarg) {
-          parameters.emplace_back(std::move(type));
-        } else {
-          rettype = std::move(type);
-        }
-      }
-    }
-    if (name == "<init>") {
-      ss << scope << cname;
-    } else {
-      ss << rettype << " " << scope << name;
-    }
-    ss << "(JNIEnv *env";
-    for (int i = 0; i < parameters.size(); i++) {
-      ss << ", " << parameters[i] << " arg" << i;
-    }
-    ss << ") {\n    \n}\n\n";
-    return ss.str();
-  }
-
-  std::string GenerateJNIBinding(std::string scope, const std::string &cname) {
-    std::ostringstream ss;
-    std::vector<std::string> parameters;
-    std::string rettype;
-    bool inarg = false;
-    for (const char *cur = signature.data(), *end = cur + signature.length();
-         cur != end; cur++) {
-      std::string type;
-      switch (*cur) {
-      case '(':
-        inarg = true;
-        break;
-      case ')':
-        inarg = false;
-        break;
-      default:
-        cur = ParseJNIType(cur, end, type);
-      }
-      if (!type.empty()) {
-        if (inarg) {
-          parameters.emplace_back(std::move(type));
-        } else {
-          rettype = std::move(type);
-        }
-      }
-    }
-    ss << "extern \"C\" ";
-    auto cl = scope.substr(0, scope.length() - 2);
-    if (name == "<init>") {
-      scope += cname;
-    } else {
-      scope += name;
-    }
-    if (name == "<init>") {
-      ss << "void ";
-    } else {
-      ss << rettype << " ";
-    }
-    ss << std::regex_replace(scope, std::regex("::"), "_") << "(JNIEnv *env, ";
-    if (!_static) {
-      ss << "jnivm::Object<" << cl << ">* obj, ";
-    }
-    ss << "jvalue* values) {\n    ";
-    if (!_static) {
-      if (name != "<init>") {
-        ss << "return (obj ? obj->value : nullptr)->" << name;
+    if (!type.empty()) {
+      if (inarg) {
+        parameters.emplace_back(std::move(type));
       } else {
-        ss << "new (obj ? obj->value : nullptr) " << cl;
+        rettype = std::move(type);
       }
-    } else {
-      ss << "return " << scope;
     }
-    ss << "(env";
-    for (int i = 0; i < parameters.size(); i++) {
-      ss << ", (" << parameters[i] << "&)values[" << i << "]";
-    }
-    ss << ");\n}\n";
-    return ss.str();
   }
-};
+  if (_static) {
+    ss << "static ";
+  }
+  if (name == "<init>") {
+    ss << cname;
+  } else {
+    ss << rettype << " " << name;
+  }
+  ss << "(JNIEnv *";
+  for (int i = 0; i < parameters.size(); i++) {
+    ss << ", " << parameters[i];
+  }
+  ss << ")"
+      << ";";
+  return ss.str();
+}
+
+std::string Method::GenerateStubs(std::string scope, const std::string &cname) {
+  std::ostringstream ss;
+  std::vector<std::string> parameters;
+  std::string rettype;
+  bool inarg = false;
+  for (const char *cur = signature.data(), *end = cur + signature.length();
+        cur != end; cur++) {
+    std::string type;
+    switch (*cur) {
+    case '(':
+      inarg = true;
+      break;
+    case ')':
+      inarg = false;
+      break;
+    default:
+      cur = ParseJNIType(cur, end, type);
+    }
+    if (!type.empty()) {
+      if (inarg) {
+        parameters.emplace_back(std::move(type));
+      } else {
+        rettype = std::move(type);
+      }
+    }
+  }
+  if (name == "<init>") {
+    ss << scope << cname;
+  } else {
+    ss << rettype << " " << scope << name;
+  }
+  ss << "(JNIEnv *env";
+  for (int i = 0; i < parameters.size(); i++) {
+    ss << ", " << parameters[i] << " arg" << i;
+  }
+  ss << ") {\n    \n}\n\n";
+  return ss.str();
+}
+
+std::string Method::GenerateJNIBinding(std::string scope, const std::string &cname) {
+  std::ostringstream ss;
+  std::vector<std::string> parameters;
+  std::string rettype;
+  bool inarg = false;
+  for (const char *cur = signature.data(), *end = cur + signature.length();
+        cur != end; cur++) {
+    std::string type;
+    switch (*cur) {
+    case '(':
+      inarg = true;
+      break;
+    case ')':
+      inarg = false;
+      break;
+    default:
+      cur = ParseJNIType(cur, end, type);
+    }
+    if (!type.empty()) {
+      if (inarg) {
+        parameters.emplace_back(std::move(type));
+      } else {
+        rettype = std::move(type);
+      }
+    }
+  }
+  ss << "extern \"C\" ";
+  auto cl = scope.substr(0, scope.length() - 2);
+  if (name == "<init>") {
+    scope += cname;
+  } else {
+    scope += name;
+  }
+  if (name == "<init>") {
+    ss << "void ";
+  } else {
+    ss << rettype << " ";
+  }
+  ss << std::regex_replace(scope, std::regex("::"), "_") << "(JNIEnv *env, ";
+  if (!_static) {
+    ss << "jnivm::Object<" << cl << ">* obj, ";
+  }
+  ss << "jvalue* values) {\n    ";
+  if (!_static) {
+    if (name != "<init>") {
+      ss << "return (obj ? obj->value : nullptr)->" << name;
+    } else {
+      ss << "new (obj ? obj->value : nullptr) " << cl;
+    }
+  } else {
+    ss << "return " << scope;
+  }
+  ss << "(env";
+  for (int i = 0; i < parameters.size(); i++) {
+    ss << ", (" << parameters[i] << "&)values[" << i << "]";
+  }
+  ss << ");\n}\n";
+  return ss.str();
+}
 
 class Field {
 public:

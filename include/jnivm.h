@@ -20,6 +20,18 @@ namespace jnivm {
         jsize length;
     };
 
+    class Method {
+    public:
+        std::string name;
+        std::string signature;
+        bool _static = false;
+        void *nativehandle = 0;
+
+        std::string GenerateHeader(const std::string &cname);
+        std::string GenerateStubs(std::string scope, const std::string &cname);
+        std::string GenerateJNIBinding(std::string scope, const std::string &cname);
+    };
+
     using Lifecycle = std::stack<std::vector<std::shared_ptr<Object<void>>>>;
 
     template <class T> struct JNITypes { using Array = jarray; };
