@@ -1122,10 +1122,10 @@ jobjectRefType GetObjectRefType(JNIEnv *, jobject) {
   return jobjectRefType::JNIInvalidRefType;
 };
 
-JavaVM *jnivm::createJNIVM() {
+VM::VM() {
   auto np = new Namespace();
   np->name = "jnivm";
-  auto env = new JNIEnv{
+  env = new JNIEnv{
     new JNINativeInterface{
       np,
       NULL,
@@ -1350,7 +1350,7 @@ JavaVM *jnivm::createJNIVM() {
       UnregisterNatives,
       MonitorEnter,
       MonitorExit,
-      GetJavaVM,
+      ::GetJavaVM,
       GetStringRegion,
       GetStringUTFRegion,
       GetArrayElements<void>,
@@ -1366,7 +1366,7 @@ JavaVM *jnivm::createJNIVM() {
       /* added in JNI 1.6 */
       GetObjectRefType,
   }};
-  auto vm = new JavaVM{new JNIInvokeInterface{
+  javaVM = new JavaVM{new JNIInvokeInterface{
       env,
       new Lifecycle(1),
       NULL,
@@ -1395,8 +1395,32 @@ JavaVM *jnivm::createJNIVM() {
         return vm->AttachCurrentThread(penv, args);
       },
   }};
-  ((JNINativeInterface *)env->functions)->reserved1 = vm;
-  return vm;
+  ((JNINativeInterface *)env->functions)->reserved1 = javaVM;
+}
+
+VM::~VM() {
+  auto lcycle = (Lifecycle*)env->functions->reserved1;
+  for (auto &&frame : *lcycle) {
+    for (auto &&obj : frame) {
+      if(obj && !obj->This.DecrementRef()) {
+        delete obj;
+      }
+    }
+  }
+  delete lcycle;
+  delete javaVM->functions;
+  delete javaVM;
+  delete (Namespace*)env->functions->reserved0;
+  delete env->functions;
+  delete env;
+}
+
+JavaVM *jnivm::VM::GetJavaVM() {
+  return javaVM;
+}
+
+JNIEnv *jnivm::VM::GetJNIEnv() {
+  return env;
 }
 
 std::string jnivm::GeneratePreDeclaration(JNIEnv * env) {

@@ -132,7 +132,16 @@ namespace jnivm {
         ~ScopedVaList();
     };
 
-    JavaVM * createJNIVM();
+    class VM {
+        JavaVM * javaVM;
+        JNIEnv * env;
+    public:
+        VM();
+        ~VM();
+        JavaVM * GetJavaVM();
+        JNIEnv * GetJNIEnv();
+    };
+
     std::string GeneratePreDeclaration(JNIEnv *env);
     std::string GenerateHeader(JNIEnv *env);
     std::string GenerateStubs(JNIEnv *env);
