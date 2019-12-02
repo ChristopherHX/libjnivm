@@ -8,17 +8,15 @@
 
 namespace jnivm {
 
-    template<class T> class Object {
+    class RefCounter {
+        uintptr_t count = 0;
     public:
-        jclass cl;
-        T* value;
-    };
-
-    template<class T> class Array {
-    public:
-        jclass cl;
-        T* value;
-        jsize length;
+        uintptr_t IncrementRef() {
+            return ++count;
+        }
+        uintptr_t DecrementRef() {
+            return --count;
+        }
     };
 
     class Method {
@@ -46,22 +44,70 @@ namespace jnivm {
         std::string GenerateJNIBinding(std::string scope);
     };
 
-    class Class {
-    public:
-        std::unordered_map<std::string, void*> natives;
-        std::string name;
-        std::string nativeprefix;
-        std::vector<std::shared_ptr<Class>> classes;
-        std::vector<std::shared_ptr<Field>> fields;
-        std::vector<std::shared_ptr<Method>> methods;
+    namespace java {
 
-        std::string GenerateHeader(std::string scope);
-        std::string GeneratePreDeclaration();
-        std::string GenerateStubs(std::string scope);
-        std::string GenerateJNIBinding(std::string scope);
+        namespace lang {
+
+            class Class;
+
+            class Object {
+            public:
+                RefCounter This;
+                Class* clazz;
+                operator jobject();
+            };
+
+            class Class : public Object {
+            public:
+                std::unordered_map<std::string, void*> natives;
+                std::string name;
+                std::string nativeprefix;
+                std::vector<std::shared_ptr<Class>> classes;
+                std::vector<std::shared_ptr<Field>> fields;
+                std::vector<std::shared_ptr<Method>> methods;
+
+                Class() {
+                    clazz = this;
+                }
+                operator jclass() {
+                    return (jclass)this;
+                }
+
+                std::string GenerateHeader(std::string scope);
+                std::string GeneratePreDeclaration();
+                std::string GenerateStubs(std::string scope);
+                std::string GenerateJNIBinding(std::string scope);
+            };
+
+            class String : public Object, public std::string {
+            public:
+                String(std::string && str) : Object({{},0}), std::string(std::move(str)) {}
+            };
+
+            class Array : public Object {
+            public:
+                Array(void** data, jsize length) : data(data), length(length) {}
+                jsize length;
+                void** data;
+                ~Array() {
+                    delete[] data;
+                }
+            };
+        }
+    }
+
+    template<class T>
+    class Array : public java::lang::Object {
+    public:
+        Array(T* data, jsize length) : data(data), length(length) {}
+        jsize length;
+        T* data;
+        ~Array() {
+            delete[] data;
+        }
     };
 
-    using Lifecycle = std::stack<std::vector<std::shared_ptr<Object<void>>>>;
+    using Lifecycle = std::vector<std::vector<java::lang::Object*>>;
 
     template <class T> struct JNITypes { using Array = jarray; };
 
