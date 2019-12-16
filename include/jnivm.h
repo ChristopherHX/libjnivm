@@ -1,16 +1,22 @@
 #pragma once
 #include <string>
+#include <pthread.h>
 #include <jni.h>
 #include <stack>
 #include <vector>
 #include <memory>
 #include <unordered_map>
+#include <mutex>
+#include <atomic>
 
 namespace jnivm {
 
     class RefCounter {
-        uintptr_t count = 0;
+        std::atomic<uintptr_t> count;
     public:
+        RefCounter() {
+            count.store(0);
+        }
         uintptr_t IncrementRef() {
             return ++count;
         }
@@ -81,7 +87,7 @@ namespace jnivm {
 
             class String : public Object, public std::string {
             public:
-                String(std::string && str) : Object({{},0}), std::string(std::move(str)) {}
+                String(std::string && str) : std::string(std::move(str)) {}
             };
 
             class Array : public Object {
@@ -132,10 +138,26 @@ namespace jnivm {
         ~ScopedVaList();
     };
 
+    class Namespace {
+    public:
+        std::string name;
+        std::vector<std::shared_ptr<Namespace>> namespaces;
+        std::vector<std::shared_ptr<java::lang::Class>> classes;
+
+        std::string GenerateHeader(std::string scope);
+        std::string GeneratePreDeclaration();
+        std::string GenerateStubs(std::string scope);
+        std::string GenerateJNIBinding(std::string scope);
+    };
+
     class VM {
         JavaVM * javaVM;
-        JNIEnv * env;
+        std::unordered_map<pthread_t, JNIEnv *> jnienvs;
+        Namespace np;
+        JNINativeInterface interface;
     public:
+        std::mutex mtx;
+
         VM();
         ~VM();
         JavaVM * GetJavaVM();

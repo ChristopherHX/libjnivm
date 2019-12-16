@@ -398,89 +398,82 @@ std::string Class::GenerateJNIBinding(std::string scope) {
   return ss.str();
 }
 
-class Namespace {
-public:
-  std::string name;
-  std::vector<std::shared_ptr<Namespace>> namespaces;
-  std::vector<std::shared_ptr<Class>> classes;
-
-  std::string GenerateHeader(std::string scope) {
-    std::ostringstream ss;
-    if (name.length()) {
-      scope += name + "::";
-    }
-    for (auto &cl : classes) {
-      ss << cl->GenerateHeader(scope);
-      ss << "\n";
-    }
-    for (auto &np : namespaces) {
-      ss << np->GenerateHeader(scope);
-      ss << "\n";
-    }
-    return ss.str();
+std::string Namespace::GenerateHeader(std::string scope) {
+  std::ostringstream ss;
+  if (name.length()) {
+    scope += name + "::";
   }
-
-  std::string GeneratePreDeclaration() {
-    std::ostringstream ss;
-    bool indent = name.length();
-    if (indent) {
-      ss << "namespace " << name << " {\n";
-    }
-    for (auto &cl : classes) {
-      ss << (indent
-                 ? std::regex_replace(cl->GeneratePreDeclaration(),
-                                      std::regex("(^|\n)([^\n]+)"), "$1    $2")
-                 : cl->GeneratePreDeclaration());
-      ss << "\n";
-    }
-    for (auto &np : namespaces) {
-      ss << (indent
-                 ? std::regex_replace(np->GeneratePreDeclaration(),
-                                      std::regex("(^|\n)([^\n]+)"), "$1    $2")
-                 : np->GeneratePreDeclaration());
-      ss << "\n";
-    }
-    if (indent) {
-      ss << "}";
-    }
-    return ss.str();
+  for (auto &cl : classes) {
+    ss << cl->GenerateHeader(scope);
+    ss << "\n";
   }
-
-  std::string GenerateStubs(std::string scope) {
-    std::ostringstream ss;
-    if (name.length()) {
-      scope += name + "::";
-    }
-    for (auto &cl : classes) {
-      ss << cl->GenerateStubs(scope);
-    }
-    for (auto &np : namespaces) {
-      ss << np->GenerateStubs(scope);
-    }
-    return ss.str();
+  for (auto &np : namespaces) {
+    ss << np->GenerateHeader(scope);
+    ss << "\n";
   }
+  return ss.str();
+}
 
-  std::string GenerateJNIBinding(std::string scope) {
-    std::ostringstream ss;
-    if (name.length()) {
-      scope += name + "::";
-    }
-    for (auto &cl : classes) {
-      ss << cl->GenerateJNIBinding(scope);
-    }
-    for (auto &np : namespaces) {
-      ss << np->GenerateJNIBinding(scope);
-    }
-    return ss.str();
+std::string Namespace::GeneratePreDeclaration() {
+  std::ostringstream ss;
+  bool indent = name.length();
+  if (indent) {
+    ss << "namespace " << name << " {\n";
   }
-};
+  for (auto &cl : classes) {
+    ss << (indent
+                ? std::regex_replace(cl->GeneratePreDeclaration(),
+                                    std::regex("(^|\n)([^\n]+)"), "$1    $2")
+                : cl->GeneratePreDeclaration());
+    ss << "\n";
+  }
+  for (auto &np : namespaces) {
+    ss << (indent
+                ? std::regex_replace(np->GeneratePreDeclaration(),
+                                    std::regex("(^|\n)([^\n]+)"), "$1    $2")
+                : np->GeneratePreDeclaration());
+    ss << "\n";
+  }
+  if (indent) {
+    ss << "}";
+  }
+  return ss.str();
+}
+
+std::string Namespace::GenerateStubs(std::string scope) {
+  std::ostringstream ss;
+  if (name.length()) {
+    scope += name + "::";
+  }
+  for (auto &cl : classes) {
+    ss << cl->GenerateStubs(scope);
+  }
+  for (auto &np : namespaces) {
+    ss << np->GenerateStubs(scope);
+  }
+  return ss.str();
+}
+
+std::string Namespace::GenerateJNIBinding(std::string scope) {
+  std::ostringstream ss;
+  if (name.length()) {
+    scope += name + "::";
+  }
+  for (auto &cl : classes) {
+    ss << cl->GenerateJNIBinding(scope);
+  }
+  for (auto &np : namespaces) {
+    ss << np->GenerateJNIBinding(scope);
+  }
+  return ss.str();
+}
 
 jint GetVersion(JNIEnv *) { return 0; };
 jclass DefineClass(JNIEnv *, const char *, jobject, const jbyte *, jsize) {
   return 0;
 };
 jclass FindClass(JNIEnv *env, const char *name) {
-  
+  // std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
   auto prefix = "jnivm_" + std::regex_replace(name, std::regex("(/|\\$)"), "_") + '_';
   auto end = name + strlen(name);
   auto pos = name;
@@ -536,7 +529,8 @@ jclass FindClass(JNIEnv *env, const char *name) {
     name = pos + 1;
   } while (pos != end);
   curc->nativeprefix = std::move(prefix);
-  return (jclass)curc;
+  curc->This.IncrementRef();
+  return (jclass)env->NewGlobalRef((jobject)curc);
 };
 jmethodID FromReflectedMethod(JNIEnv *, jobject) {
   return 0;  
@@ -570,54 +564,56 @@ void ExceptionDescribe(JNIEnv *) {  };
 void ExceptionClear(JNIEnv *) {  };
 void FatalError(JNIEnv *, const char *) {  };
 jint PushLocalFrame(JNIEnv * env, jint cap) {
-  std::vector<jnivm::java::lang::Object *> frame;
-  if(cap)
-    frame.reserve(cap);
-  ((Lifecycle*)(((JavaVM*)(env->functions->reserved1))->functions->reserved1))->emplace_back(std::move(frame));
+  // std::vector<jnivm::java::lang::Object *> frame;
+  // if(cap)
+  //   frame.reserve(cap);
+  // auto lf = (Lifecycle*)(env->functions->reserved2);
+  // (lf)->emplace_back(std::move(frame));
   return 0;
 };
 jobject PopLocalFrame(JNIEnv * env, jobject previousframe) {
-  for (auto &&obj : ((Lifecycle*)(((JavaVM*)(env->functions->reserved1))->functions->reserved1))->back()) {
-    if(obj && !obj->This.DecrementRef()) {
-      delete obj;
-    }
-  }
-  ((Lifecycle*)(((JavaVM*)(env->functions->reserved1))->functions->reserved1))->pop_back();
+  // auto lf = (Lifecycle*)(env->functions->reserved2);
+  // for (auto &&obj : ((Lifecycle*)(env->functions->reserved2))->back()) {
+  //   if(obj && !obj->This.DecrementRef()) {
+  //     delete obj;
+  //   }
+  // }
+  // ((Lifecycle*)(env->functions->reserved2))->pop_back();
   return 0;
 };
 jobject NewGlobalRef(JNIEnv * env, jobject obj) {
   if(!obj) return nullptr;
-  ((Object*)obj)->This.IncrementRef();
-  ((Lifecycle*)(((JavaVM*)(env->functions->reserved1))->functions->reserved1))->front().emplace_back((Object*)obj);
+  // ((Object*)obj)->This.IncrementRef();
+  // ((Lifecycle*)(env->functions->reserved2))->front().emplace_back((Object*)obj);
   return obj;
 };
 void DeleteGlobalRef(JNIEnv * env, jobject obj) {
   if(!obj) return;
-  auto & refs = ((Lifecycle*)(((JavaVM*)(env->functions->reserved1))->functions->reserved1))->front();
-  refs.erase(std::find(refs.begin(), refs.end(), (Object*)obj));
-  if(!((Object*)obj)->This.DecrementRef()) {
-    delete (Object*)obj;
-  }
+  // auto & refs = ((Lifecycle*)(env->functions->reserved2))->front();
+  // refs.erase(std::find(refs.begin(), refs.end(), (Object*)obj));
+  // if(!((Object*)obj)->This.DecrementRef()) {
+  //   delete (Object*)obj;
+  // }
 };
 void DeleteLocalRef(JNIEnv * env, jobject obj) {
   if(!obj) return;
-  auto & refs = ((Lifecycle*)(((JavaVM*)(env->functions->reserved1))->functions->reserved1))->back();
-  refs.erase(std::find(refs.begin(), refs.end(), (Object*)obj));
-  if(!((Object*)obj)->This.DecrementRef()) {
-    delete (Object*)obj;
-  }
+  // auto & refs = ((Lifecycle*)(env->functions->reserved2))->back();
+  // refs.erase(std::find(refs.begin(), refs.end(), (Object*)obj));
+  // if(!((Object*)obj)->This.DecrementRef()) {
+  //   delete (Object*)obj;
+  // }
 };
 jboolean IsSameObject(JNIEnv *, jobject lobj, jobject robj) {
   return lobj == robj;
 };
 jobject NewLocalRef(JNIEnv * env, jobject obj) { 
   if(!obj) return nullptr;
-  ((Object*)obj)->This.IncrementRef();
-  ((Lifecycle*)(((JavaVM*)(env->functions->reserved1))->functions->reserved1))->back().emplace_back((Object*)obj);
+  // ((Object*)obj)->This.IncrementRef();
+  // ((Lifecycle*)(env->functions->reserved2))->back().emplace_back((Object*)obj);
   return obj;
 };
 jint EnsureLocalCapacity(JNIEnv * env, jint cap) {
-  ((Lifecycle*)(((JavaVM*)(env->functions->reserved1))->functions->reserved1))->back().reserve(cap);
+  // ((Lifecycle*)(env->functions->reserved2))->back().reserve(cap);
   return 0;
 };
 jobject AllocObject(JNIEnv *env, jclass cl) {
@@ -626,13 +622,13 @@ jobject AllocObject(JNIEnv *env, jclass cl) {
 jobject NewObject(JNIEnv *env, jclass cl, jmethodID mid, ...) {
   ScopedVaList param;
   va_start(param.list, mid);
-  return env->CallStaticObjectMethod(cl, mid, param.list);
+  return env->CallStaticObjectMethodV(cl, mid, param.list);
 };
 jobject NewObjectV(JNIEnv *env, jclass cl, jmethodID mid, va_list list) {
-  return env->CallStaticObjectMethod(cl, mid, list);
+  return env->CallStaticObjectMethodV(cl, mid, list);
 };
 jobject NewObjectA(JNIEnv *env, jclass cl, jmethodID mid, jvalue * val) {
-  return env->CallStaticObjectMethod(cl, mid, val);
+  return env->CallStaticObjectMethodA(cl, mid, val);
 };
 jclass GetObjectClass(JNIEnv *env, jobject jo) {
   return *((Object*)jo)->clazz;
@@ -642,6 +638,7 @@ jboolean IsInstanceOf(JNIEnv *, jobject jo, jclass cl) {
 };
 jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
                       const char *str1) {
+  // std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
   std::string &classname = ((Class *)cl)->name;
   
   auto cur = (Class *)cl;
@@ -762,6 +759,7 @@ void CallNonvirtualMethodV(JNIEnv * env, jobject obj, jclass cl, jmethodID id, .
 
 jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name,
                     const char *type) {
+  // std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
   std::string &classname = ((Class *)cl)->name;
   
   auto cur = (Class *)cl;
@@ -819,6 +817,7 @@ template <class T> void SetField(JNIEnv *, jobject obj, jfieldID id, T value) {
 
 jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
                             const char *str1) {
+  // std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
   std::string &classname = ((Class *)cl)->name;
   
   auto cur = (Class *)cl;
@@ -895,6 +894,7 @@ void CallStaticMethodV(JNIEnv * env, jclass cl, jmethodID id, ...) {
 
 jfieldID GetStaticFieldID(JNIEnv *env, jclass cl, const char *name,
                           const char *type) {
+  // std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
   std::string &classname = ((Class *)cl)->name;
   
   auto cur = (Class *)cl;
@@ -1053,21 +1053,25 @@ void SetArrayRegion(JNIEnv *, typename JNITypes<T>::Array a, jsize start, jsize 
 
 jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method,
                      jint i) {
-  
+  // std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
   while(i--) {
     ((Class*)c)->natives[method->name] = method->fnPtr;
     method++;
   }
   return 0;
 };
-jint UnregisterNatives(JNIEnv *, jclass c) {
+jint UnregisterNatives(JNIEnv *env, jclass c) {
+  // std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
   ((Class*)c)->natives.clear();
   return 0;
 };
 jint MonitorEnter(JNIEnv *, jobject) { return 0; };
 jint MonitorExit(JNIEnv *, jobject) { return 0; };
 jint GetJavaVM(JNIEnv * env, JavaVM ** vm) {
-  *vm = (JavaVM *)env->functions->reserved1;
+  if(vm) {
+    std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
+    *vm = ((VM *)(env->functions->reserved1))->GetJavaVM();
+  }
   return 0;
 };
 void GetStringRegion(JNIEnv *, jstring str, jsize start, jsize length, jchar * buf) {
@@ -1122,13 +1126,9 @@ jobjectRefType GetObjectRefType(JNIEnv *, jobject) {
   return jobjectRefType::JNIInvalidRefType;
 };
 
-VM::VM() {
-  auto np = new Namespace();
-  np->name = "jnivm";
-  env = new JNIEnv{
-    new JNINativeInterface{
-      np,
-      NULL,
+VM::VM() : interface({
+      &np,
+      this,
       NULL,
       NULL,
       GetVersion,
@@ -1365,29 +1365,59 @@ VM::VM() {
       GetDirectBufferCapacity,
       /* added in JNI 1.6 */
       GetObjectRefType,
-  }};
+  }) {
+  np.name = "jnivm";
+  auto env = jnienvs[pthread_self()] = new JNIEnv{ new JNINativeInterface(interface) };
+  ((JNINativeInterface*)env->functions)->reserved2 = new Lifecycle(1);
   javaVM = new JavaVM{new JNIInvokeInterface{
-      env,
-      new Lifecycle(1),
+      this,
+      NULL,
       NULL,
       [](JavaVM *) -> jint {
         
         return JNI_OK;
       },
       [](JavaVM *vm, JNIEnv **penv, void * args) -> jint {
-        
+        // std::lock_guard<std::mutex> lock(((VM *)(vm->functions->reserved0))->mtx);
+        // auto & env = ((VM *)(vm->functions->reserved0))->jnienvs[pthread_self()];
+        // if(!env) {
+        //   env = new JNIEnv { new JNINativeInterface(((VM *)(vm->functions->reserved0))->interface) };
+        //   ((JNINativeInterface*)env->functions)->reserved2 = new Lifecycle(1);
+        // }
+        // if(penv) {
+        //   *penv = env;
+        // }
         if(penv) {
-          *penv = (JNIEnv *)vm->functions->reserved0;
+          std::lock_guard<std::mutex> lock(((VM *)(vm->functions->reserved0))->mtx);
+          *penv = ((VM *)(vm->functions->reserved0))->GetJNIEnv();
         }
         return JNI_OK;
       },
-      [](JavaVM *) -> jint { 
-        
+      [](JavaVM *vm) -> jint { 
+        // std::lock_guard<std::mutex> lock(((VM *)(vm->functions->reserved0))->mtx);
+        // auto & env = ((VM *)(vm->functions->reserved0))->jnienvs[pthread_self()];
+        // if(env) {
+        //   auto lcycle = (Lifecycle*)(env->functions->reserved2);
+        //   for (auto &&frame : *lcycle) {
+        //     for (auto &&obj : frame) {
+        //       if(obj && !obj->This.DecrementRef()) {
+        //         delete obj;
+        //       }
+        //     }
+        //   }
+        //   delete lcycle;
+        //   delete env->functions;
+        //   delete env;
+        //   env = 0;
+        // }
+        // ((VM *)(vm->functions->reserved0))->jnienvs.erase(pthread_self());
         return JNI_OK;
       },
       [](JavaVM *vm, void **penv, jint) -> jint {
-        
-        *penv = vm->functions->reserved0;
+        if(penv) {
+          std::lock_guard<std::mutex> lock(((VM *)(vm->functions->reserved0))->mtx);
+          *penv = ((VM *)(vm->functions->reserved0))->GetJNIEnv();
+        }
         return JNI_OK;
       },
       [](JavaVM * vm, JNIEnv ** penv, void * args) -> jint {
@@ -1395,24 +1425,27 @@ VM::VM() {
         return vm->AttachCurrentThread(penv, args);
       },
   }};
-  ((JNINativeInterface *)env->functions)->reserved1 = javaVM;
+  // ((JNINativeInterface *)env->functions)->reserved1 = javaVM;
 }
 
 VM::~VM() {
-  auto lcycle = (Lifecycle*)env->functions->reserved1;
-  for (auto &&frame : *lcycle) {
-    for (auto &&obj : frame) {
-      if(obj && !obj->This.DecrementRef()) {
-        delete obj;
+  for(auto && env : jnienvs) {
+    if(env.second) {
+      auto lcycle = (Lifecycle*)(env.second->functions->reserved2);
+      for (auto &&frame : *lcycle) {
+        for (auto &&obj : frame) {
+          if(obj && !obj->This.DecrementRef()) {
+            delete obj;
+          }
+        }
       }
+      delete lcycle;
+      delete env.second->functions;
+      delete env.second;
     }
   }
-  delete lcycle;
   delete javaVM->functions;
   delete javaVM;
-  delete (Namespace*)env->functions->reserved0;
-  delete env->functions;
-  delete env;
 }
 
 JavaVM *jnivm::VM::GetJavaVM() {
@@ -1420,7 +1453,8 @@ JavaVM *jnivm::VM::GetJavaVM() {
 }
 
 JNIEnv *jnivm::VM::GetJNIEnv() {
-  return env;
+  return jnienvs.begin()->second;
+  // return jnienvs[pthread_self()];
 }
 
 std::string jnivm::GeneratePreDeclaration(JNIEnv * env) {
