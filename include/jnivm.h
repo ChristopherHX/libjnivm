@@ -157,9 +157,11 @@ namespace jnivm {
         JNINativeInterface interface;
     public:
         std::mutex mtx;
+        std::vector<jnivm::java::lang::Object*> globals;
 
         VM();
         ~VM();
+        void SetReserved3(void*);
         JavaVM * GetJavaVM();
         JNIEnv * GetJNIEnv();
     };

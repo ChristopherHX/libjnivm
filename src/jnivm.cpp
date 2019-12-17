@@ -9,6 +9,8 @@
 #include <sstream>
 #include <unordered_map>
 
+#define EnableJNIVMGC
+
 using namespace jnivm;
 using namespace jnivm::java::lang;
 
@@ -564,56 +566,79 @@ void ExceptionDescribe(JNIEnv *) {  };
 void ExceptionClear(JNIEnv *) {  };
 void FatalError(JNIEnv *, const char *) {  };
 jint PushLocalFrame(JNIEnv * env, jint cap) {
-  // std::vector<jnivm::java::lang::Object *> frame;
-  // if(cap)
-  //   frame.reserve(cap);
-  // auto lf = (Lifecycle*)(env->functions->reserved2);
-  // (lf)->emplace_back(std::move(frame));
+#ifdef EnableJNIVMGC
+  std::vector<jnivm::java::lang::Object *> frame;
+  if(cap)
+    frame.reserve(cap);
+  auto lf = (Lifecycle*)(env->functions->reserved2);
+  (lf)->emplace_back(std::move(frame));
+#endif
   return 0;
 };
 jobject PopLocalFrame(JNIEnv * env, jobject previousframe) {
-  // auto lf = (Lifecycle*)(env->functions->reserved2);
-  // for (auto &&obj : ((Lifecycle*)(env->functions->reserved2))->back()) {
-  //   if(obj && !obj->This.DecrementRef()) {
-  //     delete obj;
-  //   }
-  // }
-  // ((Lifecycle*)(env->functions->reserved2))->pop_back();
+#ifdef EnableJNIVMGC
+  auto lf = (Lifecycle*)(env->functions->reserved2);
+  for (auto &&obj : ((Lifecycle*)(env->functions->reserved2))->back()) {
+    if(obj && !obj->This.DecrementRef()) {
+      delete obj;
+    }
+  }
+  ((Lifecycle*)(env->functions->reserved2))->pop_back();
+#endif
   return 0;
 };
 jobject NewGlobalRef(JNIEnv * env, jobject obj) {
+#ifdef EnableJNIVMGC
   if(!obj) return nullptr;
-  // ((Object*)obj)->This.IncrementRef();
-  // ((Lifecycle*)(env->functions->reserved2))->front().emplace_back((Object*)obj);
+  ((Object*)obj)->This.IncrementRef();
+  ((VM *)(env->functions->reserved1))->globals.emplace_back((Object*)obj);
+#endif
   return obj;
 };
 void DeleteGlobalRef(JNIEnv * env, jobject obj) {
+#ifdef EnableJNIVMGC
   if(!obj) return;
-  // auto & refs = ((Lifecycle*)(env->functions->reserved2))->front();
-  // refs.erase(std::find(refs.begin(), refs.end(), (Object*)obj));
-  // if(!((Object*)obj)->This.DecrementRef()) {
-  //   delete (Object*)obj;
-  // }
+  auto & refs = ((VM *)(env->functions->reserved1))->globals;
+  refs.erase(std::find(refs.begin(), refs.end(), (Object*)obj));
+  if(!((Object*)obj)->This.DecrementRef()) {
+    delete (Object*)obj;
+  }
+#endif
 };
 void DeleteLocalRef(JNIEnv * env, jobject obj) {
+#ifdef EnableJNIVMGC
   if(!obj) return;
-  // auto & refs = ((Lifecycle*)(env->functions->reserved2))->back();
-  // refs.erase(std::find(refs.begin(), refs.end(), (Object*)obj));
-  // if(!((Object*)obj)->This.DecrementRef()) {
-  //   delete (Object*)obj;
-  // }
+  auto lifecycle = ((Lifecycle*)(env->functions->reserved2));
+  for (int i = lifecycle->size() - 1; i >= 0; i--)
+  {
+    auto & refs = lifecycle->at(i);
+    auto res = std::find(refs.begin(), refs.end(), (Object*)obj);
+    if(res != refs.end()) {
+      refs.erase(res);
+      if(!((Object*)obj)->This.DecrementRef()) {
+        delete (Object*)obj;
+      }
+      return;
+    }
+  }
+  Log::error("JNIVM", "Object not found in current local layer");
+#endif
 };
 jboolean IsSameObject(JNIEnv *, jobject lobj, jobject robj) {
   return lobj == robj;
 };
 jobject NewLocalRef(JNIEnv * env, jobject obj) { 
   if(!obj) return nullptr;
-  // ((Object*)obj)->This.IncrementRef();
-  // ((Lifecycle*)(env->functions->reserved2))->back().emplace_back((Object*)obj);
+#ifdef EnableJNIVMGC
+  ((Object*)obj)->This.IncrementRef();
+  ((Lifecycle*)(env->functions->reserved2))->back().emplace_back((Object*)obj);
+#endif
   return obj;
 };
 jint EnsureLocalCapacity(JNIEnv * env, jint cap) {
-  // ((Lifecycle*)(env->functions->reserved2))->back().reserve(cap);
+#ifdef EnableJNIVMGC
+  ((Lifecycle*)(env->functions->reserved2))->back().reserve(cap);
+#endif
   return 0;
 };
 jobject AllocObject(JNIEnv *env, jclass cl) {
@@ -1368,7 +1393,9 @@ VM::VM() : interface({
   }) {
   np.name = "jnivm";
   auto env = jnienvs[pthread_self()] = new JNIEnv{ new JNINativeInterface(interface) };
+#ifdef EnableJNIVMGC
   ((JNINativeInterface*)env->functions)->reserved2 = new Lifecycle(1);
+#endif
   javaVM = new JavaVM{new JNIInvokeInterface{
       this,
       NULL,
@@ -1378,59 +1405,67 @@ VM::VM() : interface({
         return JNI_OK;
       },
       [](JavaVM *vm, JNIEnv **penv, void * args) -> jint {
-        // std::lock_guard<std::mutex> lock(((VM *)(vm->functions->reserved0))->mtx);
-        // auto & env = ((VM *)(vm->functions->reserved0))->jnienvs[pthread_self()];
-        // if(!env) {
-        //   env = new JNIEnv { new JNINativeInterface(((VM *)(vm->functions->reserved0))->interface) };
-        //   ((JNINativeInterface*)env->functions)->reserved2 = new Lifecycle(1);
-        // }
-        // if(penv) {
-        //   *penv = env;
-        // }
+#ifdef EnableJNIVMGC
+        std::lock_guard<std::mutex> lock(((VM *)(vm->functions->reserved0))->mtx);
+        auto & env = ((VM *)(vm->functions->reserved0))->jnienvs[pthread_self()];
+        if(!env) {
+          env = new JNIEnv { new JNINativeInterface(((VM *)(vm->functions->reserved0))->interface) };
+          ((JNINativeInterface*)env->functions)->reserved2 = new Lifecycle(1);
+        }
+        if(penv) {
+          *penv = env;
+        }
+#else
         if(penv) {
           std::lock_guard<std::mutex> lock(((VM *)(vm->functions->reserved0))->mtx);
           *penv = ((VM *)(vm->functions->reserved0))->GetJNIEnv();
         }
+#endif
         return JNI_OK;
       },
       [](JavaVM *vm) -> jint { 
-        // std::lock_guard<std::mutex> lock(((VM *)(vm->functions->reserved0))->mtx);
-        // auto & env = ((VM *)(vm->functions->reserved0))->jnienvs[pthread_self()];
-        // if(env) {
-        //   auto lcycle = (Lifecycle*)(env->functions->reserved2);
-        //   for (auto &&frame : *lcycle) {
-        //     for (auto &&obj : frame) {
-        //       if(obj && !obj->This.DecrementRef()) {
-        //         delete obj;
-        //       }
-        //     }
-        //   }
-        //   delete lcycle;
-        //   delete env->functions;
-        //   delete env;
-        //   env = 0;
-        // }
-        // ((VM *)(vm->functions->reserved0))->jnienvs.erase(pthread_self());
+#ifdef EnableJNIVMGC
+        std::lock_guard<std::mutex> lock(((VM *)(vm->functions->reserved0))->mtx);
+        auto & env = ((VM *)(vm->functions->reserved0))->jnienvs[pthread_self()];
+        if(env) {
+          auto lcycle = (Lifecycle*)(env->functions->reserved2);
+          for (auto &&frame : *lcycle) {
+            for (auto &&obj : frame) {
+              if(obj && !obj->This.DecrementRef()) {
+                delete obj;
+              }
+            }
+          }
+          delete lcycle;
+          delete env->functions;
+          delete env;
+          env = 0;
+        }
+        ((VM *)(vm->functions->reserved0))->jnienvs.erase(pthread_self());
+#endif
         return JNI_OK;
       },
       [](JavaVM *vm, void **penv, jint) -> jint {
         if(penv) {
+#ifdef EnableJNIVMGC
+          return vm->AttachCurrentThread((JNIEnv**)penv, nullptr);
+#else
           std::lock_guard<std::mutex> lock(((VM *)(vm->functions->reserved0))->mtx);
           *penv = ((VM *)(vm->functions->reserved0))->GetJNIEnv();
+#endif
         }
         return JNI_OK;
       },
       [](JavaVM * vm, JNIEnv ** penv, void * args) -> jint {
-        
         return vm->AttachCurrentThread(penv, args);
       },
   }};
-  // ((JNINativeInterface *)env->functions)->reserved1 = javaVM;
 }
 
 VM::~VM() {
   for(auto && env : jnienvs) {
     if(env.second) {
+#ifdef EnableJNIVMGC
       auto lcycle = (Lifecycle*)(env.second->functions->reserved2);
       for (auto &&frame : *lcycle) {
         for (auto &&obj : frame) {
@@ -1439,6 +1474,7 @@ VM::~VM() {
           }
         }
       }
+#endif
       delete lcycle;
       delete env.second->functions;
       delete env.second;
@@ -1448,13 +1484,24 @@ VM::~VM() {
   delete javaVM;
 }
 
+// Sets reserved3 for every JNIENV instance
+void jnivm::VM::SetReserved3(void * data) {
+  interface.reserved3 = data;
+  for (auto &&env : jnienvs) {
+    ((JNINativeInterface*)env.second->functions)->reserved3 = data;
+  }
+}
+
 JavaVM *jnivm::VM::GetJavaVM() {
   return javaVM;
 }
 
 JNIEnv *jnivm::VM::GetJNIEnv() {
+#ifdef EnableJNIVMGC
+  return jnienvs[pthread_self()];
+#else
   return jnienvs.begin()->second;
-  // return jnienvs[pthread_self()];
+#endif
 }
 
 std::string jnivm::GeneratePreDeclaration(JNIEnv * env) {
