@@ -9,7 +9,7 @@
 #include <sstream>
 #include <unordered_map>
 
-#define EnableJNIVMGC
+// #define EnableJNIVMGC
 
 using namespace jnivm;
 using namespace jnivm::java::lang;
@@ -17,6 +17,8 @@ using namespace jnivm::java::lang;
 java::lang::Object::operator jobject() {
   return (jobject)this;
 }
+
+#ifdef JNI_DEBUG
 
 const char *ParseJNIType(const char *cur, const char *end, std::string &type) {
   switch (*cur) {
@@ -58,6 +60,8 @@ const char *ParseJNIType(const char *cur, const char *end, std::string &type) {
   }
   return cur;
 }
+
+#endif
 
 const char * SkipJNIType(const char *cur, const char *end) {
     switch (*cur) {
@@ -127,6 +131,8 @@ std::vector<jvalue> JValuesfromValist(va_list list, const char* signature) {
     }
     return values;
 }
+
+#ifdef JNI_DEBUG
 
 void Declare(JNIEnv *env, const char *signature) {
   for (const char *cur = signature, *end = cur + strlen(cur); cur != end;
@@ -470,6 +476,8 @@ std::string Namespace::GenerateJNIBinding(std::string scope) {
   return ss.str();
 }
 
+#endif
+
 jint GetVersion(JNIEnv *) { return 0; };
 jclass DefineClass(JNIEnv *, const char *, jobject, const jbyte *, jsize) {
   return 0;
@@ -477,6 +485,7 @@ jclass DefineClass(JNIEnv *, const char *, jobject, const jbyte *, jsize) {
 jclass FindClass(JNIEnv *env, const char *name) {
   // std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
   auto prefix = "jnivm_" + std::regex_replace(name, std::regex("(/|\\$)"), "_") + '_';
+#ifdef JNI_DEBUG
   auto end = name + strlen(name);
   auto pos = name;
   Namespace *cur = (Namespace *)env->functions->reserved0;
@@ -530,12 +539,21 @@ jclass FindClass(JNIEnv *env, const char *name) {
     curc = next;
     name = pos + 1;
   } while (pos != end);
+#else
+  Class * curc = new Class();
+  const char * lastslash = strrchr(name, '/');
+  curc->name = lastslash != nullptr ? lastslash + 1 : name;
+#endif
   curc->nativeprefix = std::move(prefix);
   curc->This.IncrementRef();
+// #ifdef JNI_DEBUG
   return (jclass)env->NewGlobalRef((jobject)curc);
+// #else
+//   return (jclass)env->NewLocalRef((jobject)curc);
+// #endif
 };
 jmethodID FromReflectedMethod(JNIEnv *, jobject) {
-  return 0;  
+  return 0;
 };
 jfieldID FromReflectedField(JNIEnv *, jobject) {
   return 0;
@@ -559,7 +577,7 @@ jint ThrowNew(JNIEnv *, jclass, const char *) {
   return 0;
 };
 jthrowable ExceptionOccurred(JNIEnv *) {
-  
+
   return (jthrowable)0;
 };
 void ExceptionDescribe(JNIEnv *) {  };
@@ -627,7 +645,7 @@ void DeleteLocalRef(JNIEnv * env, jobject obj) {
 jboolean IsSameObject(JNIEnv *, jobject lobj, jobject robj) {
   return lobj == robj;
 };
-jobject NewLocalRef(JNIEnv * env, jobject obj) { 
+jobject NewLocalRef(JNIEnv * env, jobject obj) {
   if(!obj) return nullptr;
 #ifdef EnableJNIVMGC
   ((Object*)obj)->This.IncrementRef();
@@ -647,13 +665,13 @@ jobject AllocObject(JNIEnv *env, jclass cl) {
 jobject NewObject(JNIEnv *env, jclass cl, jmethodID mid, ...) {
   ScopedVaList param;
   va_start(param.list, mid);
-  return env->CallStaticObjectMethodV(cl, mid, param.list);
+  return env->NewLocalRef(env->CallStaticObjectMethodV(cl, mid, param.list));
 };
 jobject NewObjectV(JNIEnv *env, jclass cl, jmethodID mid, va_list list) {
-  return env->CallStaticObjectMethodV(cl, mid, list);
+  return env->NewLocalRef(env->CallStaticObjectMethodV(cl, mid, list));
 };
 jobject NewObjectA(JNIEnv *env, jclass cl, jmethodID mid, jvalue * val) {
-  return env->CallStaticObjectMethodA(cl, mid, val);
+  return env->NewLocalRef(env->CallStaticObjectMethodA(cl, mid, val));
 };
 jclass GetObjectClass(JNIEnv *env, jobject jo) {
   return *((Object*)jo)->clazz;
@@ -665,7 +683,8 @@ jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
                       const char *str1) {
   // std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
   std::string &classname = ((Class *)cl)->name;
-  
+#ifdef JNI_DEBUG
+
   auto cur = (Class *)cl;
   auto sname = str0;
   auto ssig = str1;
@@ -683,6 +702,10 @@ jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
     next->name = std::move(sname);
     next->signature = std::move(ssig);
     Declare(env, next->signature.data());
+#else
+    Method* next = new Method();
+    next->signature = str1;
+#endif
     auto This = dlopen(nullptr, RTLD_LAZY);
     std::string symbol = ((Class *)cl)->nativeprefix +
                          (!strcmp(str0, "<init>") ? classname : str0);
@@ -690,28 +713,34 @@ jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
       Log::trace("JNIVM", "Unresolved symbol %s", symbol.data());
     }
     dlclose(This);
+#ifdef JNI_DEBUG
   }
-  return (jmethodID)next;
+#endif
+  return (jmethodID)env->NewLocalRef((jobject)next);
 };
 
 void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
   auto mid = ((Method *)id);
-  
+
   if (mid->nativehandle) {
     return ((void(*)(JNIEnv*, jobject, jvalue *))mid->nativehandle)(env, obj, param);
   } else {
+#ifdef JNI_DEBUG
     Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
+#endif
   }
 };
 
 template <class T>
 T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
   auto mid = ((Method *)id);
-  
+
   if (mid->nativehandle) {
     return ((T(*)(JNIEnv*, jobject, jvalue *))mid->nativehandle)(env, obj, param);
   } else {
+#ifdef JNI_DEBUG
     Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
+#endif
     return {};
   }
 };
@@ -741,22 +770,26 @@ void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, ...) {
 template <class T>
 T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, jvalue * param) {
   auto mid = ((Method *)id);
-  
+
   if (mid->nativehandle) {
     return ((T(*)(JNIEnv*, jobject, jvalue *))mid->nativehandle)(env, obj, param);
   } else {
+#ifdef JNI_DEBUG
     Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
+#endif
     return {};
   }
 };
 
 void CallNonvirtualMethodV(JNIEnv * env, jobject obj, jclass cl, jmethodID id, jvalue * param) {
   auto mid = ((Method *)id);
-  
+
   if (mid->nativehandle) {
     return ((void(*)(JNIEnv*, jobject, jvalue *))mid->nativehandle)(env, obj, param);
   } else {
+#ifdef JNI_DEBUG
     Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
+#endif
   }
 };
 
@@ -786,7 +819,9 @@ jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name,
                     const char *type) {
   // std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
   std::string &classname = ((Class *)cl)->name;
-  
+
+#ifdef JNI_DEBUG
+
   auto cur = (Class *)cl;
   auto sname = name;
   auto ssig = type;
@@ -804,39 +839,48 @@ jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name,
     next->name = std::move(sname);
     next->type = std::move(ssig);
     Declare(env, next->type.data());
+#else
+    Field * next = new Field();
+#endif
     auto This = dlopen(nullptr, RTLD_LAZY);
     std::string symbol = ((Class *)cl)->nativeprefix + name;
     std::string gsymbol = "get_" + symbol;
     std::string ssymbol = "set_" + symbol;
     if (!(next->setnativehandle = dlsym(This, ssymbol.data()))) {
-      
+      Log::trace("JNIVM", "Unresolved symbol %s", ssymbol.data());
     }
     if (!(next->getnativehandle = dlsym(This, gsymbol.data()))) {
-      
+      Log::trace("JNIVM", "Unresolved symbol %s", gsymbol.data());
     }
     dlclose(This);
+#ifdef JNI_DEBUG
   }
-  return (jfieldID)next;
+#endif
+  return (jfieldID)env->NewLocalRef((jobject)next);
 };
 
 template <class T> T GetField(JNIEnv *, jobject obj, jfieldID id) {
   auto fid = ((Field *)id);
-  
+
   if (fid->getnativehandle) {
     return ((T(*)(jobject))fid->getnativehandle)(obj);
   } else {
+#ifdef JNI_DEBUG
     Log::debug("JNIVM", "Unknown Field Getter %s", fid->name.data());
+#endif
     return {};
   }
 }
 
 template <class T> void SetField(JNIEnv *, jobject obj, jfieldID id, T value) {
   auto fid = ((Field *)id);
-  
+
   if (fid->getnativehandle) {
     ((void (*)(jobject, T))fid->setnativehandle)(obj, value);
   } else {
+#ifdef JNI_DEBUG
     Log::debug("JNIVM", "Unknown Field Setter %s", fid->name.data());
+#endif
   }
 }
 
@@ -844,7 +888,9 @@ jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
                             const char *str1) {
   // std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
   std::string &classname = ((Class *)cl)->name;
-  
+
+#ifdef JNI_DEBUG
+
   auto cur = (Class *)cl;
   auto sname = str0;
   auto ssig = str1;
@@ -863,35 +909,45 @@ jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
     next->signature = std::move(ssig);
     next->_static = true;
     Declare(env, next->signature.data());
+#else
+    Method * next = new Method();
+    next->signature = str1;
+#endif
     auto This = dlopen(nullptr, RTLD_LAZY);
     std::string symbol = ((Class *)cl)->nativeprefix + str0;
     if (!(next->nativehandle = dlsym(This, symbol.data()))) {
-      Log::trace("JNIVM", "Unresolved symbol %s", symbol.data());      
+      Log::trace("JNIVM", "Unresolved symbol %s", symbol.data());
     }
     dlclose(This);
+#ifdef JNI_DEBUG
   }
-  return (jmethodID)next;
+#endif
+  return (jmethodID)env->NewLocalRef((jobject)next);
 };
 
 template <class T>
 T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
   auto mid = ((Method *)id);
-  
+
   if (mid->nativehandle) {
-    return ((T(*)(JNIEnv*, jvalue *))mid->nativehandle)(env, param);
+    return ((T(*)(JNIEnv*, jclass, jvalue *))mid->nativehandle)(env, cl, param);
   } else {
+#ifdef JNI_DEBUG
     Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
+#endif
     return {};
   }
 };
 
 void CallStaticMethodV(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
   auto mid = ((Method *)id);
-  
+
   if (mid->nativehandle) {
-    return ((void(*)(JNIEnv*, jvalue *))mid->nativehandle)(env, param);
+    return ((void(*)(JNIEnv*, jclass, jvalue *))mid->nativehandle)(env, cl, param);
   } else {
+#ifdef JNI_DEBUG
     Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
+#endif
   }
 };
 
@@ -921,7 +977,9 @@ jfieldID GetStaticFieldID(JNIEnv *env, jclass cl, const char *name,
                           const char *type) {
   // std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
   std::string &classname = ((Class *)cl)->name;
-  
+
+#ifdef JNI_DEBUG
+
   auto cur = (Class *)cl;
   auto sname = name;
   auto ssig = type;
@@ -940,28 +998,35 @@ jfieldID GetStaticFieldID(JNIEnv *env, jclass cl, const char *name,
     next->type = std::move(ssig);
     next->_static = true;
     Declare(env, next->type.data());
+#else
+    Field* next = new Field();
+#endif
     auto This = dlopen(nullptr, RTLD_LAZY);
     std::string symbol = ((Class *)cl)->nativeprefix + name;
     std::string gsymbol = "get_" + symbol;
     std::string ssymbol = "set_" + symbol;
     if (!(next->setnativehandle = dlsym(This, ssymbol.data()))) {
-      Log::debug("JNIVM", "Unresolved symbol %s", symbol.data());      
+      Log::debug("JNIVM", "Unresolved symbol %s", symbol.data());
     }
     if (!(next->getnativehandle = dlsym(This, gsymbol.data()))) {
-      Log::debug("JNIVM", "Unresolved symbol %s", symbol.data());      
+      Log::debug("JNIVM", "Unresolved symbol %s", symbol.data());
     }
     dlclose(This);
+#ifdef JNI_DEBUG
   }
-  return (jfieldID)next;
+#endif
+  return (jfieldID)env->NewLocalRef((jobject)next);
 };
 
 template <class T> T GetStaticField(JNIEnv *, jclass cl, jfieldID id) {
   auto fid = ((Field *)id);
-  
+
   if (fid->getnativehandle) {
     return ((T(*)())fid->getnativehandle)();
   } else {
+#ifdef JNI_DEBUG
     Log::debug("JNIVM", "Unknown Field Getter %s", fid->name.data());
+#endif
     return {};
   }
 }
@@ -969,16 +1034,18 @@ template <class T> T GetStaticField(JNIEnv *, jclass cl, jfieldID id) {
 template <class T>
 void SetStaticField(JNIEnv *, jclass cl, jfieldID id, T value) {
   auto fid = ((Field *)id);
-  
+
   if (fid->getnativehandle) {
     ((void (*)(T))fid->setnativehandle)(value);
   } else {
+#ifdef JNI_DEBUG
     Log::debug("JNIVM", "Unknown Field Setter %s", fid->name.data());
+#endif
   }
 }
 
 jstring NewString(JNIEnv *, const jchar * str, jsize size) {
-  
+
   // std::stringstream ss;
   // std::mbstate_t state{};
   // char out[MB_LEN_MAX]{};
@@ -993,7 +1060,7 @@ jstring NewString(JNIEnv *, const jchar * str, jsize size) {
   return 0;
 };
 jsize GetStringLength(JNIEnv *env, jstring str) {
-  
+
   // std::mbstate_t state{};
   // std::string * cstr = ((Object<std::string>*)str)->value;
   // size_t count = 0;
@@ -1006,7 +1073,7 @@ jsize GetStringLength(JNIEnv *env, jstring str) {
   return 0;
 };
 const jchar *GetStringChars(JNIEnv * env, jstring str, jboolean * copy) {
-  
+
   if(copy) {
     *copy = true;
   }
@@ -1016,7 +1083,7 @@ const jchar *GetStringChars(JNIEnv * env, jstring str, jboolean * copy) {
   return jstr;
 };
 void ReleaseStringChars(JNIEnv * env, jstring str, const jchar * cstr) {
-  
+
   delete cstr;
 };
 jstring NewStringUTF(JNIEnv * env, const char *str) {
@@ -1060,7 +1127,7 @@ T *GetArrayElements(JNIEnv *, typename JNITypes<T>::Array a, jboolean *iscopy) {
 
 template <class T>
 void ReleaseArrayElements(JNIEnv *, typename JNITypes<T>::Array a, T *carr, jint) {
-  
+
 };
 
 template <class T>
@@ -1100,7 +1167,7 @@ jint GetJavaVM(JNIEnv * env, JavaVM ** vm) {
   return 0;
 };
 void GetStringRegion(JNIEnv *, jstring str, jsize start, jsize length, jchar * buf) {
-  // 
+  //
   // std::mbstate_t state{};
   // std::string * cstr = ((Object<std::string>*)str)->value;
   // int count = 0;
@@ -1114,7 +1181,7 @@ void GetStringRegion(JNIEnv *, jstring str, jsize start, jsize length, jchar * b
   // }
 };
 void GetStringUTFRegion(JNIEnv *, jstring str, jsize start, jsize len, char * buf) {
-  // 
+  //
   // std::mbstate_t state{};
   // std::string * cstr = ((Object<std::string>*)str)->value;
   // int count = 0;
@@ -1134,14 +1201,14 @@ jweak NewWeakGlobalRef(JNIEnv *, jobject obj) {
 };
 void DeleteWeakGlobalRef(JNIEnv *, jweak) {
 };
-jboolean ExceptionCheck(JNIEnv *) { 
+jboolean ExceptionCheck(JNIEnv *) {
 return JNI_FALSE;
  };
 jobject NewDirectByteBuffer(JNIEnv *, void *, jlong) {
-  return 0;  
+  return 0;
 };
 void *GetDirectBufferAddress(JNIEnv *, jobject) {
-  return 0;  
+  return 0;
 };
 jlong GetDirectBufferCapacity(JNIEnv *, jobject) {
   return 0;
@@ -1152,7 +1219,12 @@ jobjectRefType GetObjectRefType(JNIEnv *, jobject) {
 };
 
 VM::VM() : interface({
-      &np,
+#ifdef JNI_DEBUG
+      &np
+#else
+      NULL
+#endif
+,
       this,
       NULL,
       NULL,
@@ -1391,7 +1463,9 @@ VM::VM() : interface({
       /* added in JNI 1.6 */
       GetObjectRefType,
   }) {
+#ifdef JNI_DEBUG
   np.name = "jnivm";
+#endif
   auto env = jnienvs[pthread_self()] = new JNIEnv{ new JNINativeInterface(interface) };
 #ifdef EnableJNIVMGC
   ((JNINativeInterface*)env->functions)->reserved2 = new Lifecycle(1);
@@ -1401,7 +1475,7 @@ VM::VM() : interface({
       NULL,
       NULL,
       [](JavaVM *) -> jint {
-        
+
         return JNI_OK;
       },
       [](JavaVM *vm, JNIEnv **penv, void * args) -> jint {
@@ -1423,7 +1497,7 @@ VM::VM() : interface({
 #endif
         return JNI_OK;
       },
-      [](JavaVM *vm) -> jint { 
+      [](JavaVM *vm) -> jint {
 #ifdef EnableJNIVMGC
         std::lock_guard<std::mutex> lock(((VM *)(vm->functions->reserved0))->mtx);
         auto & env = ((VM *)(vm->functions->reserved0))->jnienvs[pthread_self()];
@@ -1474,8 +1548,8 @@ VM::~VM() {
           }
         }
       }
-#endif
       delete lcycle;
+#endif
       delete env.second->functions;
       delete env.second;
     }
@@ -1504,6 +1578,8 @@ JNIEnv *jnivm::VM::GetJNIEnv() {
 #endif
 }
 
+#ifdef JNI_DEBUG
+
 std::string jnivm::GeneratePreDeclaration(JNIEnv * env) {
   return "#include <jnivm.h>\n" + ((Namespace*&)env->functions->reserved0)->GeneratePreDeclaration();
 }
@@ -1519,3 +1595,5 @@ std::string jnivm::GenerateStubs(JNIEnv * env) {
 std::string jnivm::GenerateJNIBinding(JNIEnv * env) {
   return ((Namespace*&)env->functions->reserved0)->GenerateJNIBinding("");
 }
+
+#endif
