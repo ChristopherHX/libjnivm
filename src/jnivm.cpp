@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <dlfcn.h>
 #include <jni.h>
 #include <jnivm.h>
 #include <log.h>
@@ -8,6 +7,12 @@
 #include <climits>
 #include <sstream>
 #include <unordered_map>
+
+#ifdef _WIN32
+#include "../../libhybris/include/windows/dlfcn.h"
+#else
+#include <dlfcn.h>
+#endif
 
 // #define EnableJNIVMGC
 
@@ -1218,7 +1223,7 @@ jobjectRefType GetObjectRefType(JNIEnv *, jobject) {
   return jobjectRefType::JNIInvalidRefType;
 };
 
-VM::VM() : interface({
+VM::VM() : _interface({
 #ifdef JNI_DEBUG
       &np
 #else
@@ -1466,7 +1471,7 @@ VM::VM() : interface({
 #ifdef JNI_DEBUG
   np.name = "jnivm";
 #endif
-  auto env = jnienvs[pthread_self()] = new JNIEnv{ new JNINativeInterface(interface) };
+  auto env = jnienvs[pthread_self()] = new JNIEnv{ new JNINativeInterface(_interface) };
 #ifdef EnableJNIVMGC
   ((JNINativeInterface*)env->functions)->reserved2 = new Lifecycle(1);
 #endif
@@ -1560,7 +1565,7 @@ VM::~VM() {
 
 // Sets reserved3 for every JNIENV instance
 void jnivm::VM::SetReserved3(void * data) {
-  interface.reserved3 = data;
+  _interface.reserved3 = data;
   for (auto &&env : jnienvs) {
     ((JNINativeInterface*)env.second->functions)->reserved3 = data;
   }

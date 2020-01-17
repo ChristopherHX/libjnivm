@@ -1,6 +1,5 @@
 #pragma once
 #include <string>
-#include <pthread.h>
 #include <jni.h>
 #include <stack>
 #include <vector>
@@ -9,7 +8,13 @@
 #include <mutex>
 #include <atomic>
 
-// #define JNI_DEBUG
+#define JNI_DEBUG
+
+#ifdef _WIN32
+#include "../../libhybris/include/windows/pthread.h"
+#else
+#include <pthread.h>
+#endif
 
 namespace jnivm {
 
@@ -173,7 +178,7 @@ namespace jnivm {
 #ifdef JNI_DEBUG
         Namespace np;
 #endif
-        JNINativeInterface interface;
+        JNINativeInterface _interface;
     public:
         std::mutex mtx;
         std::vector<jnivm::java::lang::Object*> globals;
