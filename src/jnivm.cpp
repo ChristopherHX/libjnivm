@@ -9,7 +9,7 @@
 #include <sstream>
 #include <unordered_map>
 
-// #define EnableJNIVMGC
+#define EnableJNIVMGC
 
 using namespace jnivm;
 using namespace jnivm::java::lang;
