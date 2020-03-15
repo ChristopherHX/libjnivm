@@ -674,7 +674,7 @@ jobject NewObjectA(JNIEnv *env, jclass cl, jmethodID mid, jvalue * val) {
   return env->NewLocalRef(env->CallStaticObjectMethodA(cl, mid, val));
 };
 jclass GetObjectClass(JNIEnv *env, jobject jo) {
-  return *((Object*)jo)->clazz;
+  return jo ? (jclass)((Object*)jo)->clazz : (jclass)new Class();
 };
 jboolean IsInstanceOf(JNIEnv *, jobject jo, jclass cl) {
   return jo && *((Object*)jo)->clazz == cl;
@@ -1096,7 +1096,7 @@ jsize GetStringUTFLength(JNIEnv *, jstring str) {
 const char *GetStringUTFChars(JNIEnv * env, jstring str, jboolean *copy) {
   if (copy)
     *copy = false;
-  return str ? ((String*)str)->data() : nullptr;
+  return str ? ((String*)str)->data() : "";
 };
 void ReleaseStringUTFChars(JNIEnv * env, jstring str, const char * cstr) {
 };
