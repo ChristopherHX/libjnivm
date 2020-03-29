@@ -103,10 +103,14 @@ std::vector<jvalue> JValuesfromValist(va_list list, const char* signature) {
             // Void has size 0 ignore it
             break;
         case 'Z':
+            // These are promoted to int (gcc warning)
+            values.back().z = (jboolean)va_arg(list, int);
         case 'B':
+            // These are promoted to int (gcc warning)
+            values.back().b = (jbyte)va_arg(list, int);
         case 'S':
             // These are promoted to int (gcc warning)
-            values.back().z = va_arg(list, int);
+            values.back().s = (jshort)va_arg(list, int);
             break;
         case 'I':
             values.back().i = va_arg(list, jint);
@@ -115,6 +119,8 @@ std::vector<jvalue> JValuesfromValist(va_list list, const char* signature) {
             values.back().j = va_arg(list, jlong);
             break;
         case 'F':
+            values.back().f = (jfloat)va_arg(list, jdouble);
+            break;
         case 'D':
             values.back().d = va_arg(list, jdouble);
             break;
