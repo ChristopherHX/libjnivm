@@ -60,7 +60,6 @@ namespace jnivm {
     template<class R, class ...P> struct Function<R(P...)> {
         using Return = R;
         template<size_t I=0> using Parameter = typename std::tuple_element_t<I, std::tuple<P...,void>>;
-        using Type = std::function<R(P...)>;
         static constexpr size_t plength = sizeof...(P);
         static constexpr FunctionType type = FunctionType::None;
     };
@@ -71,7 +70,6 @@ namespace jnivm {
     template<class T, class R, class ...P> struct Function<R(T::*)(P...)> {
         using Return = R;
         template<size_t I=0> using Parameter = typename std::tuple_element_t<I, std::tuple<T, P...,void>>;
-        using Type = std::function<R(T, P...)>;
         static constexpr size_t plength = sizeof...(P) + 1;
         static constexpr FunctionType type = FunctionType::Instance;
     };
@@ -90,17 +88,20 @@ namespace jnivm {
         static constexpr FunctionType type = FunctionType::Property;
     };
 
+    class ENV;
+
     template<class Funk> struct Wrap {
+        using T = Funk;
         using Function = jnivm::Function<Funk>;
         using IntSeq = std::make_index_sequence<Function::plength>;
         template<class I> class __StaticFuncWrapper;
-        template<size_t...I> class __StaticFuncWrapper<std::index_sequence<I...>> {
+        template<size_t Z, size_t...I> class __StaticFuncWrapper<std::index_sequence<Z, I...>> {
             Funk handle;
         public:
             __StaticFuncWrapper(Funk handle) : handle(handle) {}
 
-            constexpr auto Invoke(const std::vector<jvalue> & values) {
-                return handle(((typename Function::template Parameter<I>&)(values[I]))...);
+            constexpr auto Invoke(ENV * env, const std::vector<jvalue> & values) {
+                return handle(env, ((typename Function::template Parameter<I>&)(values[I]))...);
             }
         };
         template<class I> class __InstanceFuncWrapper;
@@ -193,8 +194,9 @@ namespace jnivm {
 #endif
                     // ToDo
                     // method->signature = 
-                    method->nativehandle = std::shared_ptr<void>(new typename w::Wrapper::Function::Type(std::bind(t, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2)), [](void * v) {
-                        delete (typename w::Wrapper::Function::Type*)v;
+                    using Funk = std::function<typename w::Function::Return(ENV* env, const std::vector<jvalue> & values)>;
+                    method->nativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::Invoke, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2)), [](void * v) {
+                        delete (Funk*)v;
                     });
                     cl->methods.emplace_back(std::move(method));
                 }
@@ -203,7 +205,7 @@ namespace jnivm {
 
             template<class T> void Class::Hook(const std::string& id, T&& t) {
                 using w = Wrap<T>;
-                HookManager<w::Function::type, w>::install(this, id, std::forward(t));
+                HookManager<w::Function::type, w>::install(this, id, std::move(t));
             }
 
             class String : public Object, public std::string {

@@ -1223,7 +1223,7 @@ class Activity {
 public:
 	Activity();
 	jint Test(JNIEnv * env, jstring s);
-	static jint Test2(JNIEnv * env, jstring s);
+	static jint Test2(ENV * env, jstring s);
 	std::string val;
 	static std::string val2;
 };
@@ -1266,6 +1266,9 @@ void test() {
 	// hook("Hi", &Activity::val);
 	// hook("Hi", &Activity::Test2);
 	// hook("Hi", &Activity::Test);
+
+    Class cl{};
+    cl.Hook("java/lang/thumb", &Activity::Test2);
 }
 
 // int main() {
