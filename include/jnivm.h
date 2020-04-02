@@ -91,7 +91,7 @@ namespace jnivm {
     };
 
     template<class Funk> struct Wrap {
-        using Function = Function<Funk>;
+        using Function = jnivm::Function<Funk>;
         using IntSeq = std::make_index_sequence<Function::plength>;
         template<class I> class __StaticFuncWrapper;
         template<size_t...I> class __StaticFuncWrapper<std::index_sequence<I...>> {
