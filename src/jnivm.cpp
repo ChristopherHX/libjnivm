@@ -1204,6 +1204,10 @@ public:
 	static std::string val2;
 };
 
+static jint Test3(ENV * env, java::lang::Object* cl, jstring s) {
+	return 0;
+}
+
 // template<FunctionType type> struct HookManager;
 // template<> struct HookManager<FunctionType::Instance> {
 
@@ -1244,8 +1248,10 @@ void test() {
 	// hook("Hi", &Activity::Test);
 
     Class cl{};
-    cl.Hook("java/lang/Test", &Activity::Test2);
-    cl.Hook("java/lang/Test", &Activity::Test);
+    cl.Hook("java/lang/Test1", &Activity::Test);
+    cl.Hook("java/lang/Test2", &Activity::Test2);
+    cl.HookInstanceFunction("java/lang/Test3", &Test3);
+    cl.HookInstanceSetterFunction("java/lang/Test3", &Test3);
 }
 
 // int main() {

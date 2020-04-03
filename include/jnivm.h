@@ -241,6 +241,8 @@ namespace jnivm {
 
                 template<class T> void Hook(const std::string& method, T&& t);
                 template<class T> void HookInstanceFunction(const std::string& id, T&& t);
+                template<class T> void HookInstanceGetterFunction(const std::string& id, T&& t);
+                template<class T> void HookInstanceSetterFunction(const std::string& id, T&& t);
                 template<class T> void HookGetterFunction(const std::string& id, T&& t);
                 template<class T> void HookSetterFunction(const std::string& id, T&& t);
 #ifdef JNI_DEBUG
@@ -415,6 +417,23 @@ namespace jnivm {
             template<class T> void Class::HookInstanceFunction(const std::string& id, T&& t) {
                 using w = Wrap<T>;
                 HookManager<FunctionType::Instance, w>::install(this, id, std::move(t));
+            }
+
+            template<class T> void Class::HookInstanceGetterFunction(const std::string& id, T&& t) {
+                using w = Wrap<T>;
+                HookManager<FunctionType::InstanceGetter, w>::install(this, id, std::move(t));
+            }
+            template<class T> void Class::HookInstanceSetterFunction(const std::string& id, T&& t) {
+                using w = Wrap<T>;
+                HookManager<FunctionType::InstanceSetter, w>::install(this, id, std::move(t));
+            }
+            template<class T> void Class::HookGetterFunction(const std::string& id, T&& t) {
+                using w = Wrap<T>;
+                HookManager<FunctionType::Getter, w>::install(this, id, std::move(t));
+            }
+            template<class T> void Class::HookSetterFunction(const std::string& id, T&& t) {
+                using w = Wrap<T>;
+                HookManager<FunctionType::Setter, w>::install(this, id, std::move(t));
             }
 
             class String : public Object, public std::string {
