@@ -254,7 +254,7 @@ namespace jnivm {
             };
 
             template<class w> struct HookManager<FunctionType::None, w> {
-                static void install(Class * cl, const std::string& id, typename w::T&& t) {
+                template<class T> static void install(Class * cl, const std::string& id, T&& t) {
                     // ToDo, lookup / register class types
                     // field->signature = w::Wrapper::GetJNISignature();
                     auto ssig = "";
@@ -280,7 +280,7 @@ namespace jnivm {
             };
 
             template<class w> struct HookManager<FunctionType::Instance, w> {
-                static void install(Class * cl, const std::string& id, typename w::T&& t) {
+                template<class T> static void install(Class * cl, const std::string& id, T&& t) {
                     // ToDo, lookup / register class types
                     // field->signature = w::Wrapper::GetJNISignature();
                     auto ssig = "";
@@ -306,7 +306,7 @@ namespace jnivm {
             };
 
             template<class w> struct HookManager<FunctionType::Getter, w> {
-                static void install(Class * cl, const std::string& id, typename w::T&& t) {
+                template<class T> static void install(Class * cl, const std::string& id, T&& t) {
                     // ToDo, lookup / register class types
                     // field->signature = w::Wrapper::GetJNISignature();
                     auto ssig = "";
@@ -332,7 +332,7 @@ namespace jnivm {
             };
 
             template<class w> struct HookManager<FunctionType::Setter, w> {
-                static void install(Class * cl, const std::string& id, typename w::T&& t) {
+                template<class T> static void install(Class * cl, const std::string& id, T&& t) {
                     // ToDo, lookup / register class types
                     // field->signature = w::Wrapper::GetJNISignature();
                     auto ssig = "";
@@ -358,7 +358,7 @@ namespace jnivm {
             };
 
             template<class w> struct HookManager<FunctionType::InstanceGetter, w> {
-                static void install(Class * cl, const std::string& id, typename w::T&& t) {
+                template<class T> static void install(Class * cl, const std::string& id, T&& t) {
                     // ToDo, lookup / register class types
                     // field->signature = w::Wrapper::GetJNISignature();
                     auto ssig = "";
@@ -384,7 +384,7 @@ namespace jnivm {
             };
 
             template<class w> struct HookManager<FunctionType::InstanceSetter, w> {
-                static void install(Class * cl, const std::string& id, typename w::T&& t) {
+                template<class T> static void install(Class * cl, const std::string& id, T&& t) {
                     // ToDo, lookup / register class types
                     // field->signature = w::Wrapper::GetJNISignature();
                     auto ssig = "";
@@ -406,6 +406,20 @@ namespace jnivm {
                         delete (Funk*)v;
                     });
                     cl->fields.emplace_back(std::move(field));
+                }
+            };
+
+            template<class w> struct HookManager<FunctionType::InstanceProperty, w> {
+                template<class T> static void install(Class * cl, const std::string& id, T&& t) {
+                    HookManager<FunctionType::InstanceGetter, w>::install(cl, id, t);
+                    HookManager<FunctionType::InstanceSetter, w>::install(cl, id, t);
+                }
+            };
+
+            template<class w> struct HookManager<FunctionType::Property, w> {
+                template<class T> static void install(Class * cl, const std::string& id, T&& t) {
+                    HookManager<FunctionType::Getter, w>::install(cl, id, t);
+                    HookManager<FunctionType::Setter, w>::install(cl, id, t);
                 }
             };
 

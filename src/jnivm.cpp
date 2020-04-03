@@ -1258,8 +1258,8 @@ public:
 	static jint Test2(ENV * env, java::lang::Class* cl, jstring s) {
 		return 0;
 	}
-	std::string val;
-	static std::string val2;
+	jstring val;
+	static jstring val2;
 };
 
 static jint Test3(ENV * env, java::lang::Object* cl, jstring s) {
@@ -1310,6 +1310,8 @@ void test() {
     cl.Hook("java/lang/Test2", &Activity::Test2);
     cl.HookInstanceFunction("java/lang/Test3", &Test3);
     cl.HookInstanceSetterFunction("java/lang/Test3", &Test3);
+	cl.Hook("Hi", &Activity::val2);
+	cl.Hook("Hi", &Activity::val);
 }
 
 // int main() {
