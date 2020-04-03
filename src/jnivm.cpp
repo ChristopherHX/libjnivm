@@ -735,7 +735,12 @@ void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 template <class T>
 T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 	auto mid = ((Method *)id);
-
+#ifdef JNI_DEBUG
+	if(!obj)
+		Log::warn("JNIVM", "CallMethod object is null");
+	if(!id)
+		Log::warn("JNIVM", "CallMethod field is null");
+#endif
 	if (mid->nativehandle) {
 		return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
 	} else {
@@ -747,31 +752,38 @@ T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 };
 
 void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
-		return CallMethodV(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
+	return CallMethodV(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
 };
 
 template <class T>
 T CallMethod(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
-		return CallMethod<T>(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
+	return CallMethod<T>(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
 };
 
 template <class T>
 T CallMethod(JNIEnv * env, jobject obj, jmethodID id, ...) {
-		ScopedVaList param;
-		va_start(param.list, id);
-		return CallMethod<T>(env, obj, id, param.list);
+	ScopedVaList param;
+	va_start(param.list, id);
+	return CallMethod<T>(env, obj, id, param.list);
 };
 
 void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, ...) {
-		ScopedVaList param;
-		va_start(param.list, id);
-		return CallMethodV(env, obj, id, param.list);
+	ScopedVaList param;
+	va_start(param.list, id);
+	return CallMethodV(env, obj, id, param.list);
 };
 
 template <class T>
 T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, jvalue * param) {
 	auto mid = ((Method *)id);
-
+#ifdef JNI_DEBUG
+	if(!obj)
+		Log::warn("JNIVM", "CallNonvirtualMethod object is null");
+	if(!cl)
+		Log::warn("JNIVM", "CallNonvirtualMethod class is null");
+	if(!id)
+		Log::warn("JNIVM", "CallNonvirtualMethod field is null");
+#endif
 	if (mid->nativehandle) {
 		return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
 	} else {
@@ -848,7 +860,12 @@ jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name,
 
 template <class T> T GetField(JNIEnv *env, jobject obj, jfieldID id) {
 	auto fid = ((Field *)id);
-
+#ifdef JNI_DEBUG
+	if(!obj)
+		Log::warn("JNIVM", "GetField object is null");
+	if(!id)
+		Log::warn("JNIVM", "GetField field is null");
+#endif
 	if (fid->getnativehandle) {
 		return (*(std::function<T(ENV*, Object*, const jvalue*)>*)fid->getnativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, nullptr);
 	} else {
@@ -861,7 +878,12 @@ template <class T> T GetField(JNIEnv *env, jobject obj, jfieldID id) {
 
 template <class T> void SetField(JNIEnv *env, jobject obj, jfieldID id, T value) {
 	auto fid = ((Field *)id);
-
+#ifdef JNI_DEBUG
+	if(!obj)
+		Log::warn("JNIVM", "SetField object is null");
+	if(!id)
+		Log::warn("JNIVM", "SetField field is null");
+#endif
 	if (fid->getnativehandle) {
 		(*(std::function<void(ENV*, Object*, const jvalue*)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, (jvalue*)&value);
 	} else {
@@ -903,7 +925,12 @@ jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
 template <class T>
 T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
 	auto mid = ((Method *)id);
-
+#ifdef JNI_DEBUG
+	if(!cl)
+		Log::warn("JNIVM", "CallNonvirtualMethod class is null");
+	if(!id)
+		Log::warn("JNIVM", "CallNonvirtualMethod field is null");
+#endif
 	if (mid->nativehandle) {
 		return (*(std::function<T(ENV*, Class*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, param);
 	} else {
