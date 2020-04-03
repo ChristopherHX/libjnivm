@@ -220,6 +220,9 @@ namespace jnivm {
                 }
 
                 template<class T> void Hook(const std::string& method, T&& t);
+                template<class T> void HookInstanceFunction(const std::string& id, T&& t);
+                template<class T> void HookGetterFunction(const std::string& id, T&& t);
+                template<class T> void HookSetterFunction(const std::string& id, T&& t);
 #ifdef JNI_DEBUG
                 std::string GenerateHeader(std::string scope);
                 std::string GeneratePreDeclaration();
@@ -267,6 +270,11 @@ namespace jnivm {
             template<class T> void Class::Hook(const std::string& id, T&& t) {
                 using w = Wrap<T>;
                 HookManager<w::Function::type, w>::install(this, id, std::move(t));
+            }
+
+            template<class T> void Class::HookInstanceFunction(const std::string& id, T&& t) {
+                using w = Wrap<T>;
+                HookManager<FunctionType::Instance, w>::install(this, id, std::move(t));
             }
 
             class String : public Object, public std::string {
