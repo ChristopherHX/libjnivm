@@ -136,22 +136,22 @@ namespace jnivm {
         public:
             __StaticFuncWrapper(Funk handle) : handle(handle) {}
 
-            constexpr auto StaticInvoke(ENV * env, java::lang::Class* clazz, const std::vector<jvalue> & values) {
+            constexpr auto StaticInvoke(ENV * env, java::lang::Class* clazz, const jvalue* values) {
                 return handle(env, clazz, ((typename Function::template Parameter<I>&)(values[I-2]))...);
             }
-            constexpr auto StaticGet(ENV * env, java::lang::Class* clazz, const std::vector<jvalue> & values) {
+            constexpr auto StaticGet(ENV * env, java::lang::Class* clazz, const jvalue* values) {
                 return handle(env, clazz, ((typename Function::template Parameter<I>&)(values[I-2]))...);
             }
-            constexpr auto StaticSet(ENV * env, java::lang::Class* clazz, const std::vector<jvalue> & values) {
+            constexpr auto StaticSet(ENV * env, java::lang::Class* clazz, const jvalue* values) {
                 return handle(env, clazz, ((typename Function::template Parameter<I>&)(values[I-2]))...);
             }
-            constexpr auto InstanceInvoke(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
+            constexpr auto InstanceInvoke(ENV * env, java::lang::Object* obj, const jvalue* values) {
                 return handle(env, obj, ((typename Function::template Parameter<I>&)(values[I-2]))...);
             }
-            constexpr auto InstanceGet(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
+            constexpr auto InstanceGet(ENV * env, java::lang::Object* obj, const jvalue* values) {
                 return handle(env, obj, ((typename Function::template Parameter<I>&)(values[I-2]))...);
             }
-            constexpr auto InstanceSet(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
+            constexpr auto InstanceSet(ENV * env, java::lang::Object* obj, const jvalue* values) {
                 return handle(env, obj, ((typename Function::template Parameter<I>&)(values[I-2]))...);
             }
             static constexpr std::string GetJNISignature() {
@@ -164,13 +164,13 @@ namespace jnivm {
         public:
             __InstanceFuncWrapper(Funk handle) : handle(handle) {}
 
-            constexpr auto InstanceInvoke(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
+            constexpr auto InstanceInvoke(ENV * env, java::lang::Object* obj, const jvalue* values) {
                 return (((typename Function::template Parameter<O>&)(obj)).*handle)(env, ((typename Function::template Parameter<I>&)(values[I-2]))...);
             }
-            constexpr auto InstanceGet(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
+            constexpr auto InstanceGet(ENV * env, java::lang::Object* obj, const jvalue* values) {
                 return (((typename Function::template Parameter<O>&)(obj)).*handle)(env, ((typename Function::template Parameter<I>&)(values[I-2]))...);
             }
-            constexpr auto InstanceSet(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
+            constexpr auto InstanceSet(ENV * env, java::lang::Object* obj, const jvalue* values) {
                 return (((typename Function::template Parameter<O>&)(obj)).*handle)(env, ((typename Function::template Parameter<I>&)(values[I-2]))...);
             }
             static constexpr std::string GetJNISignature() {
@@ -183,11 +183,11 @@ namespace jnivm {
         public:
             __InstancePropWrapper(Funk handle) : handle(handle) {}
 
-            constexpr auto&& InstanceSet(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
+            constexpr auto&& InstanceSet(ENV * env, java::lang::Object* obj, const jvalue* values) {
                 return ((typename Function::template Parameter<Z>&)(obj)).*handle = ((typename Function::template Parameter<1>&)(values[0]));
             }
 
-            constexpr auto&& InstanceGet(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
+            constexpr auto&& InstanceGet(ENV * env, java::lang::Object* obj, const jvalue* values) {
                 return (((typename Function::template Parameter<Z>&)(obj)).*handle);
             }
         };
@@ -197,11 +197,11 @@ namespace jnivm {
         public:
             __StaticPropWrapper(Funk handle) : handle(handle) {}
 
-            constexpr auto&& StaticSet(ENV * env, java::lang::Class* clazz, const std::vector<jvalue> & values) {
+            constexpr auto&& StaticSet(ENV * env, java::lang::Class* clazz, const jvalue* values) {
                 return *handle = ((typename Function::template Parameter<0>&)(values[0]));
             }
 
-            constexpr auto&& StaticGet(ENV * env, java::lang::Class* clazz, const std::vector<jvalue> & values) {
+            constexpr auto&& StaticGet(ENV * env, java::lang::Class* clazz, const jvalue* values) {
                 return *handle;
             }
         };
@@ -271,7 +271,7 @@ namespace jnivm {
                         method->name = id;
                         method->_static = true;
                     }
-                    using Funk = std::function<typename w::Function::Return(ENV* env, java::lang::Class* clazz, const std::vector<jvalue> & values)>;
+                    using Funk = std::function<typename w::Function::Return(ENV* env, java::lang::Class* clazz, const jvalue* values)>;
                     method->nativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::StaticInvoke, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
                         delete (Funk*)v;
                     });
@@ -297,7 +297,7 @@ namespace jnivm {
                         method->name = id;
                         method->_static = false;
                     }
-                    using Funk = std::function<typename w::Function::Return(ENV* env, java::lang::Object* obj, const std::vector<jvalue> & values)>;
+                    using Funk = std::function<typename w::Function::Return(ENV* env, java::lang::Object* obj, const jvalue* values)>;
                     method->nativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::InstanceInvoke, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
                         delete (Funk*)v;
                     });
@@ -323,7 +323,7 @@ namespace jnivm {
                         field->name = id;
                         field->_static = true;
                     }
-                    using Funk = std::function<typename w::Function::Return(ENV* env, java::lang::Class* clazz, const std::vector<jvalue> & values)>;
+                    using Funk = std::function<typename w::Function::Return(ENV* env, java::lang::Class* clazz, const jvalue* values)>;
                     field->getnativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::StaticGet, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
                         delete (Funk*)v;
                     });
@@ -349,7 +349,7 @@ namespace jnivm {
                         field->name = id;
                         field->_static = true;
                     }
-                    using Funk = std::function<typename w::Function::Return(ENV* env, java::lang::Class* clazz, const std::vector<jvalue> & values)>;
+                    using Funk = std::function<typename w::Function::Return(ENV* env, java::lang::Class* clazz, const jvalue* values)>;
                     field->setnativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::StaticSet, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
                         delete (Funk*)v;
                     });
@@ -375,7 +375,7 @@ namespace jnivm {
                         field->name = id;
                         field->_static = true;
                     }
-                    using Funk = std::function<typename w::Function::Return(ENV* env, java::lang::Class* clazz, const std::vector<jvalue> & values)>;
+                    using Funk = std::function<typename w::Function::Return(ENV* env, java::lang::Class* clazz, const jvalue* values)>;
                     field->getnativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::InstanceGet, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
                         delete (Funk*)v;
                     });
@@ -401,7 +401,7 @@ namespace jnivm {
                         field->name = id;
                         field->_static = true;
                     }
-                    using Funk = std::function<typename w::Function::Return(ENV* env, java::lang::Object* obj, const std::vector<jvalue> & values)>;
+                    using Funk = std::function<typename w::Function::Return(ENV* env, java::lang::Object* obj, const jvalue* values)>;
                     field->setnativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::InstanceSet, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
                         delete (Funk*)v;
                     });
