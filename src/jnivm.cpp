@@ -143,18 +143,6 @@ std::vector<jvalue> JValuesfromValist(va_list list, const char* signature) {
 
 #ifdef JNI_DEBUG
 
-void Declare(JNIEnv *env, const char *signature) {
-	for (const char *cur = signature, *end = cur + strlen(cur); cur != end;
-			 cur++) {
-		if (*cur == 'L') {
-			auto cend = std::find(cur, end, ';');
-			std::string classpath(cur + 1, cend);
-			env->FindClass(classpath.data());
-			cur = cend;
-		}
-	}
-}
-
 std::string Method::GenerateHeader(const std::string &cname) {
 	std::ostringstream ss;
 	std::vector<std::string> parameters;
@@ -491,46 +479,50 @@ jint GetVersion(JNIEnv *) { return 0; };
 jclass DefineClass(JNIEnv *, const char *, jobject, const jbyte *, jsize) {
 	return 0;
 };
-jclass FindClass(JNIEnv *env, const char *name) {
-	// std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
+
+jclass InternalFindClass(JNIEnv *env, const char *name) {
 	auto prefix = name;
-	auto&& nenv = *(ENV*)env->functions->reserved0;
+	auto && nenv = *(ENV*)env->functions->reserved0;
 #ifdef JNI_DEBUG
+	// Generate the Namespace Hirachy to generate stub c++ files
+	// Makes it easier to implement classes without writing everthing by hand
 	auto end = name + strlen(name);
 	auto pos = name;
-	Namespace *cur = (Namespace *)env->functions->reserved0;
+	std::shared_ptr<Namespace> cur((Namespace *)env->functions->reserved0, [](Namespace *) {
+		// Skip deleting this member pointer of VM
+	});
 	while ((pos = std::find(name, end, '/')) != end) {
 		std::string sname = std::string(name, pos);
 		auto namsp = std::find_if(cur->namespaces.begin(), cur->namespaces.end(),
 															[&sname](std::shared_ptr<Namespace> &namesp) {
 																return namesp->name == sname;
 															});
-		Namespace *next;
+		std::shared_ptr<Namespace> next;
 		if (namsp != cur->namespaces.end()) {
-			next = namsp->get();
+			next = *namsp;
 		} else {
-			cur->namespaces.emplace_back(new Namespace());
-			next = cur->namespaces.back().get();
+			next = std::make_shared<Namespace>();
+			cur->namespaces.push_back(next);
 			next->name = std::move(sname);
 		}
 		cur = next;
 		name = pos + 1;
 	}
-	Class *curc = nullptr;
+	std::shared_ptr<Class> curc = nullptr;
 	do {
 		pos = std::find(name, end, '$');
 		std::string sname = std::string(name, pos);
-		Class *next;
+		std::shared_ptr<Class> next;
 		if (curc) {
 			auto cl = std::find_if(curc->classes.begin(), curc->classes.end(),
 														 [&sname](std::shared_ptr<Class> &namesp) {
 															 return namesp->name == sname;
 														 });
 			if (cl != curc->classes.end()) {
-				next = cl->get();
+				next = *cl;
 			} else {
-				curc->classes.emplace_back(new Class());
-				next = curc->classes.back().get();
+				next = std::make_shared<Class>();
+				curc->classes.push_back(next);
 				next->name = std::move(sname);
 			}
 		} else {
@@ -539,10 +531,10 @@ jclass FindClass(JNIEnv *env, const char *name) {
 															 return namesp->name == sname;
 														 });
 			if (cl != cur->classes.end()) {
-				next = cl->get();
+				next = *cl;
 			} else {
-				cur->classes.emplace_back(new Class());
-				next = cur->classes.back().get();
+				next = std::make_shared<Class>();
+				curc->classes.push_back(next);
 				next->name = std::move(sname);
 			}
 		}
@@ -550,31 +542,45 @@ jclass FindClass(JNIEnv *env, const char *name) {
 		name = pos + 1;
 	} while (pos != end);
 #else
-	Class * curc = new Class();
+	curc = std::make_shared<Class>();
 	const char * lastslash = strrchr(name, '/');
 	curc->name = lastslash != nullptr ? lastslash + 1 : name;
 #endif
 	curc->nativeprefix = std::move(prefix);
-	return (jclass)env->NewGlobalRef((jobject)curc);
+	nenv.localcache.push_back(curc);
+	return (jclass)curc.get();
+}
+
+jclass FindClass(JNIEnv *env, const char *name) {
+	// std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
+	auto&& nenv = *(ENV*)env->functions->reserved0;
+	std::lock_guard<std::mutex> lock(nenv.vm->mtx);
+	return InternalFindClass(env, name);
 };
 jmethodID FromReflectedMethod(JNIEnv *, jobject) {
+	Log::warn("JNIVM", "Not Implemented Method FromReflectedMethod called");
 	return 0;
 };
 jfieldID FromReflectedField(JNIEnv *, jobject) {
+	Log::warn("JNIVM", "Not Implemented Method FromReflectedField called");
 	return 0;
 };
 /* spec doesn't show jboolean parameter */
 jobject ToReflectedMethod(JNIEnv *, jclass, jmethodID, jboolean) {
+	Log::warn("JNIVM", "Not Implemented Method ToReflectedMethod called");
 	return 0;
 };
 jclass GetSuperclass(JNIEnv *, jclass) {
+	Log::warn("JNIVM", "Not Implemented Method GetSuperclass called");
 	return 0;
 };
 jboolean IsAssignableFrom(JNIEnv *, jclass, jclass) {
+	Log::warn("JNIVM", "Not Implemented Method IsAssignableFrom called");
 	return 0;
 };
 /* spec doesn't show jboolean parameter */
 jobject ToReflectedField(JNIEnv *, jclass, jfieldID, jboolean) {
+	Log::warn("JNIVM", "Not Implemented Method ToReflectedField called");
 	return 0;
 };
 jint Throw(JNIEnv *, jthrowable) { return 0; };
@@ -582,12 +588,13 @@ jint ThrowNew(JNIEnv *, jclass, const char *) {
 	return 0;
 };
 jthrowable ExceptionOccurred(JNIEnv *) {
-
 	return (jthrowable)0;
 };
 void ExceptionDescribe(JNIEnv *) {  };
 void ExceptionClear(JNIEnv *) {  };
-void FatalError(JNIEnv *, const char *) {  };
+void FatalError(JNIEnv *, const char * err) {
+	Log::warn("JNIVM", "Not Implemented Method FatalError called: %s", err);
+};
 jint PushLocalFrame(JNIEnv * env, jint cap) {
 #ifdef EnableJNIVMGC
 	std::vector<std::shared_ptr<jnivm::java::lang::Object>> frame;
@@ -689,8 +696,20 @@ jclass GetObjectClass(JNIEnv *env, jobject jo) {
 jboolean IsInstanceOf(JNIEnv *, jobject jo, jclass cl) {
 	return jo && (jclass)((Object*)jo)->clazz.get() == cl;
 };
+void Declare(JNIEnv *env, const char *signature) {
+	for (const char *cur = signature, *end = cur + strlen(cur); cur != end;
+			 cur++) {
+		if (*cur == 'L') {
+			auto cend = std::find(cur, end, ';');
+			std::string classpath(cur + 1, cend);
+			InternalFindClass(env, classpath.data());
+			cur = cend;
+		}
+	}
+}
 jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
 											const char *str1) {
+	std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);
 	std::string &classname = ((Class *)cl)->name;
 	auto cur = (Class *)cl;
 	auto sname = str0;
@@ -830,7 +849,7 @@ void CallNonvirtualMethodV(JNIEnv * env, jobject obj, jclass cl, jmethodID id, .
 
 jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name,
 										const char *type) {
-	// std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
+	std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);
 	std::string &classname = ((Class *)cl)->name;
 
 	auto cur = (Class *)cl;
@@ -895,6 +914,7 @@ template <class T> void SetField(JNIEnv *env, jobject obj, jfieldID id, T value)
 
 jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
 														const char *str1) {
+	std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);
 	std::string &classname = ((Class *)cl)->name;
 	auto cur = (Class *)cl;
 	auto sname = str0;
@@ -977,6 +997,7 @@ void CallStaticMethodV(JNIEnv * env, jclass cl, jmethodID id, ...) {
 
 jfieldID GetStaticFieldID(JNIEnv *env, jclass cl, const char *name,
 													const char *type) {
+	std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);										
 	std::string &classname = ((Class *)cl)->name;
 	auto cur = (Class *)cl;
 	auto sname = name;
@@ -1001,7 +1022,7 @@ jfieldID GetStaticFieldID(JNIEnv *env, jclass cl, const char *name,
 		std::string symbol = ((Class *)cl)->nativeprefix + name;
 		Log::debug("JNIVM", "Unresolved symbol %s", symbol.data());
 	}
-	return (jfieldID)env->NewLocalRef((jobject)next.get());
+	return (jfieldID)next.get();
 };
 
 template <class T> T GetStaticField(JNIEnv *env, jclass cl, jfieldID id) {
