@@ -145,13 +145,13 @@ namespace jnivm {
             }
         };
         template<class I> class __InstanceFuncWrapper;
-        template<size_t E, size_t O, size_t...I> class __InstanceFuncWrapper<std::index_sequence<E, O, I...>> {
+        template<size_t O, size_t E, size_t...I> class __InstanceFuncWrapper<std::index_sequence<O, E, I...>> {
             Funk handle;
         public:
             __InstanceFuncWrapper(Funk handle) : handle(handle) {}
 
             constexpr auto Invoke(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
-                return (((typename Function::template Parameter<O>&)(*obj)).*handle)(env, ((typename Function::template Parameter<I>&)(values[I-2]))...);
+                return (((typename Function::template Parameter<O>&)(obj)).*handle)(env, ((typename Function::template Parameter<I>&)(values[I-2]))...);
             }
             static constexpr std::string GetJNISignature() {
                 return std::string(JNITypeToSignature<typename Function::Return>::signature) + "(" + (std::string(JNITypeToSignature<typename Function::template Parameter<I>>::signature)+...) + ")";

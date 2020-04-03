@@ -1194,7 +1194,9 @@ jobjectRefType GetObjectRefType(JNIEnv *, jobject) {
 class Activity {
 public:
 	Activity();
-	jint Test(JNIEnv * env, jstring s);
+	jint Test(ENV * env, jstring s) {
+		return 0;
+	}
 	static jint Test2(ENV * env, java::lang::Class* cl, jstring s) {
 		return 0;
 	}
@@ -1242,7 +1244,8 @@ void test() {
 	// hook("Hi", &Activity::Test);
 
     Class cl{};
-    cl.Hook("java/lang/thumb", &Activity::Test2);
+    cl.Hook("java/lang/Test", &Activity::Test2);
+    cl.Hook("java/lang/Test", &Activity::Test);
 }
 
 // int main() {
