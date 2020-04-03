@@ -15,12 +15,6 @@
 using namespace jnivm;
 using namespace jnivm::java::lang;
 
-
-void __Test20() {
-	std::stringstream sig;
-	sig << JNITypeToSignature<jstring>::signature  << JNITypeToSignature<jboolean>::signature;
-}
-
 #ifdef JNI_DEBUG
 
 const char *ParseJNIType(const char *cur, const char *end, std::string &type) {
@@ -1126,6 +1120,7 @@ const char *GetStringUTFChars(JNIEnv * env, jstring str, jboolean *copy) {
 	return str ? ((String*)str)->data() : "";
 };
 void ReleaseStringUTFChars(JNIEnv * env, jstring str, const char * cstr) {
+	// Never copied, never free
 };
 jsize GetArrayLength(JNIEnv *, jarray a) {
 	return a ? ((java::lang::Array*)a)->length : 0;
@@ -1273,6 +1268,8 @@ public:
 jstring Activity::val2 = 0;
 
 static jint Test3(ENV * env, java::lang::Object* cl, jstring s) {
+	const char * s_ = env->env.GetStringUTFChars(s, nullptr);
+	Log::trace("JNIVM", "%s", s_);
 	return 0;
 }
 
@@ -1327,6 +1324,8 @@ void test() {
 	auto act = std::make_shared<Activity>();
 	act->val = env->env.NewStringUTF("Hello World2");
 	auto field = env->env.GetFieldID((jclass)cl.get(), "Hi", "");
+	auto field2 = env->env.GetFieldID((jclass)cl.get(), "Test3", "");
+	env->env.SetObjectField((jobject)act.get(), field2, env->env.NewStringUTF("*|* Hello World:("));
 	String * f = (String*)env->env.GetObjectField((jobject)act.get(), field);
 	env->env.SetObjectField((jobject)act.get(), field, env->env.NewStringUTF("Hello World"));
 	const char * s = env->env.GetStringUTFChars(act->val, nullptr);
