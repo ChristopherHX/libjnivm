@@ -483,12 +483,13 @@ jclass DefineClass(JNIEnv *, const char *, jobject, const jbyte *, jsize) {
 jclass InternalFindClass(JNIEnv *env, const char *name) {
 	auto prefix = name;
 	auto && nenv = *(ENV*)env->functions->reserved0;
+	auto && vm = nenv.vm;
 #ifdef JNI_DEBUG
 	// Generate the Namespace Hirachy to generate stub c++ files
 	// Makes it easier to implement classes without writing everthing by hand
 	auto end = name + strlen(name);
 	auto pos = name;
-	std::shared_ptr<Namespace> cur((Namespace *)env->functions->reserved0, [](Namespace *) {
+	std::shared_ptr<Namespace> cur(&vm->np, [](Namespace *) {
 		// Skip deleting this member pointer of VM
 	});
 	while ((pos = std::find(name, end, '/')) != end) {
@@ -534,7 +535,7 @@ jclass InternalFindClass(JNIEnv *env, const char *name) {
 				next = *cl;
 			} else {
 				next = std::make_shared<Class>();
-				curc->classes.push_back(next);
+				cur->classes.push_back(next);
 				next->name = std::move(sname);
 			}
 		}
@@ -542,9 +543,16 @@ jclass InternalFindClass(JNIEnv *env, const char *name) {
 		name = pos + 1;
 	} while (pos != end);
 #else
-	curc = std::make_shared<Class>();
-	const char * lastslash = strrchr(name, '/');
-	curc->name = lastslash != nullptr ? lastslash + 1 : name;
+	auto ccl = vm->classes.find(name);
+	std::shared_ptr<Class> curc;
+	if (ccl != vm->classes.end()) {
+		curc = ccl->second;
+	} else {
+		curc = std::make_shared<Class>();
+		const char * lastslash = strrchr(name, '/');
+		curc->name = lastslash != nullptr ? lastslash + 1 : name;
+		vm->classes[name] = next;
+	}
 #endif
 	curc->nativeprefix = std::move(prefix);
 	nenv.localcache.push_back(curc);
@@ -903,7 +911,7 @@ template <class T> void SetField(JNIEnv *env, jobject obj, jfieldID id, T value)
 	if(!id)
 		Log::warn("JNIVM", "SetField field is null");
 #endif
-	if (fid->getnativehandle) {
+	if (fid->setnativehandle) {
 		(*(std::function<void(ENV*, Object*, const jvalue*)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, (jvalue*)&value);
 	} else {
 #ifdef JNI_DEBUG
@@ -1052,7 +1060,7 @@ void SetStaticField(JNIEnv *env, jclass cl, jfieldID id, T value) {
 	if(!id)
 		Log::warn("JNIVM", "SetStaticField field is null");
 #endif
-	if (fid && fid->getnativehandle) {
+	if (fid && fid->setnativehandle) {
 		(*(std::function<void(ENV*, Class*, const jvalue *)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, (jvalue*)&value);
 	} else {
 #ifdef JNI_DEBUG
@@ -1251,7 +1259,7 @@ jobjectRefType GetObjectRefType(JNIEnv *, jobject) {
 
 class Activity {
 public:
-	Activity();
+	Activity(){}
 	jint Test(ENV * env, jstring s) {
 		return 0;
 	}
@@ -1261,6 +1269,8 @@ public:
 	jstring val;
 	static jstring val2;
 };
+
+jstring Activity::val2 = 0;
 
 static jint Test3(ENV * env, java::lang::Object* cl, jstring s) {
 	return 0;
@@ -1305,18 +1315,32 @@ void test() {
 	// hook("Hi", &Activity::Test2);
 	// hook("Hi", &Activity::Test);
 
-    Class cl{};
-    cl.Hook("java/lang/Test1", &Activity::Test);
-    cl.Hook("java/lang/Test2", &Activity::Test2);
-    cl.HookInstanceFunction("java/lang/Test3", &Test3);
-    cl.HookInstanceSetterFunction("java/lang/Test3", &Test3);
-	cl.Hook("Hi", &Activity::val2);
-	cl.Hook("Hi", &Activity::val);
+    auto vm = std::make_shared<VM>();
+	auto env = vm->GetEnv();
+	auto cl = env->GetClass("java/lang/Test");
+    cl->Hook("Test1", &Activity::Test);
+    cl->Hook("Test2", &Activity::Test2);
+    cl->HookInstanceFunction("Test3", &Test3);
+    cl->HookInstanceSetterFunction("Test3", &Test3);
+	cl->Hook("Hi", &Activity::val2);
+	cl->Hook("Hi", &Activity::val);
+	auto act = std::make_shared<Activity>();
+	act->val = env->env.NewStringUTF("Hello World2");
+	auto field = env->env.GetFieldID((jclass)cl.get(), "Hi", "");
+	String * f = (String*)env->env.GetObjectField((jobject)act.get(), field);
+	env->env.SetObjectField((jobject)act.get(), field, env->env.NewStringUTF("Hello World"));
+	const char * s = env->env.GetStringUTFChars(act->val, nullptr);
+	Log::trace("JNIVM", "%s", s);
 }
 
-// int main() {
-//   test();
-// }
+int main() {
+  test();
+}
+
+std::shared_ptr<jnivm::java::lang::Class> jnivm::ENV::GetClass(const char * name) {
+	auto c = (Class*)InternalFindClass(&env, name);
+	return std::shared_ptr<jnivm::java::lang::Class>(c->shared_from_this(), c);
+}
 
 VM::VM() : ninterface({
 			NULL,
@@ -1628,6 +1652,10 @@ JNIEnv *jnivm::VM::GetJNIEnv() {
 #else
 	return &jnienvs.begin()->second->env;
 #endif
+}
+
+std::shared_ptr<ENV> jnivm::VM::GetEnv() {
+	return jnienvs[pthread_self()];
 }
 
 #ifdef JNI_DEBUG
