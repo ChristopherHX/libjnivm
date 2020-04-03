@@ -905,7 +905,7 @@ template <class T> void SetField(JNIEnv *env, jobject obj, jfieldID id, T value)
 	if(!id)
 		Log::warn("JNIVM", "SetField field is null");
 #endif
-	if (fid->setnativehandle) {
+	if (fid && fid->setnativehandle) {
 		(*(std::function<void(ENV*, Object*, const jvalue*)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, (jvalue*)&value);
 	} else {
 #ifdef JNI_DEBUG
@@ -1255,20 +1255,20 @@ jobjectRefType GetObjectRefType(JNIEnv *, jobject) {
 class Activity {
 public:
 	Activity(){}
-	jint Test(ENV * env, jstring s) {
+	jint Test(ENV * env, std::shared_ptr<String> s) {
 		return 0;
 	}
-	static jint Test2(ENV * env, java::lang::Class* cl, jstring s) {
+	static jint Test2(ENV * env, java::lang::Class* cl, std::shared_ptr<String> s) {
 		return 0;
 	}
-	jstring val;
-	static jstring val2;
+	std::shared_ptr<String> val;
+	static std::shared_ptr<String> val2;
 };
 
-jstring Activity::val2 = 0;
+std::shared_ptr<String> Activity::val2 = nullptr;
 
-static jint Test3(ENV * env, java::lang::Object* cl, jstring s) {
-	const char * s_ = env->env.GetStringUTFChars(s, nullptr);
+static jint Test3(ENV * env, java::lang::Object* cl, std::shared_ptr<String> s) {
+	const char * s_ = env->env.GetStringUTFChars((jstring)s.get(), nullptr);
 	Log::trace("JNIVM", "%s", s_);
 	return 0;
 }
@@ -1315,20 +1315,21 @@ void test() {
     auto vm = std::make_shared<VM>();
 	auto env = vm->GetEnv();
 	auto cl = env->GetClass("java/lang/Test");
-    cl->Hook("Test1", &Activity::Test);
-    cl->Hook("Test2", &Activity::Test2);
-    cl->HookInstanceFunction("Test3", &Test3);
-    cl->HookInstanceSetterFunction("Test3", &Test3);
-	cl->Hook("Hi", &Activity::val2);
-	cl->Hook("Hi", &Activity::val);
+    cl->Hook(env.get(), "Test1", &Activity::Test);
+    cl->Hook(env.get(), "Test2", &Activity::Test2);
+    cl->HookInstanceFunction(env.get(), "Test3", &Test3);
+    cl->HookInstanceSetterFunction(env.get(), "Test3", &Test3);
+	cl->Hook(env.get(), "Hi", &Activity::val2);
+	cl->Hook(env.get(), "Hi", &Activity::val);
 	auto act = std::make_shared<Activity>();
-	act->val = env->env.NewStringUTF("Hello World2");
-	auto field = env->env.GetFieldID((jclass)cl.get(), "Hi", "");
-	auto field2 = env->env.GetFieldID((jclass)cl.get(), "Test3", "");
+	act->val = std::make_shared<String>("Hello World2");
+	// act->val = env->env.NewStringUTF("Hello World2");
+	auto field = env->env.GetFieldID((jclass)cl.get(), "Hi", "Ljava/lang/String;");
+	auto field2 = env->env.GetFieldID((jclass)cl.get(), "Test3", "Ljava/lang/String;");
 	env->env.SetObjectField((jobject)act.get(), field2, env->env.NewStringUTF("*|* Hello World:("));
 	String * f = (String*)env->env.GetObjectField((jobject)act.get(), field);
 	env->env.SetObjectField((jobject)act.get(), field, env->env.NewStringUTF("Hello World"));
-	const char * s = env->env.GetStringUTFChars(act->val, nullptr);
+	const char * s = env->env.GetStringUTFChars((jstring)act->val.get(), nullptr);
 	Log::trace("JNIVM", "%s", s);
 }
 
@@ -1639,6 +1640,9 @@ VM::VM() : ninterface({
 	np.name = "jnivm";
 #endif
 	auto env = jnienvs[pthread_self()] = std::make_shared<ENV>(this, ninterface);
+	std::lock_guard<std::mutex> lock(env->vm->mtx);
+	auto r = typecheck[typeid(String)] = env->GetClass("java/lang/String");
+	auto r2 = typecheck[typeid(Activity)] = env->GetClass("java/lang/Test");
 }
 
 JavaVM *jnivm::VM::GetJavaVM() {
