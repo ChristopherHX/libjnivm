@@ -8,6 +8,7 @@
 #include <climits>
 #include <sstream>
 #include <unordered_map>
+#include <uchar.h>
 
 #define EnableJNIVMGC
 
@@ -723,7 +724,7 @@ void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 	auto mid = ((Method *)id);
 
 	if (mid->nativehandle) {
-		return (*(std::function<void(JNIEnv*, jobject, jvalue *)>*)mid->nativehandle.get())(env, obj, param);
+		return (*(std::function<void(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
 	} else {
 #ifdef JNI_DEBUG
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
@@ -736,7 +737,7 @@ T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 	auto mid = ((Method *)id);
 
 	if (mid->nativehandle) {
-		return (*(std::function<T(JNIEnv*, jobject, jvalue *)>*)mid->nativehandle.get())(env, obj, param);
+		return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
 	} else {
 #ifdef JNI_DEBUG
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
@@ -772,7 +773,7 @@ T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, jvalu
 	auto mid = ((Method *)id);
 
 	if (mid->nativehandle) {
-		return (*(std::function<T(JNIEnv*, jobject, jvalue *)>*)mid->nativehandle.get())(env, obj, param);
+		return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
 	} else {
 #ifdef JNI_DEBUG
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
@@ -785,7 +786,7 @@ void CallNonvirtualMethodV(JNIEnv * env, jobject obj, jclass cl, jmethodID id, j
 	auto mid = ((Method *)id);
 
 	if (mid->nativehandle) {
-		return (*(std::function<void(JNIEnv*, jobject, jvalue *)>*)mid->nativehandle.get())(env, obj, param);
+		return (*(std::function<void(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
 	} else {
 #ifdef JNI_DEBUG
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
@@ -845,11 +846,11 @@ jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name,
 	return (jfieldID)next.get();
 };
 
-template <class T> T GetField(JNIEnv *, jobject obj, jfieldID id) {
+template <class T> T GetField(JNIEnv *env, jobject obj, jfieldID id) {
 	auto fid = ((Field *)id);
 
 	if (fid->getnativehandle) {
-		return (*(std::function<T(jobject)>*)fid->getnativehandle.get())(obj);
+		return (*(std::function<T(ENV*, Object*, const jvalue*)>*)fid->getnativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, nullptr);
 	} else {
 #ifdef JNI_DEBUG
 		Log::debug("JNIVM", "Unknown Field Getter %s", fid->name.data());
@@ -858,11 +859,11 @@ template <class T> T GetField(JNIEnv *, jobject obj, jfieldID id) {
 	}
 }
 
-template <class T> void SetField(JNIEnv *, jobject obj, jfieldID id, T value) {
+template <class T> void SetField(JNIEnv *env, jobject obj, jfieldID id, T value) {
 	auto fid = ((Field *)id);
 
 	if (fid->getnativehandle) {
-		(*(std::function<void(jobject, T)>*)fid->setnativehandle.get())(obj, value);
+		(*(std::function<void(ENV*, Object*, const jvalue*)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, (jvalue*)&value);
 	} else {
 #ifdef JNI_DEBUG
 		Log::debug("JNIVM", "Unknown Field Setter %s", fid->name.data());
@@ -904,7 +905,7 @@ T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
 	auto mid = ((Method *)id);
 
 	if (mid->nativehandle) {
-		return (*(std::function<T(JNIEnv*, jclass, jvalue *)>*)mid->nativehandle.get())(env, cl, param);
+		return (*(std::function<T(ENV*, Class*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, param);
 	} else {
 #ifdef JNI_DEBUG
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
@@ -917,7 +918,7 @@ void CallStaticMethodV(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
 	auto mid = ((Method *)id);
 
 	if (mid->nativehandle) {
-		return (*(std::function<void(JNIEnv*, jclass, jvalue *)>*)mid->nativehandle.get())(env, cl, param);
+		return (*(std::function<void(ENV*, Class*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, param);
 	} else {
 #ifdef JNI_DEBUG
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
@@ -927,11 +928,11 @@ void CallStaticMethodV(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
 
 template <class T>
 T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, va_list param) {
-		return CallStaticMethod<T>(env, cl, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
+	return CallStaticMethod<T>(env, cl, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
 };
 
 void CallStaticMethodV(JNIEnv * env, jclass cl, jmethodID id, va_list param) {
-		return CallStaticMethodV(env, cl, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
+	return CallStaticMethodV(env, cl, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
 };
 
 template <class T>
@@ -942,9 +943,9 @@ T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, ...) {
 };
 
 void CallStaticMethodV(JNIEnv * env, jclass cl, jmethodID id, ...) {
-		ScopedVaList param;
-		va_start(param.list, id);
-		return CallStaticMethodV(env, cl, id, param.list);
+	ScopedVaList param;
+	va_start(param.list, id);
+	return CallStaticMethodV(env, cl, id, param.list);
 };
 
 jfieldID GetStaticFieldID(JNIEnv *env, jclass cl, const char *name,
@@ -976,11 +977,16 @@ jfieldID GetStaticFieldID(JNIEnv *env, jclass cl, const char *name,
 	return (jfieldID)env->NewLocalRef((jobject)next.get());
 };
 
-template <class T> T GetStaticField(JNIEnv *, jclass cl, jfieldID id) {
+template <class T> T GetStaticField(JNIEnv *env, jclass cl, jfieldID id) {
 	auto fid = ((Field *)id);
-
-	if (fid->getnativehandle) {
-		return (*(std::function<T()>*)fid->getnativehandle.get())();
+#ifdef JNI_DEBUG
+	if(!cl)
+		Log::warn("JNIVM", "GetStaticField class is null");
+	if(!id)
+		Log::warn("JNIVM", "GetStaticField field is null");
+#endif
+	if (fid && fid->getnativehandle) {
+		return (*(std::function<T(ENV*, Class*, const jvalue *)>*)fid->getnativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, nullptr);
 	} else {
 #ifdef JNI_DEBUG
 		Log::debug("JNIVM", "Unknown Field Getter %s", fid->name.data());
@@ -990,11 +996,16 @@ template <class T> T GetStaticField(JNIEnv *, jclass cl, jfieldID id) {
 }
 
 template <class T>
-void SetStaticField(JNIEnv *, jclass cl, jfieldID id, T value) {
+void SetStaticField(JNIEnv *env, jclass cl, jfieldID id, T value) {
 	auto fid = ((Field *)id);
-
-	if (fid->getnativehandle) {
-		(*(std::function<void(T)>*)fid->setnativehandle.get())(value);
+#ifdef JNI_DEBUG
+	if(!cl)
+		Log::warn("JNIVM", "SetStaticField class is null");
+	if(!id)
+		Log::warn("JNIVM", "SetStaticField field is null");
+#endif
+	if (fid && fid->getnativehandle) {
+		(*(std::function<void(ENV*, Class*, const jvalue *)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, (jvalue*)&value);
 	} else {
 #ifdef JNI_DEBUG
 		Log::debug("JNIVM", "Unknown Field Setter %s", fid->name.data());
@@ -1002,33 +1013,32 @@ void SetStaticField(JNIEnv *, jclass cl, jfieldID id, T value) {
 	}
 }
 
-jstring NewString(JNIEnv *, const jchar * str, jsize size) {
-
-	// std::stringstream ss;
-	// std::mbstate_t state{};
-	// char out[MB_LEN_MAX]{};
-	// for (size_t i = 0; i < size; i++) {
-	//   std::size_t rc = std::c16rtomb(out, (char16_t)str[i], &state);
-	//   if(rc != -1) {
-	//     ss.write(out, rc);
-	//   }
-	// }
-	// return (jstring)(
-	//     new Object<std::string>{.cl = 0, .value = new std::string(ss.str())});
-	return 0;
+jstring NewString(JNIEnv *env, const jchar * str, jsize size) {
+	std::stringstream ss;
+	std::mbstate_t state{};
+	char out[MB_LEN_MAX]{};
+	for (size_t i = 0; i < size; i++) {
+	  std::size_t rc = c16rtomb(out, (char16_t)str[i], &state);
+	  if(rc != -1) {
+	    ss.write(out, rc);
+	  }
+	}
+	auto s = std::make_shared<String>(ss.str());
+	(*(ENV*)env->functions->reserved0).localcache.emplace_back(s);
+	return (jstring)s.get();
 };
 jsize GetStringLength(JNIEnv *env, jstring str) {
 
-	// std::mbstate_t state{};
-	// std::string * cstr = ((Object<std::string>*)str)->value;
-	// size_t count = 0;
-	// jsize length = 0;
-	// jchar dummy;
-	// auto cur = cstr->data(), end = cur + cstr->length();
-	// while(cur != end && (count = std::mbrtoc16((char16_t*)&dummy, cur, end - cur, &state)) > 0) {
-	//   cur += count, length++;
-	// }
-	return 0;
+	mbstate_t state{};
+	std::string * cstr = (String*)str;
+	size_t count = 0;
+	jsize length = 0;
+	jchar dummy;
+	auto cur = cstr->data(), end = cur + cstr->length();
+	while(cur != end && (count = mbrtoc16((char16_t*)&dummy, cur, end - cur, &state)) > 0) {
+	  cur += count, length++;
+	}
+	return length;
 };
 const jchar *GetStringChars(JNIEnv * env, jstring str, jboolean * copy) {
 
@@ -1036,11 +1046,13 @@ const jchar *GetStringChars(JNIEnv * env, jstring str, jboolean * copy) {
 		*copy = true;
 	}
 	jsize length = env->GetStringLength(str);
+	// Allocate explicitly allocates string region
 	jchar * jstr = new jchar[length + 1];
 	env->GetStringRegion(str, 0, length, jstr);
 	return jstr;
 };
 void ReleaseStringChars(JNIEnv * env, jstring str, const jchar * cstr) {
+	// Free explicitly allocates string region
 	delete[] cstr;
 };
 jstring NewStringUTF(JNIEnv * env, const char *str) {
@@ -1090,7 +1102,7 @@ T *GetArrayElements(JNIEnv *, typename JNITypes<T>::Array a, jboolean *iscopy) {
 
 template <class T>
 void ReleaseArrayElements(JNIEnv *, typename JNITypes<T>::Array a, T *carr, jint) {
-		// Never copied, never free
+	// Never copied, never free
 };
 
 template <class T>
@@ -1140,34 +1152,32 @@ jint GetJavaVM(JNIEnv * env, JavaVM ** vm) {
 	return 0;
 };
 void GetStringRegion(JNIEnv *, jstring str, jsize start, jsize length, jchar * buf) {
-	//
-	// std::mbstate_t state{};
-	// std::string * cstr = ((Object<std::string>*)str)->value;
-	// int count = 0;
-	// jchar dummy, * bend = buf + length;
-	// auto cur = cstr->data(), end = cur + cstr->length();
-	// while(start && (count = std::mbrtoc16((char16_t*)&dummy, cur, end - cur, &state)) > 0) {
-	//   cur += count, start--;
-	// }
-	// while(buf != bend && (count = std::mbrtoc16((char16_t*)buf, cur, end - cur, &state)) > 0) {
-	//   cur += count, buf++;
-	// }
+	mbstate_t state{};
+	std::string * cstr = (String*)str;
+	int count = 0;
+	jchar dummy, * bend = buf + length;
+	auto cur = cstr->data(), end = cur + cstr->length();
+	while(start && (count = mbrtoc16((char16_t*)&dummy, cur, end - cur, &state)) > 0) {
+	  cur += count, start--;
+	}
+	while(buf != bend && (count = mbrtoc16((char16_t*)buf, cur, end - cur, &state)) > 0) {
+	  cur += count, buf++;
+	}
 };
 void GetStringUTFRegion(JNIEnv *, jstring str, jsize start, jsize len, char * buf) {
-	//
-	// std::mbstate_t state{};
-	// std::string * cstr = ((Object<std::string>*)str)->value;
-	// int count = 0;
-	// jchar dummy;
-	// char * bend = buf + len;
-	// auto cur = cstr->data(), end = cur + cstr->length();
-	// while(start && (count = std::mbrtoc16((char16_t*)&dummy, cur, end - cur, &state)) > 0) {
-	//   cur += count, start--;
-	// }
-	// while(buf != bend && (count = std::mbrtoc16((char16_t*)&dummy, cur, end - cur, &state)) > 0) {
-	//   memcpy(buf, cur, count);
-	//   cur += count, buf++;
-	// }
+	mbstate_t state{};
+	std::string * cstr = (String*)str;
+	int count = 0;
+	jchar dummy;
+	char * bend = buf + len;
+	auto cur = cstr->data(), end = cur + cstr->length();
+	while(start && (count = mbrtoc16((char16_t*)&dummy, cur, end - cur, &state)) > 0) {
+	  cur += count, start--;
+	}
+	while(buf != bend && (count = mbrtoc16((char16_t*)&dummy, cur, end - cur, &state)) > 0) {
+	  memcpy(buf, cur, count);
+	  cur += count, buf++;
+	}
 };
 jweak NewWeakGlobalRef(JNIEnv *, jobject obj) {
 	return obj;
