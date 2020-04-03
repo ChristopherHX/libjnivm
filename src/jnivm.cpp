@@ -1333,9 +1333,9 @@ void test() {
 	Log::trace("JNIVM", "%s", s);
 }
 
-int main() {
-  test();
-}
+// int main() {
+//   test();
+// }
 
 std::shared_ptr<jnivm::java::lang::Class> jnivm::ENV::GetClass(const char * name) {
 	auto c = (Class*)InternalFindClass(&env, name);
