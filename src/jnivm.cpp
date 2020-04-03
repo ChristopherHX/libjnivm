@@ -867,7 +867,7 @@ jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name,
 		next = *ccl;
 	} else {
 		auto next = std::make_shared<Field>();
-		cur->fields.emplace_back();
+		cur->fields.emplace_back(next);
 		next->name = std::move(sname);
 		next->type = std::move(ssig);
 #ifdef JNI_DEBUG

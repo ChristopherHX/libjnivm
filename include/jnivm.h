@@ -128,9 +128,8 @@ namespace jnivm {
                 std::vector<std::shared_ptr<Field>> fields;
                 std::vector<std::shared_ptr<Method>> methods;
 
-                Class() : Object(std::shared_ptr<Class>(this, [](Class*) {
-                    // Fake Weak reference, hopefully works
-                })) {
+                Class() {
+
                 }
 
                 template<class T> void Hook(ENV* env, const std::string& method, T&& t);
