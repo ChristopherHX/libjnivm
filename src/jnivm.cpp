@@ -14,34 +14,6 @@
 using namespace jnivm;
 using namespace jnivm::java::lang;
 
-template<class T> struct JNITypeToSignature;
-template<> struct JNITypeToSignature<void> {
-	static constexpr const char signature[] = "V";
-};
-template<> struct JNITypeToSignature<jboolean> {
-	static constexpr const char signature[] = "Z";
-};
-template<> struct JNITypeToSignature<jbyte> {
-	static constexpr const char signature[] = "B";
-};
-template<> struct JNITypeToSignature<jshort> {
-	static constexpr const char signature[] = "S";
-};
-template<> struct JNITypeToSignature<jint> {
-	static constexpr const char signature[] = "I";
-};
-template<> struct JNITypeToSignature<jlong> {
-	static constexpr const char signature[] = "J";
-};
-template<> struct JNITypeToSignature<jfloat> {
-	static constexpr const char signature[] = "F";
-};
-template<> struct JNITypeToSignature<jdouble> {
-	static constexpr const char signature[] = "D";
-};
-template<> struct JNITypeToSignature<jstring> {
-	static constexpr const char signature[] = "Ljava/lang/String;";
-};
 
 void __Test20() {
 	std::stringstream sig;
@@ -1223,7 +1195,9 @@ class Activity {
 public:
 	Activity();
 	jint Test(JNIEnv * env, jstring s);
-	static jint Test2(ENV * env, jstring s);
+	static jint Test2(ENV * env, java::lang::Class* cl, jstring s) {
+		return 0;
+	}
 	std::string val;
 	static std::string val2;
 };

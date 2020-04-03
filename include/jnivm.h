@@ -56,6 +56,37 @@ namespace jnivm {
         Property = 2
     };
 
+    template<class T> struct JNITypeToSignature {
+        static constexpr const char signature[] = "";
+    };
+    template<> struct JNITypeToSignature<void> {
+        static constexpr const char signature[] = "V";
+    };
+    template<> struct JNITypeToSignature<jboolean> {
+        static constexpr const char signature[] = "Z";
+    };
+    template<> struct JNITypeToSignature<jbyte> {
+        static constexpr const char signature[] = "B";
+    };
+    template<> struct JNITypeToSignature<jshort> {
+        static constexpr const char signature[] = "S";
+    };
+    template<> struct JNITypeToSignature<jint> {
+        static constexpr const char signature[] = "I";
+    };
+    template<> struct JNITypeToSignature<jlong> {
+        static constexpr const char signature[] = "J";
+    };
+    template<> struct JNITypeToSignature<jfloat> {
+        static constexpr const char signature[] = "F";
+    };
+    template<> struct JNITypeToSignature<jdouble> {
+        static constexpr const char signature[] = "D";
+    };
+    template<> struct JNITypeToSignature<jstring> {
+        static constexpr const char signature[] = "Ljava/lang/String;";
+    };
+
     template<class=void()> struct Function;
     template<class R, class ...P> struct Function<R(P...)> {
         using Return = R;
@@ -89,29 +120,41 @@ namespace jnivm {
     };
 
     class ENV;
+    namespace java {
+        namespace lang {
+            class Class;
+            class Object;
+        }
+    }
 
     template<class Funk> struct Wrap {
         using T = Funk;
         using Function = jnivm::Function<Funk>;
         using IntSeq = std::make_index_sequence<Function::plength>;
         template<class I> class __StaticFuncWrapper;
-        template<size_t Z, size_t...I> class __StaticFuncWrapper<std::index_sequence<Z, I...>> {
+        template<size_t E, size_t C, size_t...I> class __StaticFuncWrapper<std::index_sequence<E, C, I...>> {
             Funk handle;
         public:
             __StaticFuncWrapper(Funk handle) : handle(handle) {}
 
-            constexpr auto Invoke(ENV * env, const std::vector<jvalue> & values) {
-                return handle(env, ((typename Function::template Parameter<I>&)(values[I]))...);
+            constexpr auto Invoke(ENV * env, java::lang::Class* clazz, const std::vector<jvalue> & values) {
+                return handle(env, clazz, ((typename Function::template Parameter<I>&)(values[I-2]))...);
+            }
+            static constexpr std::string GetJNISignature() {
+                return std::string(JNITypeToSignature<typename Function::Return>::signature) + "(" + (std::string(JNITypeToSignature<typename Function::template Parameter<I>>::signature)+...) + ")";
             }
         };
         template<class I> class __InstanceFuncWrapper;
-        template<size_t Z, size_t...I> class __InstanceFuncWrapper<std::index_sequence<Z, I...>> {
+        template<size_t E, size_t O, size_t...I> class __InstanceFuncWrapper<std::index_sequence<E, O, I...>> {
             Funk handle;
         public:
             __InstanceFuncWrapper(Funk handle) : handle(handle) {}
 
-            constexpr auto Invoke(const std::vector<jvalue> & values) {
-                return (((typename Function::template Parameter<Z>&)(values[Z])).*handle)(((typename Function::template Parameter<I>&)(values[I]))...);
+            constexpr auto Invoke(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
+                return (((typename Function::template Parameter<O>&)(*obj)).*handle)(env, ((typename Function::template Parameter<I>&)(values[I-2]))...);
+            }
+            static constexpr std::string GetJNISignature() {
+                return std::string(JNITypeToSignature<typename Function::Return>::signature) + "(" + (std::string(JNITypeToSignature<typename Function::template Parameter<I>>::signature)+...) + ")";
             }
         };
         template<class I> class __InstancePropWrapper;
@@ -192,10 +235,28 @@ namespace jnivm {
 #ifdef JNI_DEBUG
                     method->_static = true;
 #endif
-                    // ToDo
-                    // method->signature = 
-                    using Funk = std::function<typename w::Function::Return(ENV* env, const std::vector<jvalue> & values)>;
-                    method->nativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::Invoke, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2)), [](void * v) {
+                    // ToDo, lookup / register class types
+                    method->signature = w::Wrapper::GetJNISignature();
+                    using Funk = std::function<typename w::Function::Return(ENV* env, java::lang::Class* clazz, const std::vector<jvalue> & values)>;
+                    method->nativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::Invoke, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
+                        delete (Funk*)v;
+                    });
+                    cl->methods.emplace_back(std::move(method));
+                }
+            
+            };
+
+            template<class w> struct HookManager<FunctionType::Instance, w> {
+                static void install(Class * cl, const std::string& id, typename w::T&& t) {
+                    auto method = std::make_shared<Method>();
+                    method->name = id;
+#ifdef JNI_DEBUG
+                    method->_static = false;
+#endif
+                    // ToDo, lookup / register class types
+                    method->signature = w::Wrapper::GetJNISignature();
+                    using Funk = std::function<typename w::Function::Return(ENV* env, java::lang::Object* obj, const std::vector<jvalue> & values)>;
+                    method->nativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::Invoke, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
                         delete (Funk*)v;
                     });
                     cl->methods.emplace_back(std::move(method));
@@ -274,7 +335,7 @@ namespace jnivm {
     };
 #endif
     class VM;
-    class ENV {
+    class ENV : public std::enable_shared_from_this<ENV> {
     public:
         // Reference to parent VM
         VM * vm;
