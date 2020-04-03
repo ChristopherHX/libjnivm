@@ -137,8 +137,23 @@ namespace jnivm {
         public:
             __StaticFuncWrapper(Funk handle) : handle(handle) {}
 
-            constexpr auto Invoke(ENV * env, java::lang::Class* clazz, const std::vector<jvalue> & values) {
+            constexpr auto StaticInvoke(ENV * env, java::lang::Class* clazz, const std::vector<jvalue> & values) {
                 return handle(env, clazz, ((typename Function::template Parameter<I>&)(values[I-2]))...);
+            }
+            constexpr auto StaticGet(ENV * env, java::lang::Class* clazz, const std::vector<jvalue> & values) {
+                return handle(env, clazz, ((typename Function::template Parameter<I>&)(values[I-2]))...);
+            }
+            constexpr auto StaticSet(ENV * env, java::lang::Class* clazz, const std::vector<jvalue> & values) {
+                return handle(env, clazz, ((typename Function::template Parameter<I>&)(values[I-2]))...);
+            }
+            constexpr auto InstanceInvoke(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
+                return handle(env, obj, ((typename Function::template Parameter<I>&)(values[I-2]))...);
+            }
+            constexpr auto InstanceGet(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
+                return handle(env, obj, ((typename Function::template Parameter<I>&)(values[I-2]))...);
+            }
+            constexpr auto InstanceSet(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
+                return handle(env, obj, ((typename Function::template Parameter<I>&)(values[I-2]))...);
             }
             static constexpr std::string GetJNISignature() {
                 return std::string(JNITypeToSignature<typename Function::Return>::signature) + "(" + (std::string(JNITypeToSignature<typename Function::template Parameter<I>>::signature)+...) + ")";
@@ -150,7 +165,13 @@ namespace jnivm {
         public:
             __InstanceFuncWrapper(Funk handle) : handle(handle) {}
 
-            constexpr auto Invoke(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
+            constexpr auto InstanceInvoke(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
+                return (((typename Function::template Parameter<O>&)(obj)).*handle)(env, ((typename Function::template Parameter<I>&)(values[I-2]))...);
+            }
+            constexpr auto InstanceGet(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
+                return (((typename Function::template Parameter<O>&)(obj)).*handle)(env, ((typename Function::template Parameter<I>&)(values[I-2]))...);
+            }
+            constexpr auto InstanceSet(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
                 return (((typename Function::template Parameter<O>&)(obj)).*handle)(env, ((typename Function::template Parameter<I>&)(values[I-2]))...);
             }
             static constexpr std::string GetJNISignature() {
@@ -163,12 +184,12 @@ namespace jnivm {
         public:
             __InstancePropWrapper(Funk handle) : handle(handle) {}
 
-            constexpr auto&& set(const std::vector<jvalue> & values) {
-                return ((typename Function::template Parameter<Z>&)(values[Z])).*handle = ((typename Function::template Parameter<1>&)(values[1]));
+            constexpr auto&& InstanceSet(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
+                return ((typename Function::template Parameter<Z>&)(obj)).*handle = ((typename Function::template Parameter<1>&)(values[0]));
             }
 
-            constexpr auto&& get(const std::vector<jvalue> & values) {
-                return (((typename Function::template Parameter<Z>&)(values[Z])).*handle);
+            constexpr auto&& InstanceGet(ENV * env, java::lang::Object* obj, const std::vector<jvalue> & values) {
+                return (((typename Function::template Parameter<Z>&)(obj)).*handle);
             }
         };
         template<class I> class __StaticPropWrapper;
@@ -177,11 +198,11 @@ namespace jnivm {
         public:
             __StaticPropWrapper(Funk handle) : handle(handle) {}
 
-            constexpr auto&& set(const std::vector<jvalue> & values) {
+            constexpr auto&& StaticSet(ENV * env, java::lang::Class* clazz, const std::vector<jvalue> & values) {
                 return *handle = ((typename Function::template Parameter<0>&)(values[0]));
             }
 
-            constexpr auto&& get(const std::vector<jvalue> & values) {
+            constexpr auto&& StaticGet(ENV * env, java::lang::Class* clazz, const std::vector<jvalue> & values) {
                 return *handle;
             }
         };
@@ -241,7 +262,7 @@ namespace jnivm {
                     // ToDo, lookup / register class types
                     method->signature = w::Wrapper::GetJNISignature();
                     using Funk = std::function<typename w::Function::Return(ENV* env, java::lang::Class* clazz, const std::vector<jvalue> & values)>;
-                    method->nativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::Invoke, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
+                    method->nativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::StaticInvoke, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
                         delete (Funk*)v;
                     });
                     cl->methods.emplace_back(std::move(method));
@@ -259,7 +280,7 @@ namespace jnivm {
                     // ToDo, lookup / register class types
                     method->signature = w::Wrapper::GetJNISignature();
                     using Funk = std::function<typename w::Function::Return(ENV* env, java::lang::Object* obj, const std::vector<jvalue> & values)>;
-                    method->nativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::Invoke, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
+                    method->nativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::InstanceInvoke, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
                         delete (Funk*)v;
                     });
                     cl->methods.emplace_back(std::move(method));
