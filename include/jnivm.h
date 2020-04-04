@@ -442,6 +442,20 @@ namespace jnivm {
         JNIEnv * GetJNIEnv();
         // Returns the Env of the current thread
         std::shared_ptr<ENV> GetEnv();
+
+#ifdef JNI_DEBUG
+        // Dump all classes incl. function referenced or called from the (foreign) code
+        // Namespace / Header Pre Declaration (no class body)
+        std::string GeneratePreDeclaration();
+        // Normal Header with class contents and member declarations
+        std::string GenerateHeader();
+        // Default Stub implementation of all declared members
+        std::string GenerateStubs();
+        // Register the previous classes to the java native interface
+        std::string GenerateJNIBinding();
+        // Dumps all previous functions at once, into a single file
+        void GenerateClassDump(const char * path);
+#endif
     };
 
     template<class T> std::shared_ptr<Class> jnivm::ENV::GetClass(const char *name) {
@@ -790,11 +804,4 @@ namespace jnivm {
         };
         using Wrapper = std::conditional_t<(Function::type == FunctionType::Functional), std::conditional_t<std::is_same<void, typename Function::Return>::value, __ExternalInstanceFuncWrapperV<IntSeq>, __ExternalInstanceFuncWrapper<IntSeq>>, std::conditional_t<((int)Function::type & (int)FunctionType::Instance) != 0, std::conditional_t<((int)Function::type & (int)FunctionType::Property) != 0, __InstancePropWrapper<IntSeq>, std::conditional_t<std::is_same<void, typename Function::Return>::value, __InstanceFuncWrapperV<IntSeq>, __InstanceFuncWrapper<IntSeq>>>, std::conditional_t<((int)Function::type & (int)FunctionType::Property) != 0, __StaticPropWrapper<IntSeq>, std::conditional_t<std::is_same<void, typename Function::Return>::value, __StaticFuncWrapperV<IntSeq>, __StaticFuncWrapper<IntSeq>>>>>;
     };
-
-#ifdef JNI_DEBUG
-    std::string GeneratePreDeclaration(JNIEnv *env);
-    std::string GenerateHeader(JNIEnv *env);
-    std::string GenerateStubs(JNIEnv *env);
-    std::string GenerateJNIBinding(JNIEnv *env);
-#endif
 }

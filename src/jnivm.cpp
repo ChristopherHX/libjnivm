@@ -9,6 +9,9 @@
 #include <sstream>
 #include <unordered_map>
 #include <uchar.h>
+#ifdef JNI_DEBUG
+#include <fstream>
+#endif
 #ifdef _WIN32
 #define pthread_self() GetCurrentThreadId()
 #endif
@@ -47,13 +50,13 @@ const char *ParseJNIType(const char *cur, const char *end, std::string &type) {
 		break;
 	case '[':
 		cur = ParseJNIType(cur + 1, end, type);
-		type = "jnivm::Array<" + type + "> *";
+		type = "std::shared_ptr<Array<" + type + ">>";
 		break;
 	case 'L':
 		auto cend = std::find(cur, end, ';');
-		type = "jnivm::" + std::regex_replace(std::string(cur + 1, cend), std::regex("(/|\\$)"),
+		type = "std::shared_ptr<" + std::regex_replace(std::string(cur + 1, cend), std::regex("(/|\\$)"),
 															"::") +
-					 "*";
+					 ">";
 		cur = cend;
 		break;
 	}
@@ -173,7 +176,7 @@ std::string Method::GenerateHeader(const std::string &cname) {
 	} else {
 		ss << rettype << " " << name;
 	}
-	ss << "(JNIEnv *";
+	ss << "(jnivm::ENV *";
 	for (int i = 0; i < parameters.size(); i++) {
 		ss << ", " << parameters[i];
 	}
@@ -213,7 +216,7 @@ std::string Method::GenerateStubs(std::string scope, const std::string &cname) {
 	} else {
 		ss << rettype << " " << scope << name;
 	}
-	ss << "(JNIEnv *env";
+	ss << "(ENV *env";
 	for (int i = 0; i < parameters.size(); i++) {
 		ss << ", " << parameters[i] << " arg" << i;
 	}
@@ -251,37 +254,29 @@ std::string Method::GenerateJNIBinding(std::string scope, const std::string &cna
 			}
 		}
 	}
-	ss << "extern \"C\" ";
-	auto cl = scope.substr(0, scope.length() - 2);
+	ss << "c->Hook(env, \"" << name << "\", ";
+	auto cl = scope;
 	if (name == "<init>") {
-		scope += cname;
+		scope += "::" + cname;
 	} else {
-		scope += name;
+		scope += "::" + name;
 	}
 	if (name == "<init>") {
-		ss << "jobject ";
-	} else {
-		ss << rettype << " ";
-	}
-	ss << std::regex_replace(scope, std::regex("::"), "_") << "(JNIEnv *env, ";
-	if (!_static) {
-		ss << cl << "* obj, ";
-	}
-	ss << "jvalue* values) {\n    ";
-	if (!_static) {
-		if (name != "<init>") {
-			ss << "return obj->" << name;
-		} else {
-			ss << "return (jobject)new " << cl;
+		ss << "[](jnivm::ENV *env, jnivm::Class* cl";
+		for (int i = 0; i < parameters.size(); i++) {
+			ss << ", " << parameters[i] << " arg" << i;
 		}
+		ss << ") {";
+		ss << "   return std::make_shared" << scope << "(env, cl";
+		for (int i = 0; i < parameters.size(); i++) {
+			ss << ", arg" << i;
+		}
+		ss << ")";
+		
 	} else {
-		ss << "return " << scope;
+		ss << "&" << scope;
 	}
-	ss << "(env";
-	for (int i = 0; i < parameters.size(); i++) {
-		ss << ", (" << parameters[i] << "&)values[" << i << "]";
-	}
-	ss << ");\n}\n";
+	ss << ");\n";
 	return ss.str();
 }
 
@@ -301,44 +296,26 @@ std::string Field::GenerateStubs(std::string scope, const std::string &cname) {
 	std::ostringstream ss;
 	std::string rettype;
 	ParseJNIType(type.data(), type.data() + type.length(), rettype);
-	ss << rettype << " " << scope << name << " = {};\n\n";
+	ss << rettype << " " << scope << "::" << name << " = {};\n\n";
 	return ss.str();
 }
 
 std::string Field::GenerateJNIBinding(std::string scope) {
 	std::ostringstream ss;
-	std::string rettype;
-	ParseJNIType(type.data(), type.data() + type.length(), rettype);
-	auto cl = scope.substr(0, scope.length() - 2);
-	scope = std::regex_replace(scope, std::regex("::"), "_") + name;
-	ss << "extern \"C\" " << rettype << " get_" << scope << "(";
-	if (!_static) {
-		ss << cl << "* obj";
-	}
-	ss << ") {\n    return ";
-	if (_static) {
-		ss << cl << "::" << name;
-	} else {
-		ss << "obj->" << name;
-	}
-	ss << ";\n}\n\n";
-	ss << "extern \"C\" void set_" << scope << "(";
-	if (!_static) {
-		ss << cl << "* obj, ";
-	}
-	ss << rettype << " value) {\n    ";
-	if (_static) {
-		ss << cl << "::" << name;
-	} else {
-		ss << "obj->" << name;
-	}
-	ss << " = value;\n}\n\n";
+	ss << "c->Hook(env, \"" << name << "\", ";
+	auto cl = scope;
+	scope += "::" + name;
+	ss << "&" << scope;
+	ss << ");\n";
 	return ss.str();
 }
 
-std::string jnivm::Class::GenerateHeader(std::string scope) {
+const char* blacklisted[] = { "java/lang/Object", "java/lang/String", "java/lang/Class" };
+
+std::string Class::GenerateHeader(std::string scope) {
+	if (std::find(std::begin(blacklisted), std::end(blacklisted), nativeprefix) != std::end(blacklisted)) return {};
 	std::ostringstream ss;
-	scope += name;
+	scope += "::" + name;
 	ss << "class " << scope << " : jnivm::Object {\npublic:\n";
 	for (auto &cl : classes) {
 		ss << std::regex_replace(cl->GeneratePreDeclaration(),
@@ -364,14 +341,16 @@ std::string jnivm::Class::GenerateHeader(std::string scope) {
 }
 
 std::string Class::GeneratePreDeclaration() {
+	if (std::find(std::begin(blacklisted), std::end(blacklisted), nativeprefix) != std::end(blacklisted)) return {};
 	std::ostringstream ss;
 	ss << "class " << name << ";";
 	return ss.str();
 }
 
 std::string Class::GenerateStubs(std::string scope) {
+	if (std::find(std::begin(blacklisted), std::end(blacklisted), nativeprefix) != std::end(blacklisted)) return {};
 	std::ostringstream ss;
-	scope += name + "::";
+	scope += "::" + name;
 	for (auto &cl : classes) {
 		ss << cl->GenerateStubs(scope);
 	}
@@ -385,8 +364,9 @@ std::string Class::GenerateStubs(std::string scope) {
 }
 
 std::string Class::GenerateJNIBinding(std::string scope) {
+	if (std::find(std::begin(blacklisted), std::end(blacklisted), nativeprefix) != std::end(blacklisted)) return {};
 	std::ostringstream ss;
-	scope += name + "::";
+	scope += "::" + name;
 	for (auto &cl : classes) {
 		ss << cl->GenerateJNIBinding(scope);
 	}
@@ -402,7 +382,7 @@ std::string Class::GenerateJNIBinding(std::string scope) {
 std::string Namespace::GenerateHeader(std::string scope) {
 	std::ostringstream ss;
 	if (name.length()) {
-		scope += name + "::";
+		scope += "::" + name;
 	}
 	for (auto &cl : classes) {
 		ss << cl->GenerateHeader(scope);
@@ -444,7 +424,7 @@ std::string Namespace::GeneratePreDeclaration() {
 std::string Namespace::GenerateStubs(std::string scope) {
 	std::ostringstream ss;
 	if (name.length()) {
-		scope += name + "::";
+		scope += "::" + name;
 	}
 	for (auto &cl : classes) {
 		ss << cl->GenerateStubs(scope);
@@ -458,7 +438,7 @@ std::string Namespace::GenerateStubs(std::string scope) {
 std::string Namespace::GenerateJNIBinding(std::string scope) {
 	std::ostringstream ss;
 	if (name.length()) {
-		scope += name + "::";
+		scope += "::" + name;
 	}
 	for (auto &cl : classes) {
 		ss << cl->GenerateJNIBinding(scope);
@@ -1157,14 +1137,14 @@ jobjectArray NewObjectArray(JNIEnv * env, jsize length, jclass c, jobject init) 
 	return (jobjectArray)JNITypes<std::shared_ptr<Array<Object>>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<Array<Object>>(new std::shared_ptr<Object>[length] {init ? (*(Object*)init).shared_from_this() : std::shared_ptr<Object>()}, length));
 };
 jobject GetObjectArrayElement(JNIEnv *, jobjectArray a, jsize i ) {
-	return (jobject)((jnivm::Array<Object>*)a)->data[i].get();
+	return (jobject)((Array<Object>*)a)->data[i].get();
 };
 void SetObjectArrayElement(JNIEnv *, jobjectArray a, jsize i, jobject v) {
-	((jnivm::Array<Object>*)a)->data[i] = v ? (*(java::lang::Object*)v).shared_from_this() : nullptr;
+	((Array<Object>*)a)->data[i] = v ? (*(java::lang::Object*)v).shared_from_this() : nullptr;
 };
 
 template <class T> typename JNITypes<T>::Array NewArray(JNIEnv * env, jsize length) {
-	return (typename JNITypes<T>::Array)JNITypes<std::shared_ptr<jnivm::Array<T>>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<jnivm::Array<T>>(new T[length] {0}, length));
+	return (typename JNITypes<T>::Array)JNITypes<std::shared_ptr<Array<T>>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<Array<T>>(new T[length] {0}, length));
 };
 
 template <class T>
@@ -1361,9 +1341,9 @@ void test() {
 //   test();
 // }
 
-std::shared_ptr<jnivm::Class> jnivm::ENV::GetClass(const char * name) {
+std::shared_ptr<Class> ENV::GetClass(const char * name) {
 	auto c = (Class*)InternalFindClass(&env, name);
-	return std::shared_ptr<jnivm::Class>(c->shared_from_this(), c);
+	return std::shared_ptr<Class>(c->shared_from_this(), c);
 }
 
 VM::VM() : ninterface({
@@ -1670,11 +1650,11 @@ VM::VM() : ninterface({
 	auto r2 = typecheck[typeid(Activity)] = env->GetClass("java/lang/Test");
 }
 
-JavaVM *jnivm::VM::GetJavaVM() {
+JavaVM *VM::GetJavaVM() {
 	return &javaVM;
 }
 
-JNIEnv *jnivm::VM::GetJNIEnv() {
+JNIEnv *VM::GetJNIEnv() {
 #ifdef EnableJNIVMGC
 	return &jnienvs[pthread_self()]->env;
 #else
@@ -1682,26 +1662,34 @@ JNIEnv *jnivm::VM::GetJNIEnv() {
 #endif
 }
 
-std::shared_ptr<ENV> jnivm::VM::GetEnv() {
+std::shared_ptr<ENV> VM::GetEnv() {
 	return jnienvs[pthread_self()];
 }
 
 #ifdef JNI_DEBUG
 
-std::string jnivm::GeneratePreDeclaration(JNIEnv * env) {
-	return "#include <jnivm.h>\n" + ((Namespace*&)env->functions->reserved0)->GeneratePreDeclaration();
+std::string VM::GeneratePreDeclaration() {
+	return "#include <jnivm.h>\n" + np.GeneratePreDeclaration();
 }
 
-std::string jnivm::GenerateHeader(JNIEnv * env) {
-	return ((Namespace*&)env->functions->reserved0)->GenerateHeader("");
+std::string VM::GenerateHeader() {
+	return np.GenerateHeader("");
 }
 
-std::string jnivm::GenerateStubs(JNIEnv * env) {
-	return ((Namespace*&)env->functions->reserved0)->GenerateStubs("");
+std::string VM::GenerateStubs() {
+	return np.GenerateStubs("");
 }
 
-std::string jnivm::GenerateJNIBinding(JNIEnv * env) {
-	return ((Namespace*&)env->functions->reserved0)->GenerateJNIBinding("");
+std::string VM::GenerateJNIBinding() {
+	return np.GenerateJNIBinding("");
+}
+
+void VM::GenerateClassDump(const char *path) {
+	std::ofstream of(path);
+	of << GeneratePreDeclaration()
+	   << GenerateHeader()
+	   << GenerateStubs()
+	   << GenerateJNIBinding();
 }
 
 #endif
