@@ -13,7 +13,6 @@
 #define EnableJNIVMGC
 
 using namespace jnivm;
-using namespace jnivm::java::lang;
 
 #ifdef JNI_DEBUG
 
@@ -334,10 +333,10 @@ std::string Field::GenerateJNIBinding(std::string scope) {
 	return ss.str();
 }
 
-std::string jnivm::java::lang::Class::GenerateHeader(std::string scope) {
+std::string jnivm::Class::GenerateHeader(std::string scope) {
 	std::ostringstream ss;
 	scope += name;
-	ss << "class " << scope << " : jnivm::java::lang::Object {\npublic:\n";
+	ss << "class " << scope << " : jnivm::Object {\npublic:\n";
 	for (auto &cl : classes) {
 		ss << std::regex_replace(cl->GeneratePreDeclaration(),
 															std::regex("(^|\n)([^\n]+)"), "$1    $2");
@@ -599,7 +598,7 @@ void FatalError(JNIEnv *, const char * err) {
 };
 jint PushLocalFrame(JNIEnv * env, jint cap) {
 #ifdef EnableJNIVMGC
-	std::vector<std::shared_ptr<jnivm::java::lang::Object>> frame;
+	std::vector<std::shared_ptr<jnivm::Object>> frame;
 	// Reserve Memory for the new Frame
 	if(cap)
 		frame.reserve(cap);
@@ -916,29 +915,40 @@ template <class T> void SetField(JNIEnv *env, jobject obj, jfieldID id, T value)
 
 jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
 														const char *str1) {
-	std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);
-	std::string &classname = ((Class *)cl)->name;
-	auto cur = (Class *)cl;
+	std::shared_ptr<Method> next;
 	auto sname = str0;
 	auto ssig = str1;
-	auto ccl =
-			std::find_if(cur->methods.begin(), cur->methods.end(),
-									 [&sname, &ssig](std::shared_ptr<Method> &namesp) {
-										 return namesp->name == sname && namesp->signature == ssig;
-									 });
-	std::shared_ptr<Method> next;
-	if (ccl != cur->methods.end()) {
-		next = *ccl;
+	auto cur = (Class *)cl;
+	if(cl) {
+		std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);
+		std::string &classname = ((Class *)cl)->name;
+		auto ccl =
+				std::find_if(cur->methods.begin(), cur->methods.end(),
+										[&sname, &ssig](std::shared_ptr<Method> &namesp) {
+											return namesp->name == sname && namesp->signature == ssig;
+										});
+		if (ccl != cur->methods.end()) {
+			next = *ccl;
+		}
 	} else {
+#ifdef JNI_DEBUG
+		Log::warn("JNIVM", "GetStaticMethodID class is null %s, %s", str0, str1);
+#endif
+	}
+	if(!next) {
 		next = std::make_shared<Method>();
-		cur->methods.push_back(next);
+		if(cur) {
+			cur->methods.push_back(next);
+		} else {
+			(*(ENV*) env->functions->reserved0).localcache.push_back(next);
+		}
 		next->name = std::move(sname);
 		next->signature = std::move(ssig);
 		next->_static = true;
 #ifdef JNI_DEBUG
 		Declare(env, next->signature.data());
 #endif
-		std::string symbol = ((Class *)cl)->nativeprefix + str0;
+		std::string symbol = (cl ? ((Class *)cl)->nativeprefix : "(null)") + "," + str0;
 		Log::trace("JNIVM", "Unresolved symbol %s", symbol.data());
 	}
 	return (jmethodID)next.get();
@@ -949,9 +959,9 @@ T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
 	auto mid = ((Method *)id);
 #ifdef JNI_DEBUG
 	if(!cl)
-		Log::warn("JNIVM", "CallNonvirtualMethod class is null");
+		Log::warn("JNIVM", "CallStaticMethod class is null");
 	if(!id)
-		Log::warn("JNIVM", "CallNonvirtualMethod field is null");
+		Log::warn("JNIVM", "CallStaticMethod field is null");
 #endif
 	if (mid->nativehandle) {
 		return (*(std::function<T(ENV*, Class*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, param);
@@ -1337,9 +1347,9 @@ void test() {
 //   test();
 // }
 
-std::shared_ptr<jnivm::java::lang::Class> jnivm::ENV::GetClass(const char * name) {
+std::shared_ptr<jnivm::Class> jnivm::ENV::GetClass(const char * name) {
 	auto c = (Class*)InternalFindClass(&env, name);
-	return std::shared_ptr<jnivm::java::lang::Class>(c->shared_from_this(), c);
+	return std::shared_ptr<jnivm::Class>(c->shared_from_this(), c);
 }
 
 VM::VM() : ninterface({

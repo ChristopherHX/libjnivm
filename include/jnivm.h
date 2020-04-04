@@ -18,7 +18,15 @@
 #define JNI_DEBUG
 
 namespace jnivm {
-    class Method {
+    class Class;
+    class Object : public std::enable_shared_from_this<Object> {
+    public:
+        std::shared_ptr<Class> clazz;
+        Object(const std::shared_ptr<Class>& clazz) : clazz(clazz) {}
+        Object() : clazz(nullptr) {}
+    };
+
+    class Method : public Object {
     public:
         std::string name;
         std::string signature;
@@ -33,7 +41,7 @@ namespace jnivm {
 #endif
     };
 
-    class Field {
+    class Field : public Object {
     public:
         std::string name;
         std::string type;
@@ -92,260 +100,239 @@ namespace jnivm {
     };
 
     class ENV;
-    namespace java {
-        namespace lang {
-            class Class;
-            class Object;
-        }
-    }
 
     template<class Funk> struct Wrap;
 
-    namespace java {
+    template<FunctionType, class> struct HookManager;
 
-        namespace lang {
-
-            class Class;
-
-            class Object : public std::enable_shared_from_this<Object> {
-            public:
-                std::shared_ptr<Class> clazz;
-                Object(const std::shared_ptr<Class>& clazz) : clazz(clazz) {}
-                Object() : clazz(nullptr) {}
-            };
-
-            template<FunctionType, class> struct HookManager;
-
-            class Class : public Object {
-            public:
-                std::mutex mtx;
-                std::unordered_map<std::string, void*> natives;
-                std::string name;
-                std::string nativeprefix;
+    class Class : public Object {
+    public:
+        std::mutex mtx;
+        std::unordered_map<std::string, void*> natives;
+        std::string name;
+        std::string nativeprefix;
 #ifdef JNI_DEBUG
-                std::vector<std::shared_ptr<Class>> classes;
+        std::vector<std::shared_ptr<Class>> classes;
 #endif
-                std::vector<std::shared_ptr<Field>> fields;
-                std::vector<std::shared_ptr<Method>> methods;
+        std::vector<std::shared_ptr<Field>> fields;
+        std::vector<std::shared_ptr<Method>> methods;
 
-                Class() {
+        Class() {
 
-                }
-
-                template<class T> void Hook(ENV* env, const std::string& method, T&& t);
-                template<class T> void HookInstanceFunction(ENV* env, const std::string& id, T&& t);
-                template<class T> void HookInstanceGetterFunction(ENV* env, const std::string& id, T&& t);
-                template<class T> void HookInstanceSetterFunction(ENV* env, const std::string& id, T&& t);
-                template<class T> void HookGetterFunction(ENV* env, const std::string& id, T&& t);
-                template<class T> void HookSetterFunction(ENV* env, const std::string& id, T&& t);
-#ifdef JNI_DEBUG
-                std::string GenerateHeader(std::string scope);
-                std::string GeneratePreDeclaration();
-                std::string GenerateStubs(std::string scope);
-                std::string GenerateJNIBinding(std::string scope);
-#endif
-            };
-
-            template<class w> struct HookManager<FunctionType::None, w> {
-                template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
-                    auto ssig = w::Wrapper::GetJNIInvokeSignature(env);
-                    auto ccl =
-                            std::find_if(cl->methods.begin(), cl->methods.end(),
-                                                    [&id, &ssig](std::shared_ptr<Method> &m) {
-                                                        return m->_static && m->name == id && m->signature == ssig;
-                                                    });
-                    std::shared_ptr<Method> method;
-                    if (ccl != cl->methods.end()) {
-                        method = *ccl;
-                    } else {
-                        method = std::make_shared<Method>();
-                        method->name = id;
-                        method->_static = true;
-                        method->signature = std::move(ssig);
-                        cl->methods.push_back(method);
-                    }
-                    using Funk = std::function<typename Function<decltype(&w::Wrapper::StaticInvoke)>::Return(ENV* env, java::lang::Class* clazz, const jvalue* values)>;
-                    method->nativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::StaticInvoke, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
-                        delete (Funk*)v;
-                    });
-                }
-            };
-
-            template<class w> struct HookManager<FunctionType::Instance, w> {
-                template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
-                    auto ssig = w::Wrapper::GetJNIInvokeSignature(env);
-                    auto ccl =
-                            std::find_if(cl->methods.begin(), cl->methods.end(),
-                                                    [&id, &ssig](std::shared_ptr<Method> &m) {
-                                                        return !m->_static && m->name == id && m->signature == ssig;
-                                                    });
-                    std::shared_ptr<Method> method;
-                    if (ccl != cl->methods.end()) {
-                        method = *ccl;
-                    } else {
-                        method = std::make_shared<Method>();
-                        method->name = id;
-                        method->_static = false;
-                        method->signature = std::move(ssig);
-                        cl->methods.push_back(method);
-                    }
-                    using Funk = std::function<typename Function<decltype(&w::Wrapper::InstanceInvoke)>::Return(ENV* env, java::lang::Object* obj, const jvalue* values)>;
-                    method->nativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::InstanceInvoke, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
-                        delete (Funk*)v;
-                    });
-                }
-            };
-
-            template<class w> struct HookManager<FunctionType::Getter, w> {
-                template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
-                    auto ssig = w::Wrapper::GetJNIPropertySignature(env);
-                    auto ccl =
-                            std::find_if(cl->fields.begin(), cl->fields.end(),
-                                                    [&id, &ssig](std::shared_ptr<Field> &f) {
-                                                        return f->_static && f->name == id && f->type == ssig;
-                                                    });
-                    std::shared_ptr<Field> field;
-                    if (ccl != cl->fields.end()) {
-                        field = *ccl;
-                    } else {
-                        field = std::make_shared<Field>();
-                        field->name = id;
-                        field->_static = true;
-                        field->type = std::move(ssig);
-                        cl->fields.push_back(field);
-                    }
-                    using Funk = std::function<typename Function<decltype(&w::Wrapper::StaticGet)>::Return(ENV* env, java::lang::Class* clazz, const jvalue* values)>;
-                    field->getnativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::StaticGet, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
-                        delete (Funk*)v;
-                    });
-                }
-            };
-
-            template<class w> struct HookManager<FunctionType::Setter, w> {
-                template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
-                    auto ssig = w::Wrapper::GetJNIPropertySignature(env);
-                    auto ccl =
-                            std::find_if(cl->fields.begin(), cl->fields.end(),
-                                                    [&id, &ssig](std::shared_ptr<Field> &f) {
-                                                        return f->_static && f->name == id && f->type == ssig;
-                                                    });
-                    std::shared_ptr<Field> field;
-                    if (ccl != cl->fields.end()) {
-                        field = *ccl;
-                    } else {
-                        field = std::make_shared<Field>();
-                        field->name = id;
-                        field->_static = true;
-                        field->type = std::move(ssig);
-                        cl->fields.push_back(field);
-                    }
-                    using Funk = std::function<void(ENV* env, java::lang::Class* clazz, const jvalue* values)>;
-                    field->setnativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::StaticSet, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
-                        delete (Funk*)v;
-                    });
-                }
-            };
-
-            template<class w> struct HookManager<FunctionType::InstanceGetter, w> {
-                template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
-                    auto ssig = w::Wrapper::GetJNIPropertySignature(env);
-                    auto ccl =
-                            std::find_if(cl->fields.begin(), cl->fields.end(),
-                                                    [&id, &ssig](std::shared_ptr<Field> &f) {
-                                                        return f->_static && f->name == id && f->type == ssig;
-                                                    });
-                    std::shared_ptr<Field> field;
-                    if (ccl != cl->fields.end()) {
-                        field = *ccl;
-                    } else {
-                        field = std::make_shared<Field>();
-                        field->name = id;
-                        field->_static = true;
-                        field->type = std::move(ssig);
-                        cl->fields.push_back(field);
-                    }
-                    using Funk = std::function<typename Function<decltype(&w::Wrapper::InstanceGet)>::Return(ENV* env, java::lang::Class* clazz, const jvalue* values)>;
-                    field->getnativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::InstanceGet, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
-                        delete (Funk*)v;
-                    });
-                }
-            };
-
-            template<class w> struct HookManager<FunctionType::InstanceSetter, w> {
-                template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
-                    auto ssig = w::Wrapper::GetJNIPropertySignature(env);
-                    auto ccl =
-                            std::find_if(cl->fields.begin(), cl->fields.end(),
-                                                    [&id, &ssig](std::shared_ptr<Field> &f) {
-                                                        return f->_static && f->name == id && f->type == ssig;
-                                                    });
-                    std::shared_ptr<Field> field;
-                    if (ccl != cl->fields.end()) {
-                        field = *ccl;
-                    } else {
-                        field = std::make_shared<Field>();
-                        field->name = id;
-                        field->_static = true;
-                        field->type = std::move(ssig);
-                        cl->fields.push_back(field);
-                    }
-                    using Funk = std::function<void(ENV* env, java::lang::Object* obj, const jvalue* values)>;
-                    field->setnativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::InstanceSet, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
-                        delete (Funk*)v;
-                    });
-                }
-            };
-
-            template<class w> struct HookManager<FunctionType::InstanceProperty, w> {
-                template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
-                    HookManager<FunctionType::InstanceGetter, w>::install(env, cl, id, t);
-                    HookManager<FunctionType::InstanceSetter, w>::install(env, cl, id, t);
-                }
-            };
-
-            template<class w> struct HookManager<FunctionType::Property, w> {
-                template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
-                    HookManager<FunctionType::Getter, w>::install(env, cl, id, t);
-                    HookManager<FunctionType::Setter, w>::install(env, cl, id, t);
-                }
-            };
-
-            template<class T> void Class::Hook(ENV* env, const std::string& id, T&& t) {
-                using w = Wrap<T>;
-                HookManager<w::Function::type, w>::install(env, this, id, std::move(t));
-            }
-
-            template<class T> void Class::HookInstanceFunction(ENV* env, const std::string& id, T&& t) {
-                using w = Wrap<T>;
-                HookManager<FunctionType::Instance, w>::install(env, this, id, std::move(t));
-            }
-
-            template<class T> void Class::HookInstanceGetterFunction(ENV* env, const std::string& id, T&& t) {
-                using w = Wrap<T>;
-                HookManager<FunctionType::InstanceGetter, w>::install(env, this, id, std::move(t));
-            }
-            template<class T> void Class::HookInstanceSetterFunction(ENV* env, const std::string& id, T&& t) {
-                using w = Wrap<T>;
-                HookManager<FunctionType::InstanceSetter, w>::install(env, this, id, std::move(t));
-            }
-            template<class T> void Class::HookGetterFunction(ENV* env, const std::string& id, T&& t) {
-                using w = Wrap<T>;
-                HookManager<FunctionType::Getter, w>::install(env, this, id, std::move(t));
-            }
-            template<class T> void Class::HookSetterFunction(ENV* env, const std::string& id, T&& t) {
-                using w = Wrap<T>;
-                HookManager<FunctionType::Setter, w>::install(env, this, id, std::move(t));
-            }
-
-            class String : public Object, public std::string {
-            public:
-                String(std::string && str) : std::string(std::move(str)), Object(nullptr) {}
-            };
         }
+
+        template<class T> void Hook(ENV* env, const std::string& method, T&& t);
+        template<class T> void HookInstanceFunction(ENV* env, const std::string& id, T&& t);
+        template<class T> void HookInstanceGetterFunction(ENV* env, const std::string& id, T&& t);
+        template<class T> void HookInstanceSetterFunction(ENV* env, const std::string& id, T&& t);
+        template<class T> void HookGetterFunction(ENV* env, const std::string& id, T&& t);
+        template<class T> void HookSetterFunction(ENV* env, const std::string& id, T&& t);
+#ifdef JNI_DEBUG
+        std::string GenerateHeader(std::string scope);
+        std::string GeneratePreDeclaration();
+        std::string GenerateStubs(std::string scope);
+        std::string GenerateJNIBinding(std::string scope);
+#endif
+    };
+
+    template<class w> struct HookManager<FunctionType::None, w> {
+        template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
+            auto ssig = w::Wrapper::GetJNIInvokeSignature(env);
+            auto ccl =
+                    std::find_if(cl->methods.begin(), cl->methods.end(),
+                                            [&id, &ssig](std::shared_ptr<Method> &m) {
+                                                return m->_static && m->name == id && m->signature == ssig;
+                                            });
+            std::shared_ptr<Method> method;
+            if (ccl != cl->methods.end()) {
+                method = *ccl;
+            } else {
+                method = std::make_shared<Method>();
+                method->name = id;
+                method->_static = true;
+                method->signature = std::move(ssig);
+                cl->methods.push_back(method);
+            }
+            using Funk = std::function<typename Function<decltype(&w::Wrapper::StaticInvoke)>::Return(ENV* env, Class* clazz, const jvalue* values)>;
+            method->nativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::StaticInvoke, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
+                delete (Funk*)v;
+            });
+        }
+    };
+
+    template<class w> struct HookManager<FunctionType::Instance, w> {
+        template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
+            auto ssig = w::Wrapper::GetJNIInvokeSignature(env);
+            auto ccl =
+                    std::find_if(cl->methods.begin(), cl->methods.end(),
+                                            [&id, &ssig](std::shared_ptr<Method> &m) {
+                                                return !m->_static && m->name == id && m->signature == ssig;
+                                            });
+            std::shared_ptr<Method> method;
+            if (ccl != cl->methods.end()) {
+                method = *ccl;
+            } else {
+                method = std::make_shared<Method>();
+                method->name = id;
+                method->_static = false;
+                method->signature = std::move(ssig);
+                cl->methods.push_back(method);
+            }
+            using Funk = std::function<typename Function<decltype(&w::Wrapper::InstanceInvoke)>::Return(ENV* env, Object* obj, const jvalue* values)>;
+            method->nativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::InstanceInvoke, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
+                delete (Funk*)v;
+            });
+        }
+    };
+
+    template<class w> struct HookManager<FunctionType::Getter, w> {
+        template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
+            auto ssig = w::Wrapper::GetJNIPropertySignature(env);
+            auto ccl =
+                    std::find_if(cl->fields.begin(), cl->fields.end(),
+                                            [&id, &ssig](std::shared_ptr<Field> &f) {
+                                                return f->_static && f->name == id && f->type == ssig;
+                                            });
+            std::shared_ptr<Field> field;
+            if (ccl != cl->fields.end()) {
+                field = *ccl;
+            } else {
+                field = std::make_shared<Field>();
+                field->name = id;
+                field->_static = true;
+                field->type = std::move(ssig);
+                cl->fields.push_back(field);
+            }
+            using Funk = std::function<typename Function<decltype(&w::Wrapper::StaticGet)>::Return(ENV* env, Class* clazz, const jvalue* values)>;
+            field->getnativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::StaticGet, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
+                delete (Funk*)v;
+            });
+        }
+    };
+
+    template<class w> struct HookManager<FunctionType::Setter, w> {
+        template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
+            auto ssig = w::Wrapper::GetJNIPropertySignature(env);
+            auto ccl =
+                    std::find_if(cl->fields.begin(), cl->fields.end(),
+                                            [&id, &ssig](std::shared_ptr<Field> &f) {
+                                                return f->_static && f->name == id && f->type == ssig;
+                                            });
+            std::shared_ptr<Field> field;
+            if (ccl != cl->fields.end()) {
+                field = *ccl;
+            } else {
+                field = std::make_shared<Field>();
+                field->name = id;
+                field->_static = true;
+                field->type = std::move(ssig);
+                cl->fields.push_back(field);
+            }
+            using Funk = std::function<void(ENV* env, Class* clazz, const jvalue* values)>;
+            field->setnativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::StaticSet, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
+                delete (Funk*)v;
+            });
+        }
+    };
+
+    template<class w> struct HookManager<FunctionType::InstanceGetter, w> {
+        template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
+            auto ssig = w::Wrapper::GetJNIPropertySignature(env);
+            auto ccl =
+                    std::find_if(cl->fields.begin(), cl->fields.end(),
+                                            [&id, &ssig](std::shared_ptr<Field> &f) {
+                                                return f->_static && f->name == id && f->type == ssig;
+                                            });
+            std::shared_ptr<Field> field;
+            if (ccl != cl->fields.end()) {
+                field = *ccl;
+            } else {
+                field = std::make_shared<Field>();
+                field->name = id;
+                field->_static = true;
+                field->type = std::move(ssig);
+                cl->fields.push_back(field);
+            }
+            using Funk = std::function<typename Function<decltype(&w::Wrapper::InstanceGet)>::Return(ENV* env, Class* clazz, const jvalue* values)>;
+            field->getnativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::InstanceGet, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
+                delete (Funk*)v;
+            });
+        }
+    };
+
+    template<class w> struct HookManager<FunctionType::InstanceSetter, w> {
+        template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
+            auto ssig = w::Wrapper::GetJNIPropertySignature(env);
+            auto ccl =
+                    std::find_if(cl->fields.begin(), cl->fields.end(),
+                                            [&id, &ssig](std::shared_ptr<Field> &f) {
+                                                return f->_static && f->name == id && f->type == ssig;
+                                            });
+            std::shared_ptr<Field> field;
+            if (ccl != cl->fields.end()) {
+                field = *ccl;
+            } else {
+                field = std::make_shared<Field>();
+                field->name = id;
+                field->_static = true;
+                field->type = std::move(ssig);
+                cl->fields.push_back(field);
+            }
+            using Funk = std::function<void(ENV* env, Object* obj, const jvalue* values)>;
+            field->setnativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::InstanceSet, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
+                delete (Funk*)v;
+            });
+        }
+    };
+
+    template<class w> struct HookManager<FunctionType::InstanceProperty, w> {
+        template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
+            HookManager<FunctionType::InstanceGetter, w>::install(env, cl, id, t);
+            HookManager<FunctionType::InstanceSetter, w>::install(env, cl, id, t);
+        }
+    };
+
+    template<class w> struct HookManager<FunctionType::Property, w> {
+        template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
+            HookManager<FunctionType::Getter, w>::install(env, cl, id, t);
+            HookManager<FunctionType::Setter, w>::install(env, cl, id, t);
+        }
+    };
+
+    template<class T> void Class::Hook(ENV* env, const std::string& id, T&& t) {
+        using w = Wrap<T>;
+        HookManager<w::Function::type, w>::install(env, this, id, std::move(t));
     }
 
+    template<class T> void Class::HookInstanceFunction(ENV* env, const std::string& id, T&& t) {
+        using w = Wrap<T>;
+        HookManager<FunctionType::Instance, w>::install(env, this, id, std::move(t));
+    }
+
+    template<class T> void Class::HookInstanceGetterFunction(ENV* env, const std::string& id, T&& t) {
+        using w = Wrap<T>;
+        HookManager<FunctionType::InstanceGetter, w>::install(env, this, id, std::move(t));
+    }
+    template<class T> void Class::HookInstanceSetterFunction(ENV* env, const std::string& id, T&& t) {
+        using w = Wrap<T>;
+        HookManager<FunctionType::InstanceSetter, w>::install(env, this, id, std::move(t));
+    }
+    template<class T> void Class::HookGetterFunction(ENV* env, const std::string& id, T&& t) {
+        using w = Wrap<T>;
+        HookManager<FunctionType::Getter, w>::install(env, this, id, std::move(t));
+    }
+    template<class T> void Class::HookSetterFunction(ENV* env, const std::string& id, T&& t) {
+        using w = Wrap<T>;
+        HookManager<FunctionType::Setter, w>::install(env, this, id, std::move(t));
+    }
+
+    class String : public Object, public std::string {
+    public:
+        String(std::string && str) : std::string(std::move(str)), Object(nullptr) {}
+    };
+
     template<class T, class = void>
-    class Array : public java::lang::Object {
+    class Array : public Object {
     public:
         Array(T* data, jsize length) : data(data), length(length), Object(nullptr) {}
         jsize length;
@@ -355,7 +342,7 @@ namespace jnivm {
         }
     };
 
-    template<class T> class Array<T, std::enable_if_t<(std::is_base_of<java::lang::Object, T>::value || std::is_same<java::lang::Object, T>::value)>> : public Array<std::shared_ptr<T>> {
+    template<class T> class Array<T, std::enable_if_t<(std::is_base_of<Object, T>::value || std::is_same<Object, T>::value)>> : public Array<std::shared_ptr<T>> {
     public:
         using Array<std::shared_ptr<T>>::Array;
     };
@@ -363,6 +350,9 @@ namespace jnivm {
     namespace java {
         namespace lang {
             using Array = jnivm::Array<void>;
+            using Object = jnivm::Object;
+            using String = jnivm::String;
+            using Class = jnivm::Class;
         }
     }
 
@@ -376,7 +366,7 @@ namespace jnivm {
     public:
         std::string name;
         std::vector<std::shared_ptr<Namespace>> namespaces;
-        std::vector<std::shared_ptr<java::lang::Class>> classes;
+        std::vector<std::shared_ptr<Class>> classes;
 
         std::string GenerateHeader(std::string scope);
         std::string GeneratePreDeclaration();
@@ -394,15 +384,15 @@ namespace jnivm {
         // Holder of the invocation table
         JNIEnv env;
         // All returned Objects are cached here to be freed later 
-        std::vector<std::shared_ptr<java::lang::Object>> localcache;
+        std::vector<std::shared_ptr<Object>> localcache;
         // All explicit local Objects are stored here controlled by push and pop localframe
-        std::forward_list<std::vector<std::shared_ptr<java::lang::Object>>> localframe;
+        std::forward_list<std::vector<std::shared_ptr<Object>>> localframe;
         ENV(VM * vm, const JNINativeInterface & defaultinterface) : vm(vm), ninterface(defaultinterface), env{&ninterface}, localframe({}) {
             ninterface.reserved0 = this;
         }
-        std::shared_ptr<java::lang::Class> GetClass(const char * name);
+        std::shared_ptr<Class> GetClass(const char * name);
         template<class T>
-        std::shared_ptr<java::lang::Class> GetClass(const char * name);
+        std::shared_ptr<Class> GetClass(const char * name);
     };
 
     class VM {
@@ -420,13 +410,13 @@ namespace jnivm {
         Namespace np;
 #else
         // Map of all classes hooked or implicitly declared
-        std::unordered_map<std::string, std::shared_ptr<java::lang::Class>> classes;
+        std::unordered_map<std::string, std::shared_ptr<Class>> classes;
 #endif
         std::mutex mtx;
         // Stores all global references
-        std::vector<std::shared_ptr<jnivm::java::lang::Object>> globals;
+        std::vector<std::shared_ptr<Object>> globals;
         // Stores all classes by c++ typeid
-        std::unordered_map<std::type_index, std::shared_ptr<java::lang::Class>> typecheck;
+        std::unordered_map<std::type_index, std::shared_ptr<Class>> typecheck;
         // Initialize the native VM instance
         VM();
         // Returns the jni JavaVM
@@ -437,7 +427,7 @@ namespace jnivm {
         std::shared_ptr<ENV> GetEnv();
     };
 
-    template<class T> std::shared_ptr<jnivm::java::lang::Class> jnivm::ENV::GetClass(const char *name) {
+    template<class T> std::shared_ptr<Class> jnivm::ENV::GetClass(const char *name) {
         std::lock_guard<std::mutex> lock(vm->mtx);
         return vm->typecheck[typeid(T)] = GetClass(name);
     }
@@ -586,22 +576,22 @@ namespace jnivm {
         public:
             __StaticFuncWrapper(Funk handle) : handle(handle) {}
 
-            constexpr auto StaticInvoke(ENV * env, java::lang::Class* clazz, const jvalue* values) {
+            constexpr auto StaticInvoke(ENV * env, Class* clazz, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIType(handle(env, clazz, (JNITypes<typename Function::template Parameter<I>>::JNICast(values[I-2]))...));
             }
-            constexpr auto StaticGet(ENV * env, java::lang::Class* clazz, const jvalue* values) {
+            constexpr auto StaticGet(ENV * env, Class* clazz, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIType(handle(env, clazz, (JNITypes<typename Function::template Parameter<I>>::JNICast(values[I-2]))...));
             }
-            constexpr auto StaticSet(ENV * env, java::lang::Class* clazz, const jvalue* values) {
+            constexpr auto StaticSet(ENV * env, Class* clazz, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIType(handle(env, clazz, (JNITypes<typename Function::template Parameter<I>>::JNICast(values[I-2]))...));
             }
-            constexpr auto InstanceInvoke(ENV * env, java::lang::Object* obj, const jvalue* values) {
+            constexpr auto InstanceInvoke(ENV * env, Object* obj, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIType(handle(env, obj, (JNITypes<typename Function::template Parameter<I>>::JNICast(values[I-2]))...));
             }
-            constexpr auto InstanceGet(ENV * env, java::lang::Object* obj, const jvalue* values) {
+            constexpr auto InstanceGet(ENV * env, Object* obj, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIType(handle(env, obj, (JNITypes<typename Function::template Parameter<I>>::JNICast(values[I-2]))...));
             }
-            constexpr void InstanceSet(ENV * env, java::lang::Object* obj, const jvalue* values) {
+            constexpr void InstanceSet(ENV * env, Object* obj, const jvalue* values) {
                 handle(env, obj, (JNITypes<typename Function::template Parameter<I>>::JNICast(values[I-2]))...);
             }
             static std::string GetJNIInvokeSignature(ENV * env) {
@@ -617,13 +607,13 @@ namespace jnivm {
         public:
             __InstanceFuncWrapper(Funk handle) : handle(handle) {}
 
-            constexpr auto InstanceInvoke(ENV * env, java::lang::Object* obj, const jvalue* values) {
+            constexpr auto InstanceInvoke(ENV * env, Object* obj, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIType((((typename Function::template Parameter<O>)(obj))->*handle)(env, (JNITypes<typename Function::template Parameter<I>>::JNICast(values[I-2]))...));
             }
-            constexpr auto InstanceGet(ENV * env, java::lang::Object* obj, const jvalue* values) {
+            constexpr auto InstanceGet(ENV * env, Object* obj, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIType((((typename Function::template Parameter<O>)(obj))->*handle)(env, (JNITypes<typename Function::template Parameter<I>>::JNICast(values[I-2]))...));
             }
-            constexpr void InstanceSet(ENV * env, java::lang::Object* obj, const jvalue* values) {
+            constexpr void InstanceSet(ENV * env, Object* obj, const jvalue* values) {
                 (((typename Function::template Parameter<O>)(obj))->*handle)(env, (JNITypes<typename Function::template Parameter<I>>::JNICast(values[I-2]))...);
             }
             static std::string GetJNIInvokeSignature(ENV * env) {
@@ -639,10 +629,10 @@ namespace jnivm {
         public:
             __InstancePropWrapper(Funk handle) : handle(handle) {}
 
-            constexpr void InstanceSet(ENV * env, java::lang::Object* obj, const jvalue* values) {
+            constexpr void InstanceSet(ENV * env, Object* obj, const jvalue* values) {
                 ((typename Function::template Parameter<Z>)(obj))->*handle = (JNITypes<typename Function::template Parameter<1>>::JNICast(values[0]));
             }
-            constexpr auto InstanceGet(ENV * env, java::lang::Object* obj, const jvalue* values) {
+            constexpr auto InstanceGet(ENV * env, Object* obj, const jvalue* values) {
                 return JNITypes<typename Function::template Parameter<1>>::ToJNIType(((typename Function::template Parameter<Z>)(obj))->*handle);
             }
             static std::string GetJNIPropertySignature(ENV * env) {
@@ -655,10 +645,10 @@ namespace jnivm {
         public:
             __StaticPropWrapper(Funk handle) : handle(handle) {}
 
-            constexpr void StaticSet(ENV * env, java::lang::Class* clazz, const jvalue* values) {
+            constexpr void StaticSet(ENV * env, Class* clazz, const jvalue* values) {
                 *handle = ((typename Function::template Parameter<0>&)(values[0]));
             }
-            constexpr auto&& StaticGet(ENV * env, java::lang::Class* clazz, const jvalue* values) {
+            constexpr auto&& StaticGet(ENV * env, Class* clazz, const jvalue* values) {
                 return *handle;
             }
             static std::string GetJNIPropertySignature(ENV * env) {
