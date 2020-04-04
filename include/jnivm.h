@@ -164,7 +164,7 @@ namespace jnivm {
                         method->signature = std::move(ssig);
                         cl->methods.push_back(method);
                     }
-                    using Funk = std::function<typename w::Function::Return(ENV* env, java::lang::Class* clazz, const jvalue* values)>;
+                    using Funk = std::function<typename Function<decltype(&w::Wrapper::StaticInvoke)>::Return(ENV* env, java::lang::Class* clazz, const jvalue* values)>;
                     method->nativehandle = std::shared_ptr<void>(new Funk(std::bind(&w::Wrapper::StaticInvoke, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
                         delete (Funk*)v;
                     });
