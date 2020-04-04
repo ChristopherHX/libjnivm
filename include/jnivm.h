@@ -394,10 +394,10 @@ namespace jnivm {
         JNINativeInterface ninterface;
         // Holder of the invocation table
         JNIEnv env;
-        // All returned Objects are cached here to be freed later 
-        std::vector<std::shared_ptr<Object>> localcache;
         // All explicit local Objects are stored here controlled by push and pop localframe
         std::forward_list<std::vector<std::shared_ptr<Object>>> localframe;
+        // save previous poped vector frames here, precleared
+        std::forward_list<std::vector<std::shared_ptr<Object>>> freeframes;
         ENV(VM * vm, const JNINativeInterface & defaultinterface) : vm(vm), ninterface(defaultinterface), env{&ninterface}, localframe({{}}) {
             ninterface.reserved0 = this;
         }
@@ -461,8 +461,8 @@ namespace jnivm {
             return v.l ? std::shared_ptr<T>((*(T*)v.l).shared_from_this(), (T*)v.l) : std::shared_ptr<T>();
         }
         static jobject ToJNIType(ENV* env, const std::shared_ptr<T>& p) {
-            // Cache return values in cache list of this thread, destroy delayed
-            env->localcache.push_back(p);
+            // Cache return values in localframe list of this thread, destroy delayed
+            env->localframe.front().push_back(p);
             // Return jni Reference
             return (jobject)p.get();
         }

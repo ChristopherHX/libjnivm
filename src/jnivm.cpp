@@ -548,8 +548,7 @@ jclass InternalFindClass(JNIEnv *env, const char *name) {
 	}
 #endif
 	curc->nativeprefix = std::move(prefix);
-	nenv.localcache.push_back(curc);
-	return (jclass)curc.get();
+	return (jclass)JNITypes<std::shared_ptr<Class>>::ToJNIType(&nenv, curc);
 }
 
 jclass FindClass(JNIEnv *env, const char *name) {
@@ -600,7 +599,11 @@ jint PushLocalFrame(JNIEnv * env, jint cap) {
 #ifdef EnableJNIVMGC
 	auto&& nenv = *(ENV*)env->functions->reserved0;
 	// Add it to the list
-	// nenv.localframe.emplace_front();
+	if(nenv.freeframes.empty()) {
+		nenv.localframe.emplace_front();
+	} else {
+		nenv.localframe.splice_after(nenv.localframe.before_begin(), nenv.freeframes, nenv.freeframes.before_begin());
+	}
 	// Reserve Memory for the new Frame
 	if(cap)
 		nenv.localframe.front().reserve(cap);
@@ -610,14 +613,13 @@ jint PushLocalFrame(JNIEnv * env, jint cap) {
 jobject PopLocalFrame(JNIEnv * env, jobject previousframe) {
 #ifdef EnableJNIVMGC
 	auto&& nenv = *(ENV*)env->functions->reserved0;
-	// Pop current Frame
-	// nenv.localframe.pop_front();
-	// if(nenv.localframe.empty()) {
-	// 	Log::warn("JNIVM", "Freed top level frame of this ENV, recreate it");
-	// 	nenv.localframe.emplace_front();
-	// }
-	// Clear all temporary Objects refs of this thread
-	nenv.localcache.clear();
+	// Clear current Frame and move to freelist
+	nenv.localframe.front().clear();
+	nenv.freeframes.splice_after(nenv.freeframes.before_begin(), nenv.localframe, nenv.localframe.before_begin());
+	if(nenv.localframe.empty()) {
+		Log::warn("JNIVM", "Freed top level frame of this ENV, recreate it");
+		nenv.localframe.emplace_front();
+	}
 #endif
 	return 0;
 };
@@ -650,14 +652,6 @@ void DeleteLocalRef(JNIEnv * env, jobject obj) {
 #ifdef EnableJNIVMGC
 	if(!obj) return;
 	auto&& nenv = *(ENV*)env->functions->reserved0;
-	{
-		auto fe = nenv.localcache.end();
-		auto f = std::find(nenv.localcache.begin(), fe, (*(Object*)obj).shared_from_this());
-		if(f != fe) {
-			nenv.localcache.erase(f);
-			return;
-		}
-	}
 	for(auto && frame : nenv.localframe) {
 		auto fe = frame.end();
 		auto f = std::find(frame.begin(), fe, (*(Object*)obj).shared_from_this());
@@ -966,7 +960,8 @@ jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
 		if(cur) {
 			cur->methods.push_back(next);
 		} else {
-			(*(ENV*) env->functions->reserved0).localcache.push_back(next);
+			// For Debugging purposes of without valid class object
+			JNITypes<std::shared_ptr<Method>>::ToJNIType((ENV*)env->functions->reserved0, next);
 		}
 		next->name = std::move(sname);
 		next->signature = std::move(ssig);
@@ -1107,9 +1102,7 @@ jstring NewString(JNIEnv *env, const jchar * str, jsize size) {
 	    ss.write(out, rc);
 	  }
 	}
-	auto s = std::make_shared<String>(ss.str());
-	(*(ENV*)env->functions->reserved0).localcache.emplace_back(s);
-	return (jstring)s.get();
+	return (jstring)JNITypes<std::shared_ptr<String>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<String>(ss.str()));
 };
 jsize GetStringLength(JNIEnv *env, jstring str) {
 
@@ -1140,9 +1133,7 @@ void ReleaseStringChars(JNIEnv * env, jstring str, const jchar * cstr) {
 	delete[] cstr;
 };
 jstring NewStringUTF(JNIEnv * env, const char *str) {
-	auto s = std::make_shared<String>(str);
-	(*(ENV*)env->functions->reserved0).localcache.emplace_back(s);
-	return (jstring)s.get();
+	return (jstring)JNITypes<std::shared_ptr<String>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<String>(str));
 };
 jsize GetStringUTFLength(JNIEnv *, jstring str) {
 	return str ? ((String*)str)->length() : 0;
@@ -1160,9 +1151,7 @@ jsize GetArrayLength(JNIEnv *, jarray a) {
 	return a ? ((java::lang::Array*)a)->length : 0;
 };
 jobjectArray NewObjectArray(JNIEnv * env, jsize length, jclass c, jobject init) {
-	auto s = std::make_shared<jnivm::Array<Object>>(new std::shared_ptr<Object>[length] {init ? (*(Object*)init).shared_from_this() : std::shared_ptr<Object>()}, length);
-	(*(ENV*)env->functions->reserved0).localcache.emplace_back(s);
-	return (jobjectArray)s.get();
+	return (jobjectArray)JNITypes<std::shared_ptr<Array<Object>>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<Array<Object>>(new std::shared_ptr<Object>[length] {init ? (*(Object*)init).shared_from_this() : std::shared_ptr<Object>()}, length));
 };
 jobject GetObjectArrayElement(JNIEnv *, jobjectArray a, jsize i ) {
 	return (jobject)((jnivm::Array<Object>*)a)->data[i].get();
@@ -1172,9 +1161,7 @@ void SetObjectArrayElement(JNIEnv *, jobjectArray a, jsize i, jobject v) {
 };
 
 template <class T> typename JNITypes<T>::Array NewArray(JNIEnv * env, jsize length) {
-	auto s = std::make_shared<jnivm::Array<T>>(new T[length] {0}, length);
-	(*(ENV*)env->functions->reserved0).localcache.emplace_back(s);
-	return (typename JNITypes<T>::Array)s.get();
+	return (typename JNITypes<T>::Array)JNITypes<std::shared_ptr<jnivm::Array<T>>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<jnivm::Array<T>>(new T[length] {0}, length));
 };
 
 template <class T>
