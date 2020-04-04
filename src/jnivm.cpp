@@ -544,7 +544,7 @@ jclass InternalFindClass(JNIEnv *env, const char *name) {
 		curc = std::make_shared<Class>();
 		const char * lastslash = strrchr(name, '/');
 		curc->name = lastslash != nullptr ? lastslash + 1 : name;
-		vm->classes[name] = next;
+		vm->classes[name] = curc;
 	}
 #endif
 	curc->nativeprefix = std::move(prefix);
@@ -650,6 +650,14 @@ void DeleteLocalRef(JNIEnv * env, jobject obj) {
 #ifdef EnableJNIVMGC
 	if(!obj) return;
 	auto&& nenv = *(ENV*)env->functions->reserved0;
+	{
+		auto fe = nenv.localcache.end();
+		auto f = std::find(nenv.localcache.begin(), fe, (*(Object*)obj).shared_from_this());
+		if(f != fe) {
+			nenv.localcache.erase(f);
+			return;
+		}
+	}
 	for(auto && frame : nenv.localframe) {
 		auto fe = frame.end();
 		auto f = std::find(frame.begin(), fe, (*(Object*)obj).shared_from_this());
