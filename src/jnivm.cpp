@@ -598,13 +598,12 @@ void FatalError(JNIEnv *, const char * err) {
 };
 jint PushLocalFrame(JNIEnv * env, jint cap) {
 #ifdef EnableJNIVMGC
-	std::vector<std::shared_ptr<jnivm::Object>> frame;
-	// Reserve Memory for the new Frame
-	if(cap)
-		frame.reserve(cap);
 	auto&& nenv = *(ENV*)env->functions->reserved0;
 	// Add it to the list
-	nenv.localframe.emplace_front(std::move(frame));
+	// nenv.localframe.emplace_front();
+	// Reserve Memory for the new Frame
+	if(cap)
+		nenv.localframe.front().reserve(cap);
 #endif
 	return 0;
 };
@@ -612,7 +611,11 @@ jobject PopLocalFrame(JNIEnv * env, jobject previousframe) {
 #ifdef EnableJNIVMGC
 	auto&& nenv = *(ENV*)env->functions->reserved0;
 	// Pop current Frame
-	nenv.localframe.pop_front();
+	// nenv.localframe.pop_front();
+	// if(nenv.localframe.empty()) {
+	// 	Log::warn("JNIVM", "Freed top level frame of this ENV, recreate it");
+	// 	nenv.localframe.emplace_front();
+	// }
 	// Clear all temporary Objects refs of this thread
 	nenv.localcache.clear();
 #endif
@@ -1153,7 +1156,7 @@ jsize GetArrayLength(JNIEnv *, jarray a) {
 	return a ? ((java::lang::Array*)a)->length : 0;
 };
 jobjectArray NewObjectArray(JNIEnv * env, jsize length, jclass c, jobject init) {
-	auto s = std::make_shared<jnivm::Array<Object>>(new std::shared_ptr<Object>[length] {(*(Object*)init).shared_from_this()}, length);
+	auto s = std::make_shared<jnivm::Array<Object>>(new std::shared_ptr<Object>[length] {init ? (*(Object*)init).shared_from_this() : std::shared_ptr<Object>()}, length);
 	(*(ENV*)env->functions->reserved0).localcache.emplace_back(s);
 	return (jobjectArray)s.get();
 };
