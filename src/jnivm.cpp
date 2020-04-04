@@ -9,6 +9,9 @@
 #include <sstream>
 #include <unordered_map>
 #include <uchar.h>
+#ifdef _WIN32
+#define pthread_self() GetCurrentThreadId()
+#endif
 
 #define EnableJNIVMGC
 

@@ -1,13 +1,15 @@
 #pragma once
 #include <string>
+#ifdef _WIN32
+#include <Processthreadsapi.h>
+#else
 #include <pthread.h>
+#endif
 #include <jni.h>
-#include <stack>
 #include <vector>
 #include <memory>
 #include <unordered_map>
 #include <mutex>
-#include <atomic>
 #include <type_traits>
 #include <forward_list>
 #include <typeindex>
@@ -18,6 +20,10 @@
 #define JNI_DEBUG
 
 namespace jnivm {
+#ifdef _WIN32
+    using pthread_t = DWORD;
+#endif
+
     class Class;
     class Object : public std::enable_shared_from_this<Object> {
     public:
