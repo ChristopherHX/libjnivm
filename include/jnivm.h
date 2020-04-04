@@ -65,6 +65,7 @@ namespace jnivm {
         InstanceSetter = 5,
         Property = 6,
         InstanceProperty = 7,
+        Functional
     };
 
     template<class=void()> struct Function;
@@ -83,6 +84,12 @@ namespace jnivm {
         template<size_t I=0> using Parameter = typename std::tuple_element_t<I, std::tuple<T*, P...,void>>;
         static constexpr size_t plength = sizeof...(P) + 1;
         static constexpr FunctionType type = FunctionType::Instance;
+    };
+
+    template<class T, class R, class ...P> struct Function<R(T::*)(P...) const> : Function<R(T::*)(P...)> {};
+
+    template<class T> struct Function : Function<decltype( &T::operator ())> {
+        static constexpr FunctionType type = FunctionType::Functional;
     };
 
     template<class T, class R> struct Function<R(T::*)> {
@@ -158,6 +165,10 @@ namespace jnivm {
                 delete (Funk*)v;
             });
         }
+    };
+
+    template<class w> struct HookManager<FunctionType::Functional, w> : HookManager<FunctionType::None, w> {
+
     };
 
     template<class w> struct HookManager<FunctionType::Instance, w> {
@@ -655,7 +666,37 @@ namespace jnivm {
                 return JNITypes<typename Function::template Parameter<1>>::GetJNISignature(env);
             }
         };
-        using Wrapper = std::conditional_t<((int)Function::type & (int)FunctionType::Instance) != 0, std::conditional_t<((int)Function::type & (int)FunctionType::Property) != 0, __InstancePropWrapper<IntSeq>, __InstanceFuncWrapper<IntSeq>>, std::conditional_t<((int)Function::type & (int)FunctionType::Property) != 0, __StaticPropWrapper<IntSeq>, __StaticFuncWrapper<IntSeq>>>;
+        template<class I> class __ExternalInstanceFuncWrapper;
+        template<size_t X, size_t O, size_t E, size_t...I> class __ExternalInstanceFuncWrapper<std::index_sequence<X, O, E, I...>> {
+            Funk handle;
+        public:
+            __ExternalInstanceFuncWrapper(Funk handle) : handle(handle) {}
+            constexpr auto StaticInvoke(ENV * env, Class* clazz, const jvalue* values) {
+                return JNITypes<typename Function::Return>::ToJNIType(handle(env, clazz, (JNITypes<typename Function::template Parameter<I>>::JNICast(values[I-3]))...));
+            }
+            constexpr auto StaticGet(ENV * env, Class* clazz, const jvalue* values) {
+                return JNITypes<typename Function::Return>::ToJNIType(handle(env, clazz, (JNITypes<typename Function::template Parameter<I>>::JNICast(values[I-3]))...));
+            }
+            constexpr auto StaticSet(ENV * env, Class* clazz, const jvalue* values) {
+                return JNITypes<typename Function::Return>::ToJNIType(handle(env, clazz, (JNITypes<typename Function::template Parameter<I>>::JNICast(values[I-3]))...));
+            }
+            constexpr auto InstanceInvoke(ENV * env, Object* obj, const jvalue* values) {
+                return JNITypes<typename Function::Return>::ToJNIType(handle(env, obj, (JNITypes<typename Function::template Parameter<I>>::JNICast(values[I-3]))...));
+            }
+            constexpr auto InstanceGet(ENV * env, Object* obj, const jvalue* values) {
+                return JNITypes<typename Function::Return>::ToJNIType(handle(env, obj, (JNITypes<typename Function::template Parameter<I>>::JNICast(values[I-3]))...));
+            }
+            constexpr void InstanceSet(ENV * env, Object* obj, const jvalue* values) {
+                handle(env, obj, (JNITypes<typename Function::template Parameter<I>>::JNICast(values[I-3]))...);
+            }
+            static std::string GetJNIInvokeSignature(ENV * env) {
+                return "(" + UnfoldJNISignature<typename Function::template Parameter<I>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
+            }
+            static std::string GetJNIPropertySignature(ENV * env) {
+                return JNITypes<typename Function::template Parameter<3>>::GetJNISignature(env);
+            }
+        };
+        using Wrapper = std::conditional_t<(Function::type == FunctionType::Functional), __ExternalInstanceFuncWrapper<IntSeq>, std::conditional_t<((int)Function::type & (int)FunctionType::Instance) != 0, std::conditional_t<((int)Function::type & (int)FunctionType::Property) != 0, __InstancePropWrapper<IntSeq>, __InstanceFuncWrapper<IntSeq>>, std::conditional_t<((int)Function::type & (int)FunctionType::Property) != 0, __StaticPropWrapper<IntSeq>, __StaticFuncWrapper<IntSeq>>>>;
     };
 
 #ifdef JNI_DEBUG

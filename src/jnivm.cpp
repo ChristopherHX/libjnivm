@@ -680,16 +680,17 @@ jint EnsureLocalCapacity(JNIEnv * env, jint cap) {
 jobject AllocObject(JNIEnv *env, jclass cl) {
 	return nullptr;
 };
+// Init functions are redirected to static factory functions, which returns the allocated object
 jobject NewObject(JNIEnv *env, jclass cl, jmethodID mid, ...) {
 	ScopedVaList param;
 	va_start(param.list, mid);
-	return env->NewLocalRef(env->CallStaticObjectMethodV(cl, mid, param.list));
+	return env->CallStaticObjectMethodV(cl, mid, param.list);
 };
 jobject NewObjectV(JNIEnv *env, jclass cl, jmethodID mid, va_list list) {
-	return env->NewLocalRef(env->CallStaticObjectMethodV(cl, mid, list));
+	return env->CallStaticObjectMethodV(cl, mid, list);
 };
 jobject NewObjectA(JNIEnv *env, jclass cl, jmethodID mid, jvalue * val) {
-	return env->NewLocalRef(env->CallStaticObjectMethodA(cl, mid, val));
+	return env->CallStaticObjectMethodA(cl, mid, val);
 };
 jclass GetObjectClass(JNIEnv *env, jobject jo) {
 	return jo ? (jclass)((Object*)jo)->clazz.get() : (jclass)env->FindClass("Invalid");
@@ -708,13 +709,29 @@ void Declare(JNIEnv *env, const char *signature) {
 		}
 	}
 }
+
+jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
+														const char *str1);
+
 jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
 											const char *str1) {
-	std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);
 	std::string &classname = ((Class *)cl)->name;
 	auto cur = (Class *)cl;
-	auto sname = str0;
-	auto ssig = str1;
+	std::string sname = str0;
+	std::string ssig = str1;
+	// Rewrite init to Static external function
+	if(sname == "<init>") {
+		{
+			std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);
+			auto acbrack = ssig.find(')') + 1;
+			ssig.erase(acbrack, std::string::npos);
+			ssig.append("L");
+			ssig.append(cur->nativeprefix);
+			ssig.append(";");
+		}
+		return GetStaticMethodID(env, cl, str0, ssig.data());
+	}
+	std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);
 	auto ccl =
 			std::find_if(cur->methods.begin(), cur->methods.end(),
 									 [&sname, &ssig](std::shared_ptr<Method> &namesp) {
