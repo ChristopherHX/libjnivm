@@ -752,9 +752,8 @@ jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
 #ifdef JNI_DEBUG
 		Declare(env, next->signature.data());
 #endif
-		std::string symbol = ((Class *)cl)->nativeprefix + str0;
 		if (!(next->nativehandle)) {
-			Log::trace("JNIVM", "Unresolved symbol %s", symbol.data());
+			Log::trace("JNIVM", "Unresolved symbol, Class: %s, Method: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, str0, str1);
 		}
 	}
 	return (jmethodID)next.get();
@@ -891,9 +890,8 @@ jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name,
 		next->type = std::move(ssig);
 #ifdef JNI_DEBUG
 		Declare(env, next->type.data());
+		Log::trace("JNIVM", "Unresolved symbol, Class: %s, Field: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, name, type);
 #endif
-		std::string symbol = ((Class *)cl)->nativeprefix + name;
-		Log::trace("JNIVM", "Unresolved Field %s", symbol.data());
 	}
 	return (jfieldID)next.get();
 };
@@ -968,8 +966,7 @@ jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
 #ifdef JNI_DEBUG
 		Declare(env, next->signature.data());
 #endif
-		std::string symbol = (cl ? ((Class *)cl)->nativeprefix : "(null)") + "," + str0;
-		Log::trace("JNIVM", "Unresolved symbol %s", symbol.data());
+		Log::trace("JNIVM", "Unresolved symbol, Class: %s, StaticMethod: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, str0, str1);
 	}
 	return (jmethodID)next.get();
 };
@@ -1051,8 +1048,7 @@ jfieldID GetStaticFieldID(JNIEnv *env, jclass cl, const char *name,
 #ifdef JNI_DEBUG
 		Declare(env, next->type.data());
 #endif
-		std::string symbol = ((Class *)cl)->nativeprefix + name;
-		Log::debug("JNIVM", "Unresolved symbol %s", symbol.data());
+		Log::trace("JNIVM", "Unresolved symbol, Class: %s, StaticField: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, name, type);
 	}
 	return (jfieldID)next.get();
 };
