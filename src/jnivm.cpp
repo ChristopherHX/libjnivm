@@ -1076,6 +1076,7 @@ void SetStaticField(JNIEnv *env, jclass cl, jfieldID id, T value) {
 }
 
 jstring NewString(JNIEnv *env, const jchar * str, jsize size) {
+#if !defined(__ANDROID_API__) || __ANDROID_API__ >= __ANDROID_API_L__
 	std::stringstream ss;
 	std::mbstate_t state{};
 	char out[MB_LEN_MAX]{};
@@ -1086,9 +1087,13 @@ jstring NewString(JNIEnv *env, const jchar * str, jsize size) {
 	  }
 	}
 	return (jstring)JNITypes<std::shared_ptr<String>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<String>(ss.str()));
+#else
+	Log::error("JNIVM", "NewString (utf16) unsupported");
+	return (jstring)0;
+#endif
 };
 jsize GetStringLength(JNIEnv *env, jstring str) {
-
+#if !defined(__ANDROID_API__) || __ANDROID_API__ >= __ANDROID_API_L__
 	mbstate_t state{};
 	std::string * cstr = (String*)str;
 	size_t count = 0;
@@ -1099,9 +1104,13 @@ jsize GetStringLength(JNIEnv *env, jstring str) {
 	  cur += count, length++;
 	}
 	return length;
+#else
+	Log::error("JNIVM", "GetStringLength (utf16) unsupported");
+	return 0;
+#endif
 };
 const jchar *GetStringChars(JNIEnv * env, jstring str, jboolean * copy) {
-
+#if !defined(__ANDROID_API__) || __ANDROID_API__ >= __ANDROID_API_L__
 	if(copy) {
 		*copy = true;
 	}
@@ -1110,6 +1119,10 @@ const jchar *GetStringChars(JNIEnv * env, jstring str, jboolean * copy) {
 	jchar * jstr = new jchar[length + 1];
 	env->GetStringRegion(str, 0, length, jstr);
 	return jstr;
+#else
+	Log::error("JNIVM", "GetStringChars (utf16) unsupported");
+	return new jchar[1] { (jchar)'\0' };
+#endif
 };
 void ReleaseStringChars(JNIEnv * env, jstring str, const jchar * cstr) {
 	// Free explicitly allocates string region
@@ -1207,6 +1220,7 @@ jint GetJavaVM(JNIEnv * env, JavaVM ** vm) {
 	return 0;
 };
 void GetStringRegion(JNIEnv *, jstring str, jsize start, jsize length, jchar * buf) {
+#if !defined(__ANDROID_API__) || __ANDROID_API__ >= __ANDROID_API_L__
 	mbstate_t state{};
 	std::string * cstr = (String*)str;
 	int count = 0;
@@ -1218,8 +1232,12 @@ void GetStringRegion(JNIEnv *, jstring str, jsize start, jsize length, jchar * b
 	while(buf != bend && (count = mbrtoc16((char16_t*)buf, cur, end - cur, &state)) > 0) {
 	  cur += count, buf++;
 	}
+#else
+	Log::error("JNIVM", "GetStringRegion (utf16) unsupported");
+#endif
 };
 void GetStringUTFRegion(JNIEnv *, jstring str, jsize start, jsize len, char * buf) {
+#if !defined(__ANDROID_API__) || __ANDROID_API__ >= __ANDROID_API_L__
 	mbstate_t state{};
 	std::string * cstr = (String*)str;
 	int count = 0;
@@ -1233,6 +1251,9 @@ void GetStringUTFRegion(JNIEnv *, jstring str, jsize start, jsize len, char * bu
 	  memcpy(buf, cur, count);
 	  cur += count, buf++;
 	}
+#else
+	Log::error("JNIVM", "GetStringUTFRegion (utf16) unsupported");
+#endif
 };
 jweak NewWeakGlobalRef(JNIEnv *, jobject obj) {
 	return obj;
