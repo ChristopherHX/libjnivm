@@ -468,6 +468,8 @@ namespace jnivm {
     };
 
     template<class T> struct JNITypes<std::shared_ptr<T>> {
+        using Array = jobjectArray;
+
         static std::string GetJNISignature(ENV * env) {
             std::lock_guard<std::mutex> lock(env->vm->mtx);
             auto r = env->vm->typecheck.find(typeid(T));
@@ -585,6 +587,16 @@ namespace jnivm {
         using Array = jobjectArray;
         static std::string GetJNISignature(ENV * env) {
             return "[" + JNITypes<T>::GetJNISignature(env);
+        }
+    };
+
+    template <class T> struct JNITypes<std::shared_ptr<Array<T>>> : JNITypes<Array<T>> {
+        static typename JNITypes<T>::Array ToJNIType(ENV* env, std::shared_ptr<Array<T>> v) {
+            env->localframe.front().push_back(v);
+            return (typename JNITypes<T>::Array)v.get();
+        }
+        static std::shared_ptr<Array<T>> JNICast(const jvalue& v) {
+            return v.l ? std::shared_ptr<Array<T>>((*(Array<T>*)v.l).shared_from_this(), (Array<T>*)v.l) : std::shared_ptr<Array<T>>();
         }
     };
 
