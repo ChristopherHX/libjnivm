@@ -1645,9 +1645,9 @@ VM::VM() : ninterface({
 #endif
 	auto env = jnienvs[pthread_self()] = std::make_shared<ENV>(this, ninterface);
 	javaVM.functions = &iinterface;
-	std::lock_guard<std::mutex> lock(env->vm->mtx);
-	auto r = typecheck[typeid(String)] = env->GetClass("java/lang/String");
-	auto r2 = typecheck[typeid(Activity)] = env->GetClass("java/lang/Test");
+	env->GetClass<Object>("java/lang/Object");
+	env->GetClass<Class>("java/lang/Class");
+	env->GetClass<String>("java/lang/String");
 }
 
 JavaVM *VM::GetJavaVM() {
