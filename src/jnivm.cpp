@@ -8,7 +8,9 @@
 #include <climits>
 #include <sstream>
 #include <unordered_map>
+#if defined(HAVE_UCHAR_H) && HAVE_UCHAR_H
 #include <uchar.h>
+#endif
 #ifdef JNI_DEBUG
 #include <fstream>
 #endif
@@ -1076,7 +1078,7 @@ void SetStaticField(JNIEnv *env, jclass cl, jfieldID id, T value) {
 }
 
 jstring NewString(JNIEnv *env, const jchar * str, jsize size) {
-#if !defined(__ANDROID_API__) || __ANDROID_API__ >= __ANDROID_API_L__
+#if defined(HAVE_UCHAR_H) && HAVE_UCHAR_H
 	std::stringstream ss;
 	std::mbstate_t state{};
 	char out[MB_LEN_MAX]{};
@@ -1093,7 +1095,7 @@ jstring NewString(JNIEnv *env, const jchar * str, jsize size) {
 #endif
 };
 jsize GetStringLength(JNIEnv *env, jstring str) {
-#if !defined(__ANDROID_API__) || __ANDROID_API__ >= __ANDROID_API_L__
+#if defined(HAVE_UCHAR_H) && HAVE_UCHAR_H
 	mbstate_t state{};
 	std::string * cstr = (String*)str;
 	size_t count = 0;
@@ -1110,7 +1112,7 @@ jsize GetStringLength(JNIEnv *env, jstring str) {
 #endif
 };
 const jchar *GetStringChars(JNIEnv * env, jstring str, jboolean * copy) {
-#if !defined(__ANDROID_API__) || __ANDROID_API__ >= __ANDROID_API_L__
+#if defined(HAVE_UCHAR_H) && HAVE_UCHAR_H
 	if(copy) {
 		*copy = true;
 	}
@@ -1220,7 +1222,7 @@ jint GetJavaVM(JNIEnv * env, JavaVM ** vm) {
 	return 0;
 };
 void GetStringRegion(JNIEnv *, jstring str, jsize start, jsize length, jchar * buf) {
-#if !defined(__ANDROID_API__) || __ANDROID_API__ >= __ANDROID_API_L__
+#if defined(HAVE_UCHAR_H) && HAVE_UCHAR_H
 	mbstate_t state{};
 	std::string * cstr = (String*)str;
 	int count = 0;
@@ -1237,7 +1239,7 @@ void GetStringRegion(JNIEnv *, jstring str, jsize start, jsize length, jchar * b
 #endif
 };
 void GetStringUTFRegion(JNIEnv *, jstring str, jsize start, jsize len, char * buf) {
-#if !defined(__ANDROID_API__) || __ANDROID_API__ >= __ANDROID_API_L__
+#if defined(HAVE_UCHAR_H) && HAVE_UCHAR_H
 	mbstate_t state{};
 	std::string * cstr = (String*)str;
 	int count = 0;
