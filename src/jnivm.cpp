@@ -1087,7 +1087,7 @@ void ReleaseStringChars(JNIEnv * env, jstring str, const jchar * cstr) {
   delete cstr;
 };
 jstring NewStringUTF(JNIEnv * env, const char *str) {
-  return (jstring)env->NewLocalRef(*new String(str));
+  return (jstring)env->NewLocalRef(*new String(str ? str : ""));
 };
 jsize GetStringUTFLength(JNIEnv *, jstring str) {
   return str ? ((String*)str)->length() : 0;
