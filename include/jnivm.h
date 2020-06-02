@@ -9,7 +9,7 @@
 #include <mutex>
 #include <atomic>
 
-#define JNI_DEBUG
+//#define JNI_DEBUG
 
 namespace jnivm {
 
