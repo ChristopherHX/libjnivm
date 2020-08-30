@@ -1,3 +1,4 @@
+#define HAVE_UCHAR_H 1
 #include <algorithm>
 #include <dlfcn.h>
 #include <jni.h>
@@ -23,42 +24,111 @@
 using namespace jnivm;
 
 #ifdef JNI_DEBUG
+bool fakejniSyntax = true;
 
 const char *ParseJNIType(const char *cur, const char *end, std::string &type) {
+	auto last = cur;
 	switch (*cur) {
 	case 'V':
 		type = "void";
 		break;
 	case 'Z':
+		if(!fakejniSyntax) {
 		type = "jboolean";
+		} else {
+			type = "FakeJni::JBoolean";
+		}
 		break;
 	case 'B':
+		if(!fakejniSyntax) {
 		type = "jbyte";
+		} else {
+			type = "FakeJni::JByte";
+		}
 		break;
 	case 'S':
+		if(!fakejniSyntax) {
 		type = "jshort";
+		} else {
+			type = "FakeJni::JShort";
+		}
 		break;
 	case 'I':
+		if(!fakejniSyntax) {
 		type = "jint";
+		} else {
+			type = "FakeJni::JInt";
+		}
 		break;
 	case 'J':
+		if(!fakejniSyntax) {
 		type = "jlong";
+		} else {
+			type = "FakeJni::JLong";
+		}
 		break;
 	case 'F':
+		if(!fakejniSyntax) {
 		type = "jfloat";
+		} else {
+			type = "FakeJni::HFloat";
+		}
 		break;
 	case 'D':
+		if(!fakejniSyntax) {
 		type = "jdouble";
+		} else {
+			type = "FakeJni::JDouble";
+		}
 		break;
 	case '[':
-		cur = ParseJNIType(cur + 1, end, type);
-		type = "std::shared_ptr<Array<" + type + ">>";
+		cur = ParseJNIType(last + 1, end, type);
+		if(!fakejniSyntax) {
+			type = "std::shared_ptr<jnivm::Array<" + type + ">>";
+		} else {
+			if((cur - (last + 1)) == 1) {
+				switch (*(last + 1))
+				{
+				case 'Z':
+					type = "std::shared_ptr<FakeJni::JBooleanArray>";
+					break;
+				case 'B':
+					type = "std::shared_ptr<FakeJni::JByteArray>";
+					break;
+				case 'S':
+					type = "std::shared_ptr<FakeJni::JShortArray>";
+					break;
+				case 'I':
+					type = "std::shared_ptr<FakeJni::JIntArray>";
+					break;
+				case 'J':
+					type = "std::shared_ptr<FakeJni::JLongArray>";
+					break;
+				case 'F':
+					type = "std::shared_ptr<FakeJni::HFloatArray>";
+					break;
+				case 'D':
+					type = "std::shared_ptr<FakeJni::JDoubleArray>";
+					break;
+				default:
+					break;
+				}
+			} else {
+				type = "std::shared_ptr<FakeJni::JArray<" + type + ">>";
+			}
+		}
 		break;
 	case 'L':
 		auto cend = std::find(cur, end, ';');
-		type = "std::shared_ptr<" + std::regex_replace(std::string(cur + 1, cend), std::regex("(/|\\$)"),
-															"::") +
-					 ">";
+		if(fakejniSyntax && (cend - cur) == 16 && !memcmp(cur, "java/lang/String", 16)) {
+			type = "std::shared_ptr<FakeJni::JString>";
+		} else if(fakejniSyntax && (cend - cur) == 16 && !memcmp(cur, "java/lang/Object", 16)) {
+			type = "std::shared_ptr<FakeJni::JObject>";
+		} else {
+			type = "std::shared_ptr<" + std::regex_replace(std::string(cur + 1, cend), std::regex("(/|\\$)"),
+																"::") +
+						">";
+		}
 		cur = cend;
 		break;
 	}
@@ -97,9 +167,16 @@ ScopedVaList::~ScopedVaList() {
 }
 
 std::vector<jvalue> JValuesfromValist(va_list list, const char* signature) {
-	std::vector<jvalue> values;
-	signature++;
+	auto org = signature;
 	const char* end = signature + strlen(signature);
+	std::vector<jvalue> values;
+	if(signature[0] != '(') {
+		return {};
+	}
+	if(!strcmp("([B)[B", org)) {
+		int i = 0;
+	}
+	signature++;
 	for(size_t i = 0; *signature != ')' && signature != end; ++i) {
 		values.emplace_back();
 		switch (*signature) {
@@ -129,11 +206,14 @@ std::vector<jvalue> JValuesfromValist(va_list list, const char* signature) {
 				values.back().d = va_arg(list, jdouble);
 				break;
 		case '[':
-				signature = SkipJNIType(signature + 1, end);
+				signature = SkipJNIType(signature + 1, end) - 1;
 				values.back().l = va_arg(list, jobject);
 				break;
 		case 'L':
 				signature = std::find(signature, end, ';');
+				if(signature == end) {
+					throw 0;
+				}
 				values.back().l = va_arg(list, jobject);
 				break;
 		}
@@ -143,8 +223,8 @@ std::vector<jvalue> JValuesfromValist(va_list list, const char* signature) {
 }
 
 #ifdef JNI_DEBUG
-
 std::string Method::GenerateHeader(const std::string &cname) {
+	if(native) { return ""; }
 	std::ostringstream ss;
 	std::vector<std::string> parameters;
 	std::string rettype;
@@ -170,17 +250,26 @@ std::string Method::GenerateHeader(const std::string &cname) {
 			}
 		}
 	}
-	if (_static) {
-		ss << "static ";
-	}
 	if (name == "<init>") {
 		ss << cname;
 	} else {
+		if (_static) {
+			ss << "static ";
+		}
 		ss << rettype << " " << name;
 	}
-	ss << "(jnivm::ENV *";
+	ss << "(";
+	if(!fakejniSyntax) {
+		ss << "jnivm::ENV *";
+		if (_static) {
+			ss << ", jnivm::Class* cl";
+		}
+	}
 	for (int i = 0; i < parameters.size(); i++) {
-		ss << ", " << parameters[i];
+		if(i || !fakejniSyntax) {
+			ss << ", ";
+		}
+		ss << parameters[i];
 	}
 	ss << ")"
 			<< ";";
@@ -188,6 +277,7 @@ std::string Method::GenerateHeader(const std::string &cname) {
 }
 
 std::string Method::GenerateStubs(std::string scope, const std::string &cname) {
+	if(native) { return ""; }
 	std::ostringstream ss;
 	std::vector<std::string> parameters;
 	std::string rettype;
@@ -214,13 +304,22 @@ std::string Method::GenerateStubs(std::string scope, const std::string &cname) {
 		}
 	}
 	if (name == "<init>") {
-		ss << scope << cname;
+		ss << scope << "::" << cname;
 	} else {
-		ss << rettype << " " << scope << name;
+		ss << rettype << " " << scope << "::" << name;
 	}
-	ss << "(ENV *env";
+	ss << "(";
+	if(!fakejniSyntax) {
+		ss << "jnivm::ENV *";
+		if (_static) {
+			ss << ", jnivm::Class* cl";
+		}
+	}
 	for (int i = 0; i < parameters.size(); i++) {
-		ss << ", " << parameters[i] << " arg" << i;
+		if(i || !fakejniSyntax) {
+			ss << ", ";
+		}
+		ss << parameters[i] << " arg" << i;
 	}
 	ss << ") {\n    ";
 	if(rettype != "void") {
@@ -231,6 +330,7 @@ std::string Method::GenerateStubs(std::string scope, const std::string &cname) {
 }
 
 std::string Method::GenerateJNIBinding(std::string scope, const std::string &cname) {
+	if(native) { return ""; }
 	std::ostringstream ss;
 	std::vector<std::string> parameters;
 	std::string rettype;
@@ -256,29 +356,41 @@ std::string Method::GenerateJNIBinding(std::string scope, const std::string &cna
 			}
 		}
 	}
-	ss << "c->Hook(env, \"" << name << "\", ";
-	auto cl = scope;
-	if (name == "<init>") {
-		scope += "::" + cname;
-	} else {
-		scope += "::" + name;
-	}
-	if (name == "<init>") {
-		ss << "[](jnivm::ENV *env, jnivm::Class* cl";
-		for (int i = 0; i < parameters.size(); i++) {
-			ss << ", " << parameters[i] << " arg" << i;
+	if(!fakejniSyntax) {
+		ss << "c->Hook(env, \"" << name << "\", ";
+		auto cl = scope;
+		if (name == "<init>") {
+			scope += "::" + cname;
+		} else {
+			scope += "::" + name;
 		}
-		ss << ") {";
-		ss << "   return std::make_shared" << scope << "(env, cl";
-		for (int i = 0; i < parameters.size(); i++) {
-			ss << ", arg" << i;
+		if (name == "<init>") {
+			ss << "[](jnivm::ENV *env, jnivm::Class* cl";
+			for (int i = 0; i < parameters.size(); i++) {
+				ss << ", " << parameters[i] << " arg" << i;
+			}
+			ss << ") {";
+			ss << "   return std::make_shared<" << scope << ">(env, cl";
+			for (int i = 0; i < parameters.size(); i++) {
+				ss << ", arg" << i;
+			}
+			ss << ");}";
+			
+		} else {
+			ss << "&" << scope;
 		}
-		ss << ")";
-		
+		ss << ");\n";
 	} else {
-		ss << "&" << scope;
+		if (name == "<init>") {
+			ss << "{Constructor<" << scope;
+			for (int i = 0; i < parameters.size(); i++) {
+				ss << ", " << parameters[i];
+			}
+			ss << ">, \"" << name << "\"},\n";
+		} else {
+			ss << "{Function<&" << scope << "::" << name << ">, \"" << name << "\"},\n";
+		}
 	}
-	ss << ");\n";
 	return ss.str();
 }
 
@@ -304,11 +416,15 @@ std::string Field::GenerateStubs(std::string scope, const std::string &cname) {
 
 std::string Field::GenerateJNIBinding(std::string scope) {
 	std::ostringstream ss;
-	ss << "c->Hook(env, \"" << name << "\", ";
-	auto cl = scope;
-	scope += "::" + name;
-	ss << "&" << scope;
-	ss << ");\n";
+	if(!fakejniSyntax) {
+		ss << "c->Hook(env, \"" << name << "\", ";
+		auto cl = scope;
+		scope += "::" + name;
+		ss << "&" << scope;
+		ss << ");\n";
+	} else {
+		ss << "{Field<&" << scope << ">, \"" << name << "\"},\n";
+	}
 	return ss.str();
 }
 
@@ -318,7 +434,16 @@ std::string Class::GenerateHeader(std::string scope) {
 	if (std::find(std::begin(blacklisted), std::end(blacklisted), nativeprefix) != std::end(blacklisted)) return {};
 	std::ostringstream ss;
 	scope += "::" + name;
-	ss << "class " << scope << " : jnivm::Object {\npublic:\n";
+	ss << "class " << scope << " : ";
+	if(!fakejniSyntax) {
+		ss << "jnivm::Object";
+	} else {
+		ss << "FakeJni::JObject";
+	}
+	ss << " {\npublic:\n";
+	if(fakejniSyntax) {
+	    ss << "    DEFINE_CLASS_NAME(\"" << nativeprefix << "\")\n";
+	}
 	for (auto &cl : classes) {
 		ss << std::regex_replace(cl->GeneratePreDeclaration(),
 															std::regex("(^|\n)([^\n]+)"), "$1    $2");
@@ -337,7 +462,7 @@ std::string Class::GenerateHeader(std::string scope) {
 	ss << "};";
 	for (auto &cl : classes) {
 		ss << "\n";
-		ss << cl->GenerateHeader(scope + "::");
+		ss << cl->GenerateHeader(scope);
 	}
 	return ss.str();
 }
@@ -369,14 +494,30 @@ std::string Class::GenerateJNIBinding(std::string scope) {
 	if (std::find(std::begin(blacklisted), std::end(blacklisted), nativeprefix) != std::end(blacklisted)) return {};
 	std::ostringstream ss;
 	scope += "::" + name;
-	for (auto &cl : classes) {
-		ss << cl->GenerateJNIBinding(scope);
-	}
-	for (auto &field : fields) {
-		ss << field->GenerateJNIBinding(scope);
-	}
-	for (auto &method : methods) {
-		ss << method->GenerateJNIBinding(scope, name);
+	if(!fakejniSyntax) {
+		ss << "{\nauto c = env->GetClass(\"" << nativeprefix << "\");\n";
+		for (auto &cl : classes) {
+			ss << cl->GenerateJNIBinding(scope);
+		}
+		for (auto &field : fields) {
+			ss << field->GenerateJNIBinding(scope);
+		}
+		for (auto &method : methods) {
+			ss << method->GenerateJNIBinding(scope, name);
+		}
+		ss << "}\n";
+	} else {
+		ss << "BEGIN_NATIVE_DESCRIPTOR(" << name << ")\n";
+		for (auto &field : fields) {
+			ss << field->GenerateJNIBinding(scope);
+		}
+		for (auto &method : methods) {
+			ss << method->GenerateJNIBinding(scope, name);
+		}
+		ss << "END_NATIVE_DESCRIPTOR\n";
+		for (auto &cl : classes) {
+			ss << cl->GenerateJNIBinding(scope);
+		}
 	}
 	return ss.str();
 }
@@ -453,8 +594,16 @@ std::string Namespace::GenerateJNIBinding(std::string scope) {
 
 #endif
 
-jint GetVersion(JNIEnv *) { return 0; };
+jint GetVersion(JNIEnv *) {
+#ifdef JNI_DEBUG
+	Log::error("JNIVM", "GetVersion unsupported");
+#endif
+	return 0;
+};
 jclass DefineClass(JNIEnv *, const char *, jobject, const jbyte *, jsize) {
+#ifdef JNI_DEBUG
+	Log::error("JNIVM", "DefineClass unsupported");
+#endif
 	return 0;
 };
 
@@ -462,6 +611,7 @@ jclass InternalFindClass(JNIEnv *env, const char *name) {
 	auto prefix = name;
 	auto && nenv = *(ENV*)env->functions->reserved0;
 	auto && vm = nenv.vm;
+	Log::trace("JNIVM", "InternalFindClass %s", name);
 #ifdef JNI_DEBUG
 	// Generate the Namespace Hirachy to generate stub c++ files
 	// Makes it easier to implement classes without writing everthing by hand
@@ -503,6 +653,7 @@ jclass InternalFindClass(JNIEnv *env, const char *name) {
 				next = std::make_shared<Class>();
 				curc->classes.push_back(next);
 				next->name = std::move(sname);
+				next->nativeprefix = std::string(prefix, pos);
 			}
 		} else {
 			auto cl = std::find_if(cur->classes.begin(), cur->classes.end(),
@@ -515,6 +666,7 @@ jclass InternalFindClass(JNIEnv *env, const char *name) {
 				next = std::make_shared<Class>();
 				cur->classes.push_back(next);
 				next->name = std::move(sname);
+				next->nativeprefix = std::string(prefix, pos);
 			}
 		}
 		curc = next;
@@ -532,8 +684,8 @@ jclass InternalFindClass(JNIEnv *env, const char *name) {
 		vm->classes[name] = curc;
 	}
 #endif
-	curc->nativeprefix = std::move(prefix);
-	return (jclass)JNITypes<std::shared_ptr<Class>>::ToJNIType(&nenv, curc);
+	// curc->nativeprefix = std::move(prefix);
+	return (jclass)JNITypes<std::shared_ptr<Class>>::ToJNIType(std::addressof(nenv), curc);
 }
 
 jclass FindClass(JNIEnv *env, const char *name) {
@@ -568,8 +720,12 @@ jobject ToReflectedField(JNIEnv *, jclass, jfieldID, jboolean) {
 	Log::warn("JNIVM", "Not Implemented Method ToReflectedField called");
 	return 0;
 };
-jint Throw(JNIEnv *, jthrowable) { return 0; };
+jint Throw(JNIEnv *, jthrowable) {
+	Log::warn("JNIVM", "Not Implemented Method Throw called");
+	return 0;
+};
 jint ThrowNew(JNIEnv *, jclass, const char *) {
+	Log::warn("JNIVM", "Not Implemented Method ThrowNew called");
 	return 0;
 };
 jthrowable ExceptionOccurred(JNIEnv *) {
@@ -668,6 +824,7 @@ jint EnsureLocalCapacity(JNIEnv * env, jint cap) {
 	return 0;
 };
 jobject AllocObject(JNIEnv *env, jclass cl) {
+	Log::warn("JNIVM", "Not Implemented Method AllocObject called");
 	return nullptr;
 };
 // Init functions are redirected to static factory functions, which returns the allocated object
@@ -705,7 +862,11 @@ jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
 
 jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
 											const char *str1) {
-	std::string &classname = ((Class *)cl)->name;
+	if(!cl) {
+		Log::warn("JNIVM", "GetMethodID class is null");
+		return nullptr;
+	}				
+	// std::string &classname = cl ? ((Class *)cl)->name : "Unknown";
 	auto cur = (Class *)cl;
 	std::string sname = str0;
 	std::string ssig = str1;
@@ -725,7 +886,7 @@ jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
 	auto ccl =
 			std::find_if(cur->methods.begin(), cur->methods.end(),
 									 [&sname, &ssig](std::shared_ptr<Method> &namesp) {
-										 return namesp->name == sname && namesp->signature == ssig;
+										 return !namesp->native && namesp->name == sname && namesp->signature == ssig;
 									 });
 	std::shared_ptr<Method> next;
 	if (ccl != cur->methods.end()) {
@@ -748,7 +909,9 @@ jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
 
 void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 	auto mid = ((Method *)id);
-
+	#ifdef JNI_DEBUG
+		Log::debug("JNIVM", "Call Function %s, %s", mid->name.data(), mid->signature.data());
+	#endif
 	if (mid->nativehandle) {
 		return (*(std::function<void(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
 	} else {
@@ -767,23 +930,45 @@ T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 	if(!id)
 		Log::warn("JNIVM", "CallMethod field is null");
 #endif
+	#ifdef JNI_DEBUG
+		Log::debug("JNIVM", "Call Function %s, %s", mid->name.data(), mid->signature.data());
+	#endif
 	if (mid->nativehandle) {
 		return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
 	} else {
 #ifdef JNI_DEBUG
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
 #endif
+		if constexpr(std::is_same_v<T, jobject>) {
+			if(!strcmp(mid->signature.data() + mid->signature.find_last_of(")") + 1, "Ljava/lang/String;")) {
+			auto d = mid->name.data();
+			return env->NewStringUTF("");
+			}
+			else if(mid->signature[mid->signature.find_last_of(")") + 1] == '[' ){
+				// return env->NewObjectArray(0, nullptr, nullptr);
+			} else {
+				return (jobject)JNITypes<std::shared_ptr<Object>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<Object>());
+			}
+		// return {};
+		}
 		return {};
 	}
 };
 
 void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
+	if(id) {
+	Log::debug("JNIVM", "Known Function %s,  %s", ((Method *)id)->name.data(), ((Method *)id)->signature.data());
 	return CallMethodV(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
+	}
 };
 
 template <class T>
 T CallMethod(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
+	if(id) {
+	Log::debug("JNIVM", "Known Function %s,  %s", ((Method *)id)->name.data(), ((Method *)id)->signature.data());
+
 	return CallMethod<T>(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
+	}else return {};
 };
 
 template <class T>
@@ -930,7 +1115,7 @@ jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
 		auto ccl =
 				std::find_if(cur->methods.begin(), cur->methods.end(),
 										[&sname, &ssig](std::shared_ptr<Method> &namesp) {
-											return namesp->name == sname && namesp->signature == ssig;
+											return !namesp->native && namesp->name == sname && namesp->signature == ssig;
 										});
 		if (ccl != cur->methods.end()) {
 			next = *ccl;
@@ -966,7 +1151,7 @@ T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
 	if(!cl)
 		Log::warn("JNIVM", "CallStaticMethod class is null");
 	if(!id)
-		Log::warn("JNIVM", "CallStaticMethod field is null");
+		Log::warn("JNIVM", "CallStaticMethod method is null");
 #endif
 	if (mid->nativehandle) {
 		return (*(std::function<T(ENV*, Class*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, param);
@@ -974,13 +1159,30 @@ T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
 #ifdef JNI_DEBUG
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
 #endif
+if constexpr(std::is_same_v<T, jobject>) {
+			if(!strcmp(mid->signature.data() + mid->signature.find_last_of(")") + 1, "Ljava/lang/String;")) {
+			auto d = mid->name.data();
+			return env->NewStringUTF("");
+			}
+			else if(mid->signature[mid->signature.find_last_of(")") + 1] == '[' ){
+				// return env->NewObjectArray(0, nullptr, nullptr);
+			} else {
+				return (jobject)JNITypes<std::shared_ptr<Object>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<Object>());
+			}
+		// return {};
+		}
 		return {};
 	}
 };
 
 void CallStaticMethodV(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
 	auto mid = ((Method *)id);
-
+#ifdef JNI_DEBUG
+	if(!cl)
+		Log::warn("JNIVM", "CallStaticMethodV class is null");
+	if(!id)
+		Log::warn("JNIVM", "CallStaticMethodV method is null");
+#endif
 	if (mid->nativehandle) {
 		return (*(std::function<void(ENV*, Class*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, param);
 	} else {
@@ -1096,6 +1298,7 @@ jstring NewString(JNIEnv *env, const jchar * str, jsize size) {
 };
 jsize GetStringLength(JNIEnv *env, jstring str) {
 #if defined(HAVE_UCHAR_H) && HAVE_UCHAR_H
+	if(str) {
 	mbstate_t state{};
 	std::string * cstr = (String*)str;
 	size_t count = 0;
@@ -1106,6 +1309,9 @@ jsize GetStringLength(JNIEnv *env, jstring str) {
 	  cur += count, length++;
 	}
 	return length;
+	} else {
+		return 0;
+	}
 #else
 	Log::error("JNIVM", "GetStringLength (utf16) unsupported");
 	return 0;
@@ -1113,6 +1319,7 @@ jsize GetStringLength(JNIEnv *env, jstring str) {
 };
 const jchar *GetStringChars(JNIEnv * env, jstring str, jboolean * copy) {
 #if defined(HAVE_UCHAR_H) && HAVE_UCHAR_H
+	if(str) {
 	if(copy) {
 		*copy = true;
 	}
@@ -1121,6 +1328,9 @@ const jchar *GetStringChars(JNIEnv * env, jstring str, jboolean * copy) {
 	jchar * jstr = new jchar[length + 1];
 	env->GetStringRegion(str, 0, length, jstr);
 	return jstr;
+	}else {
+	return new jchar[1] { (jchar)'\0' };
+	}
 #else
 	Log::error("JNIVM", "GetStringChars (utf16) unsupported");
 	return new jchar[1] { (jchar)'\0' };
@@ -1131,7 +1341,7 @@ void ReleaseStringChars(JNIEnv * env, jstring str, const jchar * cstr) {
 	delete[] cstr;
 };
 jstring NewStringUTF(JNIEnv * env, const char *str) {
-	return (jstring)JNITypes<std::shared_ptr<String>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<String>(str));
+	return (jstring)JNITypes<std::shared_ptr<String>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<String>(str ? str : ""));
 };
 jsize GetStringUTFLength(JNIEnv *, jstring str) {
 	return str ? ((String*)str)->length() : 0;
@@ -1197,6 +1407,18 @@ jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method,
 		std::lock_guard<std::mutex> lock(clazz->mtx);
 		while(i--) {
 			clazz->natives[method->name] = method->fnPtr;
+			auto m = std::make_shared<Method>();
+			m->name = method->name;
+			m->signature = method->signature;
+			m->native = true;
+			using Funk = std::function<void(ENV*, Object*, const jvalue *)>;
+			// m->nativehandle = std::shared_ptr<void>(new Funk([p=method->fnPtr](ENV* e, Object*o, const jvalue *v) {
+				
+			// }), [](void * v) {
+            //     delete (Funk*)v;
+            // });
+			m->nativehandle = std::shared_ptr<void>(method->fnPtr, [](void * v) { });
+			clazz->methods.push_back(m);
 			method++;
 		}
 	}
@@ -1205,15 +1427,21 @@ jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method,
 jint UnregisterNatives(JNIEnv *env, jclass c) {
 	auto&& clazz = (Class*)c;
 	if(!clazz) {
-		Log::error("JNIVM", "RegisterNatives failed, class is nullptr");
+		Log::error("JNIVM", "UnRegisterNatives failed, class is nullptr");
 	} else {
 		std::lock_guard<std::mutex> lock(clazz->mtx);
 		((Class*)c)->natives.clear();
 	}
 	return 0;
 };
-jint MonitorEnter(JNIEnv *, jobject) { return 0; };
-jint MonitorExit(JNIEnv *, jobject) { return 0; };
+jint MonitorEnter(JNIEnv *, jobject) {
+	Log::error("JNIVM", "MonitorEnter unsupported");
+	return 0;
+};
+jint MonitorExit(JNIEnv *, jobject) {
+	Log::error("JNIVM", "MonitorEnter unsupported");
+	return 0;
+};
 jint GetJavaVM(JNIEnv * env, JavaVM ** vm) {
 	if(vm) {
 		std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
@@ -1339,25 +1567,26 @@ void test() {
 	// hook("Hi", &Activity::Test2);
 	// hook("Hi", &Activity::Test);
 
-    auto vm = std::make_shared<VM>();
-	auto env = vm->GetEnv();
-	auto cl = env->GetClass("java/lang/Test");
-    cl->Hook(env.get(), "Test1", &Activity::Test);
-    cl->Hook(env.get(), "Test2", &Activity::Test2);
-    cl->HookInstanceFunction(env.get(), "Test3", &Test3);
-    cl->HookInstanceSetterFunction(env.get(), "Test3", &Test3);
-	cl->Hook(env.get(), "Hi", &Activity::val2);
-	cl->Hook(env.get(), "Hi", &Activity::val);
-	auto act = std::make_shared<Activity>();
-	act->val = std::make_shared<String>("Hello World2");
-	// act->val = env->env.NewStringUTF("Hello World2");
-	auto field = env->env.GetFieldID((jclass)cl.get(), "Hi", "Ljava/lang/String;");
-	auto field2 = env->env.GetFieldID((jclass)cl.get(), "Test3", "Ljava/lang/String;");
-	env->env.SetObjectField((jobject)act.get(), field2, env->env.NewStringUTF("*|* Hello World:("));
-	String * f = (String*)env->env.GetObjectField((jobject)act.get(), field);
-	env->env.SetObjectField((jobject)act.get(), field, env->env.NewStringUTF("Hello World"));
-	const char * s = env->env.GetStringUTFChars((jstring)act->val.get(), nullptr);
-	Log::trace("JNIVM", "%s", s);
+    // auto vm = std::make_shared<VM>();
+	// auto env = vm->GetEnv();
+	// auto cl = env->GetClass("java/lang/Test");
+    // cl->Hook(env.get(), "Test1", &Activity::Test);
+    // cl->Hook(env.get(), "Test2", &Activity::Test2);
+    // cl->HookInstanceFunction(env.get(), "Test3", &Test3);
+    // cl->HookInstanceSetterFunction(env.get(), "Test3", &Test3);
+	// cl->Hook(env.get(), "Hi", &Activity::val2);
+	// cl->Hook(env.get(), "Hi", &Activity::val);
+	// // cl->getMethod("Ljava/lang/String;", "Test2")->invoke(*env, (jobject)nullptr, env->env.NewStringUTF("Test"));
+	// auto act = std::make_shared<Activity>();
+	// act->val = std::make_shared<String>("Hello World2");
+	// // act->val = env->env.NewStringUTF("Hello World2");
+	// auto field = env->env.GetFieldID((jclass)cl.get(), "Hi", "Ljava/lang/String;");
+	// auto field2 = env->env.GetFieldID((jclass)cl.get(), "Test3", "Ljava/lang/String;");
+	// env->env.SetObjectField((jobject)act.get(), field2, env->env.NewStringUTF("*|* Hello World:("));
+	// String * f = (String*)env->env.GetObjectField((jobject)act.get(), field);
+	// env->env.SetObjectField((jobject)act.get(), field, env->env.NewStringUTF("Hello World"));
+	// const char * s = env->env.GetStringUTFChars((jstring)act->val.get(), nullptr);
+	// Log::trace("JNIVM", "%s", s);
 }
 
 // int main() {
@@ -1633,6 +1862,7 @@ VM::VM() : ninterface({
 					*penv = ((VM *)(vm->functions->reserved0))->GetJNIEnv();
 				}
 #endif
+				FakeJni::JniEnvContext::env = nenv.get();
 				return JNI_OK;
 			},
 			[](JavaVM *vm) -> jint {
@@ -1711,8 +1941,75 @@ void VM::GenerateClassDump(const char *path) {
 	std::ofstream of(path);
 	of << GeneratePreDeclaration()
 	   << GenerateHeader()
-	   << GenerateStubs()
-	   << GenerateJNIBinding();
+	   << GenerateStubs();
+	if(!fakejniSyntax) {
+		of << "InitJNIBinding(jnivm::ENV* env) {\n"
+		   << GenerateJNIBinding()
+		   << "\n}";
+	} else {
+		of << GenerateJNIBinding();
+	}
+}
+//(( ENV*)(env->functions->reserved0)).vm->GenerateClassDump("/home/christopher/minecraft-linux/mcpelauncher-client/classdump.txt")
+#endif
+
+
+jvalue jnivm::Method::jinvoke(const jnivm::ENV &env, jclass cl, ...) {
+	ScopedVaList list;
+	va_start(list.list, cl);
+	auto type = signature[signature.find_last_of(')') + 1];
+	switch (type) {
+	case 'V':
+		env.env.functions->CallStaticVoidMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, list.list);
+		return {};
+	case 'Z':
+		return { .z = env.env.functions->CallStaticBooleanMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, list.list)};
+	case 'B':
+		return { .b = env.env.functions->CallStaticByteMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, list.list)};
+	case 'S':
+		return { .s = env.env.functions->CallStaticShortMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, list.list)};
+	case 'I':
+		return { .i = env.env.functions->CallStaticIntMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, list.list)};
+	case 'J':
+		return { .j = env.env.functions->CallStaticLongMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, list.list)};
+	case 'F':
+		return { .f = env.env.functions->CallStaticFloatMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, list.list)};
+	case 'D':
+		return { .d = env.env.functions->CallStaticDoubleMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, list.list)};
+	case '[':
+	case 'L':
+		return { .l = env.env.functions->CallStaticObjectMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, list.list)};
+	default:
+		throw std::runtime_error("Unsupported signature");
+	}
 }
 
-#endif
+jvalue jnivm::Method::jinvoke(const jnivm::ENV &env, jobject obj, ...) {
+	ScopedVaList list;
+	va_start(list.list, obj);
+	auto type = signature[signature.find_last_of(')') + 1];
+	switch (type) {
+	case 'V':
+		env.env.functions->CallVoidMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, list.list);
+		return {};
+	case 'Z':
+		return { .z = env.env.functions->CallBooleanMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, list.list)};
+	case 'B':
+		return { .b = env.env.functions->CallByteMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, list.list)};
+	case 'S':
+		return { .s = env.env.functions->CallShortMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, list.list)};
+	case 'I':
+		return { .i = env.env.functions->CallIntMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, list.list)};
+	case 'J':
+		return { .j = env.env.functions->CallLongMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, list.list)};
+	case 'F':
+		return { .f = env.env.functions->CallFloatMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, list.list)};
+	case 'D':
+		return { .d = env.env.functions->CallDoubleMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, list.list)};
+	case '[':
+	case 'L':
+		return { .l = env.env.functions->CallObjectMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, list.list)};
+	default:
+		throw std::runtime_error("Unsupported signature");
+	}
+}
