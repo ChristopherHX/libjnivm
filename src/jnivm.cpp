@@ -426,7 +426,7 @@ std::string Field::GenerateJNIBinding(std::string scope) {
 	return ss.str();
 }
 
-const char* blacklisted[] = { "java/lang/Object", "java/lang/String", "java/lang/Class" };
+const char* blacklisted[] = { "java/lang/Object", "java/lang/String", "java/lang/Class", "java/nio/ByteBuffer" };
 
 std::string Class::GenerateHeader(std::string scope) {
 	if (std::find(std::begin(blacklisted), std::end(blacklisted), nativeprefix) != std::end(blacklisted)) return {};
@@ -1497,14 +1497,14 @@ void DeleteWeakGlobalRef(JNIEnv *, jweak) {
 jboolean ExceptionCheck(JNIEnv *) {
 return JNI_FALSE;
  };
-jobject NewDirectByteBuffer(JNIEnv *, void *, jlong) {
-	return 0;
+jobject NewDirectByteBuffer(JNIEnv *env, void *buffer, jlong capacity) {
+	return (jobject)JNITypes<std::shared_ptr<ByteBuffer>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<ByteBuffer>(buffer, capacity));
 };
-void *GetDirectBufferAddress(JNIEnv *, jobject) {
-	return 0;
+void *GetDirectBufferAddress(JNIEnv *, jobject bytebuffer) {
+	return ((ByteBuffer*)bytebuffer)->buffer;
 };
-jlong GetDirectBufferCapacity(JNIEnv *, jobject) {
-	return 0;
+jlong GetDirectBufferCapacity(JNIEnv *, jobject bytebuffer) {
+	return ((ByteBuffer*)bytebuffer)->capacity;
 };
 /* added in JNI 1.6 */
 jobjectRefType GetObjectRefType(JNIEnv *, jobject) {
@@ -1905,6 +1905,7 @@ VM::VM() : ninterface({
 	env->GetClass<Object>("java/lang/Object");
 	env->GetClass<Class>("java/lang/Class");
 	env->GetClass<String>("java/lang/String");
+	env->GetClass<ByteBuffer>("java/nio/ByteBuffer");
 }
 
 JavaVM *VM::GetJavaVM() {

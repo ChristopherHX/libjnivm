@@ -445,6 +445,15 @@ namespace jnivm {
         }
     };
 
+    class ByteBuffer : public Object {
+    public:
+        ByteBuffer(void* buffer, jlong capacity) : buffer(buffer), capacity(capacity) {
+
+        }
+        void* buffer;
+        jlong capacity;
+    };
+
     struct LibraryOptions {
         void*(*dlopen)(const char*, int);
         void*(*dlsym)(void *handle, const char*);
