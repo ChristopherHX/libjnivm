@@ -9,9 +9,7 @@
 #include <climits>
 #include <sstream>
 #include <unordered_map>
-#if defined(HAVE_UCHAR_H) && HAVE_UCHAR_H
-#include <uchar.h>
-#endif
+#include <codecvt>
 #ifdef JNI_DEBUG
 #include <fstream>
 #endif
@@ -1280,61 +1278,57 @@ void SetStaticField(JNIEnv *env, jclass cl, jfieldID id, T value) {
 }
 
 jstring NewString(JNIEnv *env, const jchar * str, jsize size) {
-#if defined(HAVE_UCHAR_H) && HAVE_UCHAR_H
-	std::stringstream ss;
 	std::mbstate_t state{};
+	std::locale l;
+	auto& codecv = std::use_facet<std::codecvt<char16_t, char, std::mbstate_t>>(l);
+	std::stringstream ss;
 	char out[MB_LEN_MAX]{};
 	for (size_t i = 0; i < size; i++) {
-	  std::size_t rc = c16rtomb(out, (char16_t)str[i], &state);
-	  if(rc != -1) {
-	    ss.write(out, rc);
+		const char16_t* from_next = 0;
+		char* to_next = 0;
+		auto r = codecv.out(state, (const char16_t*)&str[i], (const char16_t*)&str[i + 1], from_next, out, out + sizeof(out), to_next);
+	  if(to_next != nullptr) {
+	    ss.write(out, to_next - out);
 	  }
 	}
 	return (jstring)JNITypes<std::shared_ptr<String>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<String>(ss.str()));
-#else
-	Log::error("JNIVM", "NewString (utf16) unsupported");
-	return (jstring)0;
-#endif
 };
 jsize GetStringLength(JNIEnv *env, jstring str) {
-#if defined(HAVE_UCHAR_H) && HAVE_UCHAR_H
 	if(str) {
 	mbstate_t state{};
+	std::locale l;
+	auto& codecv = std::use_facet<std::codecvt<char16_t, char, std::mbstate_t>>(l);
 	std::string * cstr = (String*)str;
 	size_t count = 0;
 	jsize length = 0;
 	jchar dummy;
 	auto cur = cstr->data(), end = cur + cstr->length();
-	while(cur != end && (count = mbrtoc16((char16_t*)&dummy, cur, end - cur, &state)) > 0) {
-	  cur += count, length++;
+	
+	while(cur != end) {
+		const char* from_next = 0;
+		char16_t* to_next = 0;
+		auto r = codecv.in(state, (const char*)cur, (const char*)end, from_next, (char16_t*)&dummy, (char16_t*)&dummy + 1, to_next);
+	  	cur = (char*)from_next;
+		length++;
 	}
 	return length;
 	} else {
 		return 0;
 	}
-#else
-	Log::error("JNIVM", "GetStringLength (utf16) unsupported");
-	return 0;
-#endif
 };
 const jchar *GetStringChars(JNIEnv * env, jstring str, jboolean * copy) {
-#if defined(HAVE_UCHAR_H) && HAVE_UCHAR_H
 	if(str) {
 	if(copy) {
 		*copy = true;
 	}
 	jsize length = env->GetStringLength(str);
 	// Allocate explicitly allocates string region
-	jchar * jstr = new jchar[length + 1];
+	jchar * jstr = new jchar[length];
 	env->GetStringRegion(str, 0, length, jstr);
 	return jstr;
 	}else {
 	return new jchar[1] { (jchar)'\0' };
 	}
-#else
-	Log::error("JNIVM", "GetStringChars (utf16) unsupported");
-	return new jchar[1] { (jchar)'\0' };
-#endif
 };
 void ReleaseStringChars(JNIEnv * env, jstring str, const jchar * cstr) {
 	// Free explicitly allocates string region
@@ -1450,40 +1444,50 @@ jint GetJavaVM(JNIEnv * env, JavaVM ** vm) {
 	return 0;
 };
 void GetStringRegion(JNIEnv *, jstring str, jsize start, jsize length, jchar * buf) {
-#if defined(HAVE_UCHAR_H) && HAVE_UCHAR_H
 	mbstate_t state{};
+	std::locale l;
+	auto& codecv = std::use_facet<std::codecvt<char16_t, char, std::mbstate_t>>(l);
 	std::string * cstr = (String*)str;
-	int count = 0;
 	jchar dummy, * bend = buf + length;
 	auto cur = cstr->data(), end = cur + cstr->length();
-	while(start && (count = mbrtoc16((char16_t*)&dummy, cur, end - cur, &state)) > 0) {
-	  cur += count, start--;
+	while(start) {
+		const char* from_next = 0;
+		char16_t* to_next = 0;
+		auto r = codecv.in(state, (const char*)cur, (const char*)end, from_next, (char16_t*)&dummy, (char16_t*)&dummy + 1, to_next);
+	  	cur = (char*)from_next;
+		start--;
 	}
-	while(buf != bend && (count = mbrtoc16((char16_t*)buf, cur, end - cur, &state)) > 0) {
-	  cur += count, buf++;
+	while(buf != bend) {
+		const char* from_next = 0;
+		char16_t* to_next = 0;
+		auto r = codecv.in(state, (const char*)cur, (const char*)end, from_next, (char16_t*)buf, (char16_t*)buf + 1, to_next);
+		cur = (char*)from_next;
+	  	buf++;
 	}
-#else
-	Log::error("JNIVM", "GetStringRegion (utf16) unsupported");
-#endif
 };
 void GetStringUTFRegion(JNIEnv *, jstring str, jsize start, jsize len, char * buf) {
-#if defined(HAVE_UCHAR_H) && HAVE_UCHAR_H
 	mbstate_t state{};
+	std::locale l;
+	auto& codecv = std::use_facet<std::codecvt<char16_t, char, std::mbstate_t>>(l);
 	std::string * cstr = (String*)str;
-	int count = 0;
 	jchar dummy;
 	char * bend = buf + len;
 	auto cur = cstr->data(), end = cur + cstr->length();
-	while(start && (count = mbrtoc16((char16_t*)&dummy, cur, end - cur, &state)) > 0) {
-	  cur += count, start--;
+	while(start) {
+		const char* from_next = 0;
+		char16_t* to_next = 0;
+		auto r = codecv.in(state, (const char*)cur, (const char*)end, from_next, (char16_t*)&dummy, (char16_t*)&dummy + 1, to_next);
+	  	cur = (char*)from_next;
+		start--;
 	}
-	while(buf != bend && (count = mbrtoc16((char16_t*)&dummy, cur, end - cur, &state)) > 0) {
-	  memcpy(buf, cur, count);
-	  cur += count, buf++;
+	while(buf != bend) {
+		const char* from_next = 0;
+		char16_t* to_next = 0;
+		auto r = codecv.in(state, (const char*)cur, (const char*)end, from_next, (char16_t*)&dummy, (char16_t*)&dummy + 1, to_next);
+	  	memcpy(buf, cur, from_next - cur);
+		cur = (char*)from_next;
+	  	buf++;
 	}
-#else
-	Log::error("JNIVM", "GetStringUTFRegion (utf16) unsupported");
-#endif
 };
 jweak NewWeakGlobalRef(JNIEnv *, jobject obj) {
 	return obj;
