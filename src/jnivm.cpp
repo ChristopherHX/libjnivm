@@ -103,7 +103,7 @@ const char *ParseJNIType(const char *cur, const char *end, std::string &type) {
 					type = "std::shared_ptr<FakeJni::JLongArray>";
 					break;
 				case 'F':
-					type = "std::shared_ptr<FakeJni::HFloatArray>";
+					type = "std::shared_ptr<FakeJni::JFloatArray>";
 					break;
 				case 'D':
 					type = "std::shared_ptr<FakeJni::JDoubleArray>";
