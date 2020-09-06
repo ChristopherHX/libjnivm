@@ -69,7 +69,7 @@ const char *ParseJNIType(const char *cur, const char *end, std::string &type) {
 		if(!fakejniSyntax) {
 		type = "jfloat";
 		} else {
-			type = "FakeJni::HFloat";
+			type = "FakeJni::JFloat";
 		}
 		break;
 	case 'D':
