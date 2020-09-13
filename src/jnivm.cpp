@@ -917,7 +917,7 @@ void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 	if (mid->nativehandle) {
 		return (*(std::function<void(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
 #endif
 	}
@@ -938,7 +938,7 @@ T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 	if (mid->nativehandle) {
 		return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
 #endif
 		if constexpr(std::is_same_v<T, jobject>) {
