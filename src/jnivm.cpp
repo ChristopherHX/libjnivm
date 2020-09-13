@@ -609,7 +609,9 @@ jclass InternalFindClass(JNIEnv *env, const char *name) {
 	auto prefix = name;
 	auto && nenv = *(ENV*)env->functions->reserved0;
 	auto && vm = nenv.vm;
+#ifdef JNI_TRACE
 	Log::trace("JNIVM", "InternalFindClass %s", name);
+#endif
 #ifdef JNI_DEBUG
 	// Generate the Namespace Hirachy to generate stub c++ files
 	// Makes it easier to implement classes without writing everthing by hand
@@ -898,9 +900,11 @@ jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
 #ifdef JNI_DEBUG
 		Declare(env, next->signature.data());
 #endif
+#ifdef JNI_TRACE
 		if (!(next->nativehandle)) {
 			Log::trace("JNIVM", "Unresolved symbol, Class: %s, Method: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, str0, str1);
 		}
+#endif
 	}
 	return (jmethodID)next.get();
 };
@@ -1060,6 +1064,8 @@ jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name,
 		next->type = std::move(ssig);
 #ifdef JNI_DEBUG
 		Declare(env, next->type.data());
+#endif
+#ifdef JNI_TRACE
 		Log::trace("JNIVM", "Unresolved symbol, Class: %s, Field: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, name, type);
 #endif
 	}
@@ -1137,7 +1143,9 @@ jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
 #ifdef JNI_DEBUG
 		Declare(env, next->signature.data());
 #endif
+#ifdef JNI_TRACE
 		Log::trace("JNIVM", "Unresolved symbol, Class: %s, StaticMethod: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, str0, str1);
+#endif
 	}
 	return (jmethodID)next.get();
 };
@@ -1236,7 +1244,9 @@ jfieldID GetStaticFieldID(JNIEnv *env, jclass cl, const char *name,
 #ifdef JNI_DEBUG
 		Declare(env, next->type.data());
 #endif
+#ifdef JNI_TRACE
 		Log::trace("JNIVM", "Unresolved symbol, Class: %s, StaticField: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, name, type);
+#endif
 	}
 	return (jfieldID)next.get();
 };
@@ -1510,92 +1520,6 @@ jlong GetDirectBufferCapacity(JNIEnv *, jobject bytebuffer) {
 jobjectRefType GetObjectRefType(JNIEnv *, jobject) {
 	return jobjectRefType::JNIInvalidRefType;
 };
-
-class Activity {
-public:
-	Activity(){}
-	jint Test(ENV * env, std::shared_ptr<String> s) {
-		return 0;
-	}
-	static jint Test2(ENV * env, java::lang::Class* cl, std::shared_ptr<String> s) {
-		return 0;
-	}
-	std::shared_ptr<String> val;
-	static std::shared_ptr<String> val2;
-};
-
-std::shared_ptr<String> Activity::val2 = nullptr;
-
-static jint Test3(ENV * env, java::lang::Object* cl, std::shared_ptr<String> s) {
-	const char * s_ = env->env.GetStringUTFChars((jstring)s.get(), nullptr);
-	Log::trace("JNIVM", "%s", s_);
-	return 0;
-}
-
-// template<FunctionType type> struct HookManager;
-// template<> struct HookManager<FunctionType::Instance> {
-
-// };
-
-void test() {
-	// Wrapper wrap { &Activity::Test2 };
-	// Wrapper wrap2 { &Activity::Test };
-	// std::vector<jvalue> values;
-	// wrap.Invoke(values);
-	// auto inv = &decltype(wrap2)::Invoke;
-	// Wrap<decltype(&Activity::Test2)>::Wrapper wrap { &Activity::Test2 };
-	// Wrap<decltype(&Activity::Test)>::Wrapper wrap2 { &Activity::Test };
-	// Wrapper wrap2 { &Activity::Test };
-	// std::vector<jvalue> values;
-	// wrap.Invoke(values);
-	// auto v = &decltype(wrap)::Invoke;
-	// auto inv = &decltype(wrap2)::Invoke;
-	// Wrap<decltype(&Activity::val)>::Wrapper wrap { &Activity::val };
-	// Wrap<decltype(&Activity::val2)>::Wrapper wrap2 { &Activity::val2 };
-	// auto gref = &decltype(wrap)::get;
-	// auto sref = &decltype(wrap)::set;
-	// auto gref2 = &decltype(wrap2)::get;
-	// auto sref2 = &decltype(wrap2)::set;
-	// using T = decltype(&Activity::val);
-	// using T = decltype(&Activity::val2);
-	// T vt = &Activity::val;
-	// Activity a;
-	// a.*vt = "Hi";
-
-	// Log::trace("?", "%s", a.val.data());
-	// *((Activity*)nullptr).*&Activity::val;
-
-	// (*((Activity*)nullptr)).std::declval<T>() = "";
-	// hook("Hi", &Activity::val2);
-	// hook("Hi", &Activity::val);
-	// hook("Hi", &Activity::Test2);
-	// hook("Hi", &Activity::Test);
-
-    // auto vm = std::make_shared<VM>();
-	// auto env = vm->GetEnv();
-	// auto cl = env->GetClass("java/lang/Test");
-    // cl->Hook(env.get(), "Test1", &Activity::Test);
-    // cl->Hook(env.get(), "Test2", &Activity::Test2);
-    // cl->HookInstanceFunction(env.get(), "Test3", &Test3);
-    // cl->HookInstanceSetterFunction(env.get(), "Test3", &Test3);
-	// cl->Hook(env.get(), "Hi", &Activity::val2);
-	// cl->Hook(env.get(), "Hi", &Activity::val);
-	// // cl->getMethod("Ljava/lang/String;", "Test2")->invoke(*env, (jobject)nullptr, env->env.NewStringUTF("Test"));
-	// auto act = std::make_shared<Activity>();
-	// act->val = std::make_shared<String>("Hello World2");
-	// // act->val = env->env.NewStringUTF("Hello World2");
-	// auto field = env->env.GetFieldID((jclass)cl.get(), "Hi", "Ljava/lang/String;");
-	// auto field2 = env->env.GetFieldID((jclass)cl.get(), "Test3", "Ljava/lang/String;");
-	// env->env.SetObjectField((jobject)act.get(), field2, env->env.NewStringUTF("*|* Hello World:("));
-	// String * f = (String*)env->env.GetObjectField((jobject)act.get(), field);
-	// env->env.SetObjectField((jobject)act.get(), field, env->env.NewStringUTF("Hello World"));
-	// const char * s = env->env.GetStringUTFChars((jstring)act->val.get(), nullptr);
-	// Log::trace("JNIVM", "%s", s);
-}
-
-// int main() {
-//   test();
-// }
 
 std::shared_ptr<Class> ENV::GetClass(const char * name) {
 	auto c = (Class*)InternalFindClass(&env, name);
