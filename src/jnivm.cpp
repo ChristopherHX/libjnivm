@@ -911,9 +911,9 @@ jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
 
 void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 	auto mid = ((Method *)id);
-	#ifdef JNI_DEBUG
-		Log::debug("JNIVM", "Call Function %s, %s", mid->name.data(), mid->signature.data());
-	#endif
+#ifdef JNI_TRACE
+	Log::debug("JNIVM", "Call Function %s, %s", mid->name.data(), mid->signature.data());
+#endif
 	if (mid->nativehandle) {
 		return (*(std::function<void(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
 	} else {
@@ -932,9 +932,9 @@ T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 	if(!id)
 		Log::warn("JNIVM", "CallMethod field is null");
 #endif
-	#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Call Function %s, %s", mid->name.data(), mid->signature.data());
-	#endif
+#endif
 	if (mid->nativehandle) {
 		return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
 	} else {
@@ -959,18 +959,26 @@ T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 
 void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
 	if(id) {
-	Log::debug("JNIVM", "Known Function %s,  %s", ((Method *)id)->name.data(), ((Method *)id)->signature.data());
-	return CallMethodV(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
+#ifdef JNI_TRACE
+		Log::debug("JNIVM", "Known Function %s,  %s", ((Method *)id)->name.data(), ((Method *)id)->signature.data());
+#endif
+		return CallMethodV(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
 	}
 };
 
 template <class T>
 T CallMethod(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
 	if(id) {
-	Log::debug("JNIVM", "Known Function %s,  %s", ((Method *)id)->name.data(), ((Method *)id)->signature.data());
-
-	return CallMethod<T>(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
-	}else return {};
+#ifdef JNI_TRACE
+		Log::debug("JNIVM", "Known Function %s,  %s", ((Method *)id)->name.data(), ((Method *)id)->signature.data());
+#endif
+	        return CallMethod<T>(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
+	} else {
+#ifdef JNI_TRACE
+		Log::debug("JNIVM", "CallMethod Method ID is null");
+#endif
+		return {};
+	}
 };
 
 template <class T>
@@ -1000,7 +1008,7 @@ T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, jvalu
 	if (mid->nativehandle) {
 		return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
 #endif
 		return {};
@@ -1013,7 +1021,7 @@ void CallNonvirtualMethodV(JNIEnv * env, jobject obj, jclass cl, jmethodID id, j
 	if (mid->nativehandle) {
 		return (*(std::function<void(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
 #endif
 	}
@@ -1083,7 +1091,7 @@ template <class T> T GetField(JNIEnv *env, jobject obj, jfieldID id) {
 	if (fid->getnativehandle) {
 		return (*(std::function<T(ENV*, Object*, const jvalue*)>*)fid->getnativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, nullptr);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Field Getter %s", fid->name.data());
 #endif
 		return {};
@@ -1101,7 +1109,7 @@ template <class T> void SetField(JNIEnv *env, jobject obj, jfieldID id, T value)
 	if (fid && fid->setnativehandle) {
 		(*(std::function<void(ENV*, Object*, const jvalue*)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, (jvalue*)&value);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Field Setter %s", fid->name.data());
 #endif
 	}
@@ -1162,7 +1170,7 @@ T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
 	if (mid->nativehandle) {
 		return (*(std::function<T(ENV*, Class*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, param);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
 #endif
 if constexpr(std::is_same_v<T, jobject>) {
@@ -1192,7 +1200,7 @@ void CallStaticMethodV(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
 	if (mid->nativehandle) {
 		return (*(std::function<void(ENV*, Class*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, param);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
 #endif
 	}
@@ -1262,7 +1270,7 @@ template <class T> T GetStaticField(JNIEnv *env, jclass cl, jfieldID id) {
 	if (fid && fid->getnativehandle) {
 		return (*(std::function<T(ENV*, Class*, const jvalue *)>*)fid->getnativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, nullptr);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Field Getter %s", fid->name.data());
 #endif
 		return {};
@@ -1281,7 +1289,7 @@ void SetStaticField(JNIEnv *env, jclass cl, jfieldID id, T value) {
 	if (fid && fid->setnativehandle) {
 		(*(std::function<void(ENV*, Class*, const jvalue *)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, (jvalue*)&value);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Field Setter %s", fid->name.data());
 #endif
 	}
