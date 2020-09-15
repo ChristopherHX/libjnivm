@@ -184,9 +184,11 @@ std::vector<jvalue> JValuesfromValist(va_list list, const char* signature) {
 		case 'Z':
 				// These are promoted to int (gcc warning)
 				values.back().z = (jboolean)va_arg(list, int);
+				break;
 		case 'B':
 				// These are promoted to int (gcc warning)
 				values.back().b = (jbyte)va_arg(list, int);
+				break;
 		case 'S':
 				// These are promoted to int (gcc warning)
 				values.back().s = (jshort)va_arg(list, int);
@@ -609,7 +611,9 @@ jclass InternalFindClass(JNIEnv *env, const char *name) {
 	auto prefix = name;
 	auto && nenv = *(ENV*)env->functions->reserved0;
 	auto && vm = nenv.vm;
+#ifdef JNI_TRACE
 	Log::trace("JNIVM", "InternalFindClass %s", name);
+#endif
 #ifdef JNI_DEBUG
 	// Generate the Namespace Hirachy to generate stub c++ files
 	// Makes it easier to implement classes without writing everthing by hand
@@ -898,22 +902,24 @@ jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
 #ifdef JNI_DEBUG
 		Declare(env, next->signature.data());
 #endif
+#ifdef JNI_TRACE
 		if (!(next->nativehandle)) {
 			Log::trace("JNIVM", "Unresolved symbol, Class: %s, Method: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, str0, str1);
 		}
+#endif
 	}
 	return (jmethodID)next.get();
 };
 
 void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 	auto mid = ((Method *)id);
-	#ifdef JNI_DEBUG
-		Log::debug("JNIVM", "Call Function %s, %s", mid->name.data(), mid->signature.data());
-	#endif
+#ifdef JNI_TRACE
+	Log::debug("JNIVM", "Call Function %s, %s", mid->name.data(), mid->signature.data());
+#endif
 	if (mid->nativehandle) {
 		return (*(std::function<void(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
 #endif
 	}
@@ -928,13 +934,13 @@ T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 	if(!id)
 		Log::warn("JNIVM", "CallMethod field is null");
 #endif
-	#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Call Function %s, %s", mid->name.data(), mid->signature.data());
-	#endif
+#endif
 	if (mid->nativehandle) {
 		return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
 #endif
 		if constexpr(std::is_same_v<T, jobject>) {
@@ -955,18 +961,26 @@ T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 
 void CallMethodV(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
 	if(id) {
-	Log::debug("JNIVM", "Known Function %s,  %s", ((Method *)id)->name.data(), ((Method *)id)->signature.data());
-	return CallMethodV(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
+#ifdef JNI_TRACE
+		Log::debug("JNIVM", "Known Function %s,  %s", ((Method *)id)->name.data(), ((Method *)id)->signature.data());
+#endif
+		return CallMethodV(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
 	}
 };
 
 template <class T>
 T CallMethod(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
 	if(id) {
-	Log::debug("JNIVM", "Known Function %s,  %s", ((Method *)id)->name.data(), ((Method *)id)->signature.data());
-
-	return CallMethod<T>(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
-	}else return {};
+#ifdef JNI_TRACE
+		Log::debug("JNIVM", "Known Function %s,  %s", ((Method *)id)->name.data(), ((Method *)id)->signature.data());
+#endif
+	        return CallMethod<T>(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
+	} else {
+#ifdef JNI_TRACE
+		Log::debug("JNIVM", "CallMethod Method ID is null");
+#endif
+		return {};
+	}
 };
 
 template <class T>
@@ -996,7 +1010,7 @@ T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, jvalu
 	if (mid->nativehandle) {
 		return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
 #endif
 		return {};
@@ -1009,7 +1023,7 @@ void CallNonvirtualMethodV(JNIEnv * env, jobject obj, jclass cl, jmethodID id, j
 	if (mid->nativehandle) {
 		return (*(std::function<void(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
 #endif
 	}
@@ -1060,6 +1074,8 @@ jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name,
 		next->type = std::move(ssig);
 #ifdef JNI_DEBUG
 		Declare(env, next->type.data());
+#endif
+#ifdef JNI_TRACE
 		Log::trace("JNIVM", "Unresolved symbol, Class: %s, Field: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, name, type);
 #endif
 	}
@@ -1077,7 +1093,7 @@ template <class T> T GetField(JNIEnv *env, jobject obj, jfieldID id) {
 	if (fid->getnativehandle) {
 		return (*(std::function<T(ENV*, Object*, const jvalue*)>*)fid->getnativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, nullptr);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Field Getter %s", fid->name.data());
 #endif
 		return {};
@@ -1095,7 +1111,7 @@ template <class T> void SetField(JNIEnv *env, jobject obj, jfieldID id, T value)
 	if (fid && fid->setnativehandle) {
 		(*(std::function<void(ENV*, Object*, const jvalue*)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, (jvalue*)&value);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Field Setter %s", fid->name.data());
 #endif
 	}
@@ -1137,7 +1153,9 @@ jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
 #ifdef JNI_DEBUG
 		Declare(env, next->signature.data());
 #endif
+#ifdef JNI_TRACE
 		Log::trace("JNIVM", "Unresolved symbol, Class: %s, StaticMethod: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, str0, str1);
+#endif
 	}
 	return (jmethodID)next.get();
 };
@@ -1154,7 +1172,7 @@ T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
 	if (mid->nativehandle) {
 		return (*(std::function<T(ENV*, Class*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, param);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
 #endif
 if constexpr(std::is_same_v<T, jobject>) {
@@ -1184,7 +1202,7 @@ void CallStaticMethodV(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
 	if (mid->nativehandle) {
 		return (*(std::function<void(ENV*, Class*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, param);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
 #endif
 	}
@@ -1236,7 +1254,9 @@ jfieldID GetStaticFieldID(JNIEnv *env, jclass cl, const char *name,
 #ifdef JNI_DEBUG
 		Declare(env, next->type.data());
 #endif
+#ifdef JNI_TRACE
 		Log::trace("JNIVM", "Unresolved symbol, Class: %s, StaticField: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, name, type);
+#endif
 	}
 	return (jfieldID)next.get();
 };
@@ -1252,7 +1272,7 @@ template <class T> T GetStaticField(JNIEnv *env, jclass cl, jfieldID id) {
 	if (fid && fid->getnativehandle) {
 		return (*(std::function<T(ENV*, Class*, const jvalue *)>*)fid->getnativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, nullptr);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Field Getter %s", fid->name.data());
 #endif
 		return {};
@@ -1271,7 +1291,7 @@ void SetStaticField(JNIEnv *env, jclass cl, jfieldID id, T value) {
 	if (fid && fid->setnativehandle) {
 		(*(std::function<void(ENV*, Class*, const jvalue *)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, (jvalue*)&value);
 	} else {
-#ifdef JNI_DEBUG
+#ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Field Setter %s", fid->name.data());
 #endif
 	}
@@ -1510,92 +1530,6 @@ jlong GetDirectBufferCapacity(JNIEnv *, jobject bytebuffer) {
 jobjectRefType GetObjectRefType(JNIEnv *, jobject) {
 	return jobjectRefType::JNIInvalidRefType;
 };
-
-class Activity {
-public:
-	Activity(){}
-	jint Test(ENV * env, std::shared_ptr<String> s) {
-		return 0;
-	}
-	static jint Test2(ENV * env, java::lang::Class* cl, std::shared_ptr<String> s) {
-		return 0;
-	}
-	std::shared_ptr<String> val;
-	static std::shared_ptr<String> val2;
-};
-
-std::shared_ptr<String> Activity::val2 = nullptr;
-
-static jint Test3(ENV * env, java::lang::Object* cl, std::shared_ptr<String> s) {
-	const char * s_ = env->env.GetStringUTFChars((jstring)s.get(), nullptr);
-	Log::trace("JNIVM", "%s", s_);
-	return 0;
-}
-
-// template<FunctionType type> struct HookManager;
-// template<> struct HookManager<FunctionType::Instance> {
-
-// };
-
-void test() {
-	// Wrapper wrap { &Activity::Test2 };
-	// Wrapper wrap2 { &Activity::Test };
-	// std::vector<jvalue> values;
-	// wrap.Invoke(values);
-	// auto inv = &decltype(wrap2)::Invoke;
-	// Wrap<decltype(&Activity::Test2)>::Wrapper wrap { &Activity::Test2 };
-	// Wrap<decltype(&Activity::Test)>::Wrapper wrap2 { &Activity::Test };
-	// Wrapper wrap2 { &Activity::Test };
-	// std::vector<jvalue> values;
-	// wrap.Invoke(values);
-	// auto v = &decltype(wrap)::Invoke;
-	// auto inv = &decltype(wrap2)::Invoke;
-	// Wrap<decltype(&Activity::val)>::Wrapper wrap { &Activity::val };
-	// Wrap<decltype(&Activity::val2)>::Wrapper wrap2 { &Activity::val2 };
-	// auto gref = &decltype(wrap)::get;
-	// auto sref = &decltype(wrap)::set;
-	// auto gref2 = &decltype(wrap2)::get;
-	// auto sref2 = &decltype(wrap2)::set;
-	// using T = decltype(&Activity::val);
-	// using T = decltype(&Activity::val2);
-	// T vt = &Activity::val;
-	// Activity a;
-	// a.*vt = "Hi";
-
-	// Log::trace("?", "%s", a.val.data());
-	// *((Activity*)nullptr).*&Activity::val;
-
-	// (*((Activity*)nullptr)).std::declval<T>() = "";
-	// hook("Hi", &Activity::val2);
-	// hook("Hi", &Activity::val);
-	// hook("Hi", &Activity::Test2);
-	// hook("Hi", &Activity::Test);
-
-    // auto vm = std::make_shared<VM>();
-	// auto env = vm->GetEnv();
-	// auto cl = env->GetClass("java/lang/Test");
-    // cl->Hook(env.get(), "Test1", &Activity::Test);
-    // cl->Hook(env.get(), "Test2", &Activity::Test2);
-    // cl->HookInstanceFunction(env.get(), "Test3", &Test3);
-    // cl->HookInstanceSetterFunction(env.get(), "Test3", &Test3);
-	// cl->Hook(env.get(), "Hi", &Activity::val2);
-	// cl->Hook(env.get(), "Hi", &Activity::val);
-	// // cl->getMethod("Ljava/lang/String;", "Test2")->invoke(*env, (jobject)nullptr, env->env.NewStringUTF("Test"));
-	// auto act = std::make_shared<Activity>();
-	// act->val = std::make_shared<String>("Hello World2");
-	// // act->val = env->env.NewStringUTF("Hello World2");
-	// auto field = env->env.GetFieldID((jclass)cl.get(), "Hi", "Ljava/lang/String;");
-	// auto field2 = env->env.GetFieldID((jclass)cl.get(), "Test3", "Ljava/lang/String;");
-	// env->env.SetObjectField((jobject)act.get(), field2, env->env.NewStringUTF("*|* Hello World:("));
-	// String * f = (String*)env->env.GetObjectField((jobject)act.get(), field);
-	// env->env.SetObjectField((jobject)act.get(), field, env->env.NewStringUTF("Hello World"));
-	// const char * s = env->env.GetStringUTFChars((jstring)act->val.get(), nullptr);
-	// Log::trace("JNIVM", "%s", s);
-}
-
-// int main() {
-//   test();
-// }
 
 std::shared_ptr<Class> ENV::GetClass(const char * name) {
 	auto c = (Class*)InternalFindClass(&env, name);
