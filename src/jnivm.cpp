@@ -842,7 +842,7 @@ jobject NewObjectA(JNIEnv *env, jclass cl, jmethodID mid, jvalue * val) {
 	return env->CallStaticObjectMethodA(cl, mid, val);
 };
 jclass GetObjectClass(JNIEnv *env, jobject jo) {
-	return jo ? (jclass)((Object*)jo)->clazz.get() : (jclass)env->FindClass("Invalid");
+	return jo ? (jclass)&((Object*)jo)->getClass() : (jclass)env->FindClass("Invalid");
 };
 jboolean IsInstanceOf(JNIEnv *, jobject jo, jclass cl) {
 	return jo && (jclass)((Object*)jo)->clazz.get() == cl;
