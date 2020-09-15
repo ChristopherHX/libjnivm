@@ -1438,8 +1438,8 @@ jint MonitorExit(JNIEnv *, jobject) {
 };
 jint GetJavaVM(JNIEnv * env, JavaVM ** vm) {
 	if(vm) {
-		std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
-		*vm = ((VM *)(env->functions->reserved1))->GetJavaVM();
+		std::lock_guard<std::mutex> lock(((ENV *)(env->functions->reserved0))->vm->mtx);
+		*vm = ((ENV *)(env->functions->reserved0))->vm->GetJavaVM();
 	}
 	return 0;
 };
