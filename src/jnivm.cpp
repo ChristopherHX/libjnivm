@@ -857,53 +857,59 @@ void Declare(JNIEnv *env, const char *signature) {
 	}
 }
 
-jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
-														const char *str1);
-
+template<bool isStatic>
 jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0,
-											const char *str1) {
-	if(!cl) {
-		Log::warn("JNIVM", "GetMethodID class is null");
-		return nullptr;
-	}				
-	// std::string &classname = cl ? ((Class *)cl)->name : "Unknown";
-	auto cur = (Class *)cl;
-	std::string sname = str0;
-	std::string ssig = str1;
-	// Rewrite init to Static external function
-	if(sname == "<init>") {
-		{
-			std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);
-			auto acbrack = ssig.find(')') + 1;
-			ssig.erase(acbrack, std::string::npos);
-			ssig.append("L");
-			ssig.append(cur->nativeprefix);
-			ssig.append(";");
-		}
-		return GetStaticMethodID(env, cl, str0, ssig.data());
-	}
-	std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);
-	auto ccl =
-			std::find_if(cur->methods.begin(), cur->methods.end(),
-									 [&sname, &ssig](std::shared_ptr<Method> &namesp) {
-										 return !namesp->native && namesp->name == sname && namesp->signature == ssig;
-									 });
+														const char *str1) {
 	std::shared_ptr<Method> next;
-	if (ccl != cur->methods.end()) {
-		next = *ccl;
+	std::string sname = str0 ? str0 : "";
+	std::string ssig = str1 ? str1 : "";
+	auto cur = (Class *)cl;
+	if(cl) {
+		// Rewrite init to Static external function
+		if(!isStatic && sname == "<init>") {
+			{
+				std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);
+				auto acbrack = ssig.find(')') + 1;
+				ssig.erase(acbrack, std::string::npos);
+				ssig.append("L");
+				ssig.append(cur->nativeprefix);
+				ssig.append(";");
+			}
+			return GetMethodID<true>(env, cl, str0, ssig.data());
+		}
+		else {
+			std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);
+			std::string &classname = ((Class *)cl)->name;
+			auto ccl =
+					std::find_if(cur->methods.begin(), cur->methods.end(),
+											[&sname, &ssig](std::shared_ptr<Method> &namesp) {
+												return namesp->_static == isStatic && !namesp->native && namesp->name == sname && namesp->signature == ssig;
+											});
+			if (ccl != cur->methods.end()) {
+				next = *ccl;
+			}
+		}
 	} else {
+#ifdef JNI_DEBUG
+		Log::warn("JNIVM", "Get%sMethodID class is null %s, %s", isStatic ? "Static" : "", str0, str1);
+#endif
+	}
+	if(!next) {
 		next = std::make_shared<Method>();
-		cur->methods.push_back(next);
-		next = cur->methods.back();
+		if(cur) {
+			cur->methods.push_back(next);
+		} else {
+			// For Debugging purposes without valid parent class
+			JNITypes<std::shared_ptr<Method>>::ToJNIType((ENV*)env->functions->reserved0, next);
+		}
 		next->name = std::move(sname);
 		next->signature = std::move(ssig);
+		next->_static = isStatic;
 #ifdef JNI_DEBUG
 		Declare(env, next->signature.data());
 #endif
 #ifdef JNI_TRACE
-		if (!(next->nativehandle)) {
-			Log::trace("JNIVM", "Unresolved symbol, Class: %s, Method: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, str0, str1);
-		}
+		Log::trace("JNIVM", "Unresolved symbol, Class: %s, %sMethod: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, isStatic ? "Static" : "", str0, str1);
 #endif
 	}
 	return (jmethodID)next.get();
@@ -1068,49 +1074,6 @@ template <class T> void SetField(JNIEnv *env, jobject obj, jfieldID id, T value)
 #endif
 	}
 }
-
-jmethodID GetStaticMethodID(JNIEnv *env, jclass cl, const char *str0,
-														const char *str1) {
-	std::shared_ptr<Method> next;
-	auto sname = str0;
-	auto ssig = str1;
-	auto cur = (Class *)cl;
-	if(cl) {
-		std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);
-		std::string &classname = ((Class *)cl)->name;
-		auto ccl =
-				std::find_if(cur->methods.begin(), cur->methods.end(),
-										[&sname, &ssig](std::shared_ptr<Method> &namesp) {
-											return !namesp->native && namesp->name == sname && namesp->signature == ssig;
-										});
-		if (ccl != cur->methods.end()) {
-			next = *ccl;
-		}
-	} else {
-#ifdef JNI_DEBUG
-		Log::warn("JNIVM", "GetStaticMethodID class is null %s, %s", str0, str1);
-#endif
-	}
-	if(!next) {
-		next = std::make_shared<Method>();
-		if(cur) {
-			cur->methods.push_back(next);
-		} else {
-			// For Debugging purposes of without valid class object
-			JNITypes<std::shared_ptr<Method>>::ToJNIType((ENV*)env->functions->reserved0, next);
-		}
-		next->name = std::move(sname);
-		next->signature = std::move(ssig);
-		next->_static = true;
-#ifdef JNI_DEBUG
-		Declare(env, next->signature.data());
-#endif
-#ifdef JNI_TRACE
-		Log::trace("JNIVM", "Unresolved symbol, Class: %s, StaticMethod: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, str0, str1);
-#endif
-	}
-	return (jmethodID)next.get();
-};
 
 template <class T>
 T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
@@ -1502,7 +1465,7 @@ VM::VM() : ninterface({
 			NewObjectA,
 			GetObjectClass,
 			IsInstanceOf,
-			GetMethodID,
+			GetMethodID<false>,
 			CallMethod<jobject>,
 			CallMethod<jobject>,
 			CallMethod<jobject>,
@@ -1582,7 +1545,7 @@ VM::VM() : ninterface({
 			SetField<jlong>,
 			SetField<jfloat>,
 			SetField<jdouble>,
-			GetStaticMethodID,
+			GetMethodID<true>,
 			CallStaticMethod<jobject>,
 			CallStaticMethod<jobject>,
 			CallStaticMethod<jobject>,
