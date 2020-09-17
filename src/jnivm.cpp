@@ -1299,7 +1299,13 @@ jsize GetArrayLength(JNIEnv *, jarray a) {
 	return a ? ((java::lang::Array*)a)->length : 0;
 };
 jobjectArray NewObjectArray(JNIEnv * env, jsize length, jclass c, jobject init) {
-	return (jobjectArray)JNITypes<std::shared_ptr<Array<Object>>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<Array<Object>>(new std::shared_ptr<Object>[length] {init ? (*(Object*)init).shared_from_this() : std::shared_ptr<Object>()}, length));
+	auto arr = std::make_shared<Array<Object>>(new std::shared_ptr<Object>[length], length);
+	if(init) {
+		for (jsize i = 0; i < length; i++) {
+			arr->data[i] = (*(Object*)init).shared_from_this();
+		}
+	}
+	return (jobjectArray)JNITypes<std::shared_ptr<Array<Object>>>::ToJNIType((ENV*)env->functions->reserved0, arr);
 };
 jobject GetObjectArrayElement(JNIEnv *, jobjectArray a, jsize i ) {
 	return (jobject)((Array<Object>*)a)->data[i].get();
