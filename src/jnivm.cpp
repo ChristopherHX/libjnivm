@@ -10,6 +10,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <codecvt>
+#include <stdexcept>
 #ifdef JNI_DEBUG
 #include <fstream>
 #endif
@@ -169,10 +170,7 @@ std::vector<jvalue> JValuesfromValist(va_list list, const char* signature) {
 	const char* end = signature + strlen(signature);
 	std::vector<jvalue> values;
 	if(signature[0] != '(') {
-		return {};
-	}
-	if(!strcmp("([B)[B", org)) {
-		int i = 0;
+		throw std::invalid_argument("Signature doesn't begin with '(' " + std::string(signature));
 	}
 	signature++;
 	for(size_t i = 0; *signature != ')' && signature != end; ++i) {
@@ -212,7 +210,7 @@ std::vector<jvalue> JValuesfromValist(va_list list, const char* signature) {
 		case 'L':
 				signature = std::find(signature, end, ';');
 				if(signature == end) {
-					throw 0;
+					throw std::invalid_argument("Signature missing ';' after 'L'");
 				}
 				values.back().l = va_arg(list, jobject);
 				break;
@@ -915,7 +913,7 @@ template<class T> T defaultVal() {
 	return {};
 }
 template<> void defaultVal<void>() {
-	}
+}
 
 template <class T>
 T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
