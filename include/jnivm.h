@@ -231,7 +231,7 @@ namespace jnivm {
         
     };
 
-    template<class w, bool isStatic, auto Func> struct GetterBase {
+    template<class w, bool isStatic, auto Func, auto getSig, auto handle> struct PropertyBase {
         template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
             auto ssig = w::Wrapper::GetJNIGetterSignature(env);
             auto ccl =
@@ -250,35 +250,17 @@ namespace jnivm {
                 cl->fields.push_back(field);
             }
             using Funk = std::function<typename Function<decltype(Func)>::Return(ENV* env, std::conditional_t<isStatic, Class, Object>* obj, const jvalue* values)>;
-            field->getnativehandle = std::shared_ptr<void>(new Funk(std::bind(Func, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
+            field.get()->*handle = std::shared_ptr<void>(new Funk(std::bind(Func, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
                 delete (Funk*)v;
             });
         }
     };
 
-    template<class w, bool isStatic, auto Func> struct SetterBase {
-        template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
-            auto ssig = w::Wrapper::GetJNISetterSignature(env);
-            auto ccl =
-                    std::find_if(cl->fields.begin(), cl->fields.end(),
-                                            [&id, &ssig](std::shared_ptr<Field> &f) {
-                                                return f->_static && f->name == id && f->type == ssig;
-                                            });
-            std::shared_ptr<Field> field;
-            if (ccl != cl->fields.end()) {
-                field = *ccl;
-            } else {
-                field = std::make_shared<Field>();
-                field->name = id;
-                field->_static = true;
-                field->type = std::move(ssig);
-                cl->fields.push_back(field);
-            }
-            using Funk = std::function<void(ENV* env, std::conditional_t<isStatic, Class, Object>* obj, const jvalue* values)>;
-            field->setnativehandle = std::shared_ptr<void>(new Funk(std::bind(Func, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
-                delete (Funk*)v;
-            });
-        }
+    template<class w, bool isStatic, auto Func> struct GetterBase : PropertyBase<w, isStatic, Func, w::Wrapper::GetJNIGetterSignature, &Field::getnativehandle> {
+
+    };
+
+    template<class w, bool isStatic, auto Func> struct SetterBase : PropertyBase<w, isStatic, Func, w::Wrapper::GetJNISetterSignature, &Field::setnativehandle> {
     };
 
     template<class w> struct HookManager<FunctionType::Getter, w> : GetterBase<w, true, &w::Wrapper::StaticGet> {
