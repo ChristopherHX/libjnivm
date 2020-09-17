@@ -1009,8 +1009,8 @@ T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, ...) 
 		return CallNonvirtualMethod<T>(env, obj, cl, id, param.list);
 };
 
-jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name,
-										const char *type) {
+template<bool isStatic>
+jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name, const char *type) {
 	std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);
 	std::string &classname = ((Class *)cl)->name;
 
@@ -1020,7 +1020,7 @@ jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name,
 	auto ccl =
 			std::find_if(cur->fields.begin(), cur->fields.end(),
 									 [&sname, &ssig](std::shared_ptr<Field> &namesp) {
-										 return namesp->name == sname && namesp->type == ssig;
+										 return namesp->_static == isStatic && namesp->name == sname && namesp->type == ssig;
 									 });
 	std::shared_ptr<Field> next;
 	if (ccl != cur->fields.end()) {
@@ -1030,11 +1030,12 @@ jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name,
 		cur->fields.emplace_back(next);
 		next->name = std::move(sname);
 		next->type = std::move(ssig);
+		next->_static = true;
 #ifdef JNI_DEBUG
 		Declare(env, next->type.data());
 #endif
 #ifdef JNI_TRACE
-		Log::trace("JNIVM", "Unresolved symbol, Class: %s, Field: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, name, type);
+		Log::trace("JNIVM", "Unresolved symbol, Class: %s, %sField: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, isStatic ? "Static" : "", name, type);
 #endif
 	}
 	return (jfieldID)next.get();
@@ -1115,37 +1116,6 @@ T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, ...) {
 		ScopedVaList param;
 		va_start(param.list, id);
 		return CallStaticMethod<T>(env, cl, id, param.list);
-};
-
-jfieldID GetStaticFieldID(JNIEnv *env, jclass cl, const char *name,
-													const char *type) {
-	std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);										
-	std::string &classname = ((Class *)cl)->name;
-	auto cur = (Class *)cl;
-	auto sname = name;
-	auto ssig = type;
-	auto ccl =
-			std::find_if(cur->fields.begin(), cur->fields.end(),
-									 [&sname, &ssig](std::shared_ptr<Field> &namesp) {
-										 return namesp->name == sname && namesp->type == ssig;
-									 });
-	std::shared_ptr<Field> next;
-	if (ccl != cur->fields.end()) {
-		next = *ccl;
-	} else {
-		next = std::make_shared<Field>();
-		cur->fields.push_back(next);
-		next->name = std::move(sname);
-		next->type = std::move(ssig);
-		next->_static = true;
-#ifdef JNI_DEBUG
-		Declare(env, next->type.data());
-#endif
-#ifdef JNI_TRACE
-		Log::trace("JNIVM", "Unresolved symbol, Class: %s, StaticField: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, name, type);
-#endif
-	}
-	return (jfieldID)next.get();
 };
 
 template <class T> T GetStaticField(JNIEnv *env, jclass cl, jfieldID id) {
@@ -1526,7 +1496,7 @@ VM::VM() : ninterface({
 			CallNonvirtualMethod<void>,
 			CallNonvirtualMethod<void>,
 			CallNonvirtualMethod<void>,
-			GetFieldID,
+			GetFieldID<false>,
 			GetField<jobject>,
 			GetField<jboolean>,
 			GetField<jbyte>,
@@ -1576,7 +1546,7 @@ VM::VM() : ninterface({
 			CallStaticMethod<void>,
 			CallStaticMethod<void>,
 			CallStaticMethod<void>,
-			GetStaticFieldID,
+			GetFieldID<true>,
 			GetStaticField<jobject>,
 			GetStaticField<jboolean>,
 			GetStaticField<jbyte>,
