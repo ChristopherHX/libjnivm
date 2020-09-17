@@ -936,7 +936,7 @@ namespace jnivm {
                 return JNITypes<typename Function::Return>::ToJNIType(env, *handle);
             }
             static std::string GetJNISetterSignature(ENV * env) {
-                return JNITypes<typename Function::template Parameter<1>>::GetJNISignature(env);
+                return JNITypes<typename Function::Return>::GetJNISignature(env);
             }
             static std::string GetJNIGetterSignature(ENV * env) {
                 return JNITypes<typename Function::Return>::GetJNISignature(env);
