@@ -233,7 +233,7 @@ namespace jnivm {
 
     template<class w, bool isStatic, auto Func, auto getSig, auto handle> struct PropertyBase {
         template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
-            auto ssig = w::Wrapper::GetJNIGetterSignature(env);
+            auto ssig = getSig(env);
             auto ccl =
                     std::find_if(cl->fields.begin(), cl->fields.end(),
                                             [&id, &ssig](std::shared_ptr<Field> &f) {
