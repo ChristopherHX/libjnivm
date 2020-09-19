@@ -15,7 +15,7 @@ const char * jnivm::SkipJNIType(const char *cur, const char *end) {
     case 'D':
             break;
     case '[':
-            cur = SkipJNIType(cur + 1, end);
+            cur = SkipJNIType(cur + 1, end) - 1;
             break;
     case 'L':
             cur = std::find(cur, end, ';');
