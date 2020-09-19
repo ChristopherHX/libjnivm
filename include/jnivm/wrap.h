@@ -161,7 +161,7 @@ namespace jnivm {
             __StaticPropWrapper(Funk handle) : handle(handle) {}
 
             constexpr void StaticSet(ENV * env, Class* clazz, const jvalue* values) {
-                *handle = ((typename Function::template Parameter<0>&)(values[0]));
+                *handle = (JNITypes<typename Function::Return>::JNICast(values[0]));
             }
             constexpr auto StaticGet(ENV * env, Class* clazz, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIType(env, *handle);
