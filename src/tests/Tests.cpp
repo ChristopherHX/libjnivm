@@ -36,32 +36,33 @@ TEST(JNIVM, BooleanFields) {
     ASSERT_FALSE(env->GetStaticBooleanField(ncl, field2));
 }
 
-// TEST(JNIVM, StringFields) {
-//     jnivm::VM vm;
-//     auto cl = vm.GetEnv()->GetClass<Class1>("Class1");
-//     cl->Hook(vm.GetEnv().get(), "s", &Class1::s);
-//     cl->Hook(vm.GetEnv().get(), "s2", &Class1::s2);
-//     auto env = vm.GetJNIEnv();
-//     auto obj = std::make_shared<Class1>();
-//     auto ncl = env->FindClass("Class1");
-//     auto field = env->GetFieldID((jclass)ncl, "s", "Z");
-//     auto str1 = env->NewString(U"Hello World", 11);
-//     auto str2 = env->NewStringUTF("Hello World");
-//     env->SetObjectField((jobject)obj.get(), field, str1);
-//     ASSERT_EQ(obj->s, str1);
-//     ASSERT_EQ(env->GetObjectField((jobject)obj.get(), field), str1);
-//     env->SetObjectField((jobject)obj.get(), field, false);
-//     ASSERT_EQ(obj->s);
-//     ASSERT_EQ(env->GetObjectField((jobject)obj.get(), field));
+TEST(JNIVM, StringFields) {
+    jnivm::VM vm;
+    auto cl = vm.GetEnv()->GetClass<Class1>("Class1");
+    cl->Hook(vm.GetEnv().get(), "s", &Class1::s);
+    cl->Hook(vm.GetEnv().get(), "s2", &Class1::s2);
+    auto env = vm.GetJNIEnv();
+    auto obj = std::make_shared<Class1>();
+    auto ncl = env->FindClass("Class1");
+    auto field = env->GetFieldID((jclass)ncl, "s", "Ljava/lang/String;");
+    static_assert(sizeof(jchar) == sizeof(char16_t));
+    auto str1 = env->NewString((jchar*) u"Hello World", 11);
+    auto str2 = env->NewStringUTF("Hello World");
+    env->SetObjectField((jobject)obj.get(), field, str1);
+    ASSERT_EQ((jstring)obj->s.get(), str1);
+    ASSERT_EQ(env->GetObjectField((jobject)obj.get(), field), str1);
+    env->SetObjectField((jobject)obj.get(), field, str2);
+    ASSERT_EQ((jstring)obj->s.get(), str2);
+    ASSERT_EQ(env->GetObjectField((jobject)obj.get(), field), str2);
 
-//     auto field2 = env->GetStaticFieldID((jclass)ncl, "s2", "Z");
-//     env->SetStaticObjectField(ncl, field2, true);
-//     ASSERT_TRUE(obj->s2);
-//     ASSERT_TRUE(env->GetStaticObjectField(ncl, field2));
-//     env->SetStaticObjectField(ncl, field2, false);
-//     ASSERT_FALSE(obj->s2);
-//     ASSERT_FALSE(env->GetStaticObjectField(ncl, field2));
-// }
+    auto field2 = env->GetStaticFieldID((jclass)ncl, "s2", "Ljava/lang/String;");
+    env->SetStaticObjectField(ncl, field2, str1);
+    ASSERT_EQ((jstring)obj->s2.get(), str1);
+    ASSERT_EQ(env->GetStaticObjectField(ncl, field2), str1);
+    env->SetStaticObjectField(ncl, field2, str2);
+    ASSERT_EQ((jstring)obj->s2.get(), str2);
+    ASSERT_EQ(env->GetStaticObjectField(ncl, field2), str2);
+}
 
 TEST(JNIVM, Strings) {
     jnivm::VM vm;
