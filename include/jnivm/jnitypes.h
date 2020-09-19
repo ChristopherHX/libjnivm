@@ -174,7 +174,7 @@ template<class T> std::string jnivm::JNITypes<std::shared_ptr<T>>::GetJNISignatu
             // return std::string("L") + T::name + ";"; 
             return "L" + T::getClassName() + ";"; 
         } else {
-            return "L;";
+            throw std::runtime_error("Unknown class");
         }
     }
 }
