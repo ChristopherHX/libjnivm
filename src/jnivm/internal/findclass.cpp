@@ -80,6 +80,7 @@ jclass jnivm::InternalFindClass(JNIEnv *env, const char *name) {
 		curc = std::make_shared<Class>();
 		const char * lastslash = strrchr(name, '/');
 		curc->name = lastslash != nullptr ? lastslash + 1 : name;
+		curc->nativeprefix = name;
 		vm->classes[name] = curc;
 	}
 #endif
