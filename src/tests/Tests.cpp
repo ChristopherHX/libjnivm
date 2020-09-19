@@ -114,3 +114,27 @@ TEST(JNIVM, jbooleanArray) {
         ASSERT_TRUE(el);
     }
 }
+
+#include <jnivm/internal/jValuesfromValist.h>
+#include <limits>
+
+std::vector<jvalue> jValuesfromValistTestHelper(const char * sign, ...) {
+    va_list l;
+    va_start(l, sign);
+    auto ret = jnivm::JValuesfromValist(l, sign);
+    va_end(l);
+    return std::move(ret);
+}
+
+TEST(JNIVM, jValuesfromValistPrimitives) {
+    auto v1 = jValuesfromValistTestHelper("(ZIJIZBSLjava/lang/String;)Z", 1, std::numeric_limits<jint>::max(), std::numeric_limits<jlong>::max() / 2, std::numeric_limits<jint>::min(), 0, 12, 34, (jstring) 0x24455464);
+    ASSERT_EQ(v1.size(), 8);
+    ASSERT_EQ(v1[0].z, 1);
+    ASSERT_EQ(v1[1].i, std::numeric_limits<jint>::max());
+    ASSERT_EQ(v1[2].j, std::numeric_limits<jlong>::max() / 2);
+    ASSERT_EQ(v1[3].i, std::numeric_limits<jint>::min());
+    ASSERT_EQ(v1[4].z, 0);
+    ASSERT_EQ(v1[5].b, 12);
+    ASSERT_EQ(v1[6].s, 34);
+    ASSERT_EQ(v1[7].l, (jstring) 0x24455464);
+}
