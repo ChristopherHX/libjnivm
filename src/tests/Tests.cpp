@@ -139,3 +139,21 @@ TEST(JNIVM, jValuesfromValistPrimitives) {
     ASSERT_EQ(v1[6].s, 34);
     ASSERT_EQ(v1[7].l, (jstring) 0x24455464);
 }
+
+#include <jnivm/internal/skipJNIType.h>
+
+TEST(JNIVM, skipJNITypeTest) {
+    const char type[] = "[[[[[Ljava/lang/string;Ljava/lang/object;ZI[CJ";
+    auto res = jnivm::SkipJNIType(type, type + sizeof(type) - 1);
+    ASSERT_EQ(res, type + 23);
+    res = jnivm::SkipJNIType(res, type + sizeof(type) - 1);
+    ASSERT_EQ(res, type + 41);
+    res = jnivm::SkipJNIType(res, type + sizeof(type) - 1);
+    ASSERT_EQ(res, type + 42);
+    res = jnivm::SkipJNIType(res, type + sizeof(type) - 1);
+    ASSERT_EQ(res, type + 43);
+    res = jnivm::SkipJNIType(res, type + sizeof(type) - 1);
+    ASSERT_EQ(res, type + 45);
+    res = jnivm::SkipJNIType(res, type + sizeof(type) - 1);
+    ASSERT_EQ(res, type + 46);
+}
