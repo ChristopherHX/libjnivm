@@ -11,8 +11,10 @@
 namespace jnivm {
     class Class;
 
-    template<class T> struct JNITypes {
-        using Array = jarray;
+    template<class T> struct JNITypes : JNITypes<std::shared_ptr<T>> {
+        JNITypes() {
+            static_assert(std::is_base_of_v<Object, T> || std::is_same_v<Object, Object>, "You have to extend jnivm::Object");
+        }
     };
 
     template<class T, class=void> struct hasname : std::false_type{
@@ -24,6 +26,10 @@ namespace jnivm {
     };
 
     template<class T> struct JNITypes<std::shared_ptr<T>> {
+        JNITypes() {
+            static_assert(std::is_base_of_v<Object, T> || std::is_same_v<Object, Object>, "You have to extend jnivm::Object");
+        }
+
         using Array = jobjectArray;
 
         static std::string GetJNISignature(ENV * env);
