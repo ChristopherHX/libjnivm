@@ -577,8 +577,8 @@ jobjectArray NewObjectArray(JNIEnv * env, jsize length, jclass c, jobject init) 
 	}
 	return (jobjectArray)JNITypes<std::shared_ptr<Array<Object>>>::ToJNIType((ENV*)env->functions->reserved0, arr);
 };
-jobject GetObjectArrayElement(JNIEnv *, jobjectArray a, jsize i ) {
-	return (jobject)((Array<Object>*)a)->data[i].get();
+jobject GetObjectArrayElement(JNIEnv *env, jobjectArray a, jsize i ) {
+	return JNITypes<std::shared_ptr<Object>>::ToJNIType((ENV*)env->functions->reserved0, ((Array<Object>*)a)->data[i]);
 };
 void SetObjectArrayElement(JNIEnv *, jobjectArray a, jsize i, jobject v) {
 	((Array<Object>*)a)->data[i] = v ? (*(java::lang::Object*)v).shared_from_this() : nullptr;
