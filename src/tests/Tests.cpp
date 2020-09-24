@@ -157,3 +157,55 @@ TEST(JNIVM, skipJNITypeTest) {
     res = jnivm::SkipJNIType(res, type + sizeof(type) - 1);
     ASSERT_EQ(res, type + 46);
 }
+
+class Class2 : public jnivm::Object {
+public:
+    static std::shared_ptr<Class2> test() {
+        return std::make_shared<Class2>();
+    }
+    static std::shared_ptr<jnivm::Array<Class2>> test2() {
+        auto array = std::make_shared<jnivm::Array<Class2>>(1);
+        array->data[0] = std::make_shared<Class2>();
+        return array;
+    }
+};
+
+// TODO Add asserts
+// If DeleteLocalRef logges an error it should fail
+
+TEST(JNIVM, returnedrefs) {
+    jnivm::VM vm;
+    auto cl = vm.GetEnv()->GetClass<Class2>("Class2");
+    cl->Hook(vm.GetEnv().get(), "test", &Class2::test);
+    auto env = vm.GetJNIEnv();
+    env->PushLocalFrame(32);
+    jclass c = env->FindClass("Class2");
+    jmethodID m = env->GetStaticMethodID(c, "test", "()LClass2;");
+    env->PushLocalFrame(32);
+    jobject ref = env->CallStaticObjectMethod(c, m);
+    env->DeleteLocalRef(ref);
+    env->PopLocalFrame(nullptr);
+    env->PopLocalFrame(nullptr);
+}
+
+// TODO Add asserts
+// If DeleteLocalRef logges an error it should fail
+
+TEST(JNIVM, returnedarrayrefs) {
+    jnivm::VM vm;
+    auto cl = vm.GetEnv()->GetClass<Class2>("Class2");
+    cl->Hook(vm.GetEnv().get(), "test2", &Class2::test2);
+    auto env = vm.GetJNIEnv();
+    env->PushLocalFrame(32);
+    jclass c = env->FindClass("Class2");
+    jmethodID m = env->GetStaticMethodID(c, "test2", "()[LClass2;");
+    env->PushLocalFrame(32);
+    jobject ref = env->CallStaticObjectMethod(c, m);
+    env->PushLocalFrame(32);
+    jobject ref2 = env->GetObjectArrayElement((jobjectArray)ref, 0);
+    env->DeleteLocalRef(ref2);
+    env->PopLocalFrame(nullptr);
+    env->DeleteLocalRef(ref);
+    env->PopLocalFrame(nullptr);
+    env->PopLocalFrame(nullptr);
+}
