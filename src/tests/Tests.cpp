@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 #include <jnivm.h>
 
-struct Class1 {
+struct Class1 : public jnivm::Object {
     jboolean b;
     static jboolean b2;
     std::shared_ptr<jnivm::String> s;
