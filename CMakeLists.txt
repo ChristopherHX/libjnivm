@@ -40,6 +40,5 @@ if(JNIVM_ENABLE_TESTS)
     FetchContent_MakeAvailable(googletest)
 
     add_executable(JNIVMTests src/tests/Tests.cpp)
-    # target_link_libraries(JNIVMTests cx gtest gtest_main jnivm)
-    target_include_directories(JNIVMTests PUBLIC ${cx_SOURCE_DIR})
+    target_link_libraries(JNIVMTests gtest gtest_main jnivm)
 endif()
