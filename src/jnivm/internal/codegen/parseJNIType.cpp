@@ -3,7 +3,7 @@
 #include <cstring>
 #include <regex>
 
-const char *ParseJNIType(const char *cur, const char *end, std::string &type) {
+const char *jnivm::ParseJNIType(const char *cur, const char *end, std::string &type) {
 	auto last = cur;
 	switch (*cur) {
 	case 'V':
