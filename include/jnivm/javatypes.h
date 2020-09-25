@@ -5,14 +5,16 @@
 #include "class.h"
 #include "bytebuffer.h"
 
-namespace java {
-    namespace lang {
-        using Array = jnivm::Array<void>;
-        using Object = jnivm::Object;
-        using String = jnivm::String;
-        using Class = jnivm::Class;
-    }
-    namespace nio {
-        using ByteBuffer = jnivm::ByteBuffer;
+namespace jnivm {
+    namespace java {
+        namespace lang {
+            using Array = jnivm::Array<void>;
+            using Object = jnivm::Object;
+            using String = jnivm::String;
+            using Class = jnivm::Class;
+        }
+        namespace nio {
+            using ByteBuffer = jnivm::ByteBuffer;
+        }
     }
 }
