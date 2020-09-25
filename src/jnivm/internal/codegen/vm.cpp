@@ -24,7 +24,7 @@ void VM::GenerateClassDump(const char *path) {
 	   << GenerateHeader()
 	   << GenerateStubs();
 	if(!JNIVM_FAKE_JNI_SYNTAX) {
-		of << "InitJNIBinding(jnivm::ENV* env) {\n"
+		of << "void InitJNIBinding(jnivm::ENV* env) {\n"
 		   << GenerateJNIBinding()
 		   << "\n}";
 	} else {
