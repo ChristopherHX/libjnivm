@@ -1,5 +1,6 @@
 #pragma once
 #include "../jnivm.h"
+#include <functional>
 
 namespace FakeJni {
     using Jvm = jnivm::VM;
@@ -85,6 +86,7 @@ namespace FakeJni {
     //     }
     // };
 
+#ifdef __clang__
     template<auto T> struct Field {
         using Type = decltype(T);
         static constexpr Type handle = T;
@@ -93,6 +95,7 @@ namespace FakeJni {
         using Type = decltype(T);
         static constexpr Type handle = T;
     };
+#endif
     template<class U, class... T> struct Constructor {
         using Type = U;
         using args = std::tuple<T...>;

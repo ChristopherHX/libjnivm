@@ -7,13 +7,14 @@
 #include "vm.h"
 #include "env.h"
 #include "array.h"
+#include <type_traits>
 
 namespace jnivm {
     class Class;
 
     template<class T> struct JNITypes : JNITypes<std::shared_ptr<T>> {
         JNITypes() {
-            static_assert(std::is_base_of_v<Object, T> || std::is_same_v<Object, Object>, "You have to extend jnivm::Object");
+            static_assert(std::is_base_of<Object, T>::value || std::is_same_v<Object, Object>, "You have to extend jnivm::Object");
         }
     };
 
@@ -21,13 +22,15 @@ namespace jnivm {
 
     };
 
+#ifdef __clang__
     template<class T> struct hasname<T, std::void_t<decltype(T::getClassName())>> : std::true_type{
 
     };
+#endif
 
     template<class T> struct JNITypes<std::shared_ptr<T>> {
         JNITypes() {
-            static_assert(std::is_base_of_v<Object, T> || std::is_same_v<Object, Object>, "You have to extend jnivm::Object");
+            static_assert(std::is_base_of<Object, T>::value || std::is_same_v<Object, Object>, "You have to extend jnivm::Object");
         }
 
         using Array = jobjectArray;

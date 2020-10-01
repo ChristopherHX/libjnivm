@@ -4,9 +4,10 @@
 #include "method.h"
 #include "field.h"
 #include <algorithm>
+#include <functional>
 
 namespace jnivm {
-    template<class w, bool isStatic, auto Func> struct FunctionBase {
+    template<class w, bool isStatic, class Func_t, Func_t Func> struct FunctionBase {
         template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
             auto ssig = w::Wrapper::GetJNIInvokeSignature(env);
             auto ccl =
@@ -31,7 +32,7 @@ namespace jnivm {
         }
     };
 
-    template<class w> struct HookManager<FunctionType::None, w> : FunctionBase<w, true, &w::Wrapper::StaticInvoke> {
+    template<class w> struct HookManager<FunctionType::None, w> : FunctionBase<w, true, decltype(&w::Wrapper::StaticInvoke), &w::Wrapper::StaticInvoke> {
         
     };
 
@@ -39,11 +40,11 @@ namespace jnivm {
 
     };
 
-    template<class w> struct HookManager<FunctionType::Instance, w> : FunctionBase<w, false, &w::Wrapper::InstanceInvoke> {
+    template<class w> struct HookManager<FunctionType::Instance, w> : FunctionBase<w, false, decltype(&w::Wrapper::InstanceInvoke), &w::Wrapper::InstanceInvoke> {
         
     };
 
-    template<class w, bool isStatic, auto Func, auto getSig, auto handle> struct PropertyBase {
+    template<class w, bool isStatic, class Func_t, Func_t Func, std::string(*getSig)(ENV*), class handle_t, handle_t handle> struct PropertyBase {
         template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
             auto ssig = getSig(env);
             auto ccl =
@@ -68,26 +69,26 @@ namespace jnivm {
         }
     };
 
-    template<class w, bool isStatic, auto Func> struct GetterBase : PropertyBase<w, isStatic, Func, w::Wrapper::GetJNIGetterSignature, &Field::getnativehandle> {
+    template<class w, bool isStatic, class Func_t, Func_t Func> struct GetterBase : PropertyBase<w, isStatic, Func_t, Func, w::Wrapper::GetJNIGetterSignature, decltype(&Field::getnativehandle), &Field::getnativehandle> {
 
     };
 
-    template<class w, bool isStatic, auto Func> struct SetterBase : PropertyBase<w, isStatic, Func, w::Wrapper::GetJNISetterSignature, &Field::setnativehandle> {
+    template<class w, bool isStatic, class Func_t, Func_t Func> struct SetterBase : PropertyBase<w, isStatic, Func_t, Func, w::Wrapper::GetJNISetterSignature, decltype(&Field::setnativehandle), &Field::setnativehandle> {
     };
 
-    template<class w> struct HookManager<FunctionType::Getter, w> : GetterBase<w, true, &w::Wrapper::StaticGet> {
+    template<class w> struct HookManager<FunctionType::Getter, w> : GetterBase<w, true, decltype(&w::Wrapper::StaticGet), &w::Wrapper::StaticGet> {
 
     };
 
-    template<class w> struct HookManager<FunctionType::Setter, w> : SetterBase<w, true, &w::Wrapper::StaticSet> {
+    template<class w> struct HookManager<FunctionType::Setter, w> : SetterBase<w, true, decltype(&w::Wrapper::StaticSet), &w::Wrapper::StaticSet> {
         
     };
 
-    template<class w> struct HookManager<FunctionType::InstanceGetter, w> : GetterBase<w, false, &w::Wrapper::InstanceGet> {
+    template<class w> struct HookManager<FunctionType::InstanceGetter, w> : GetterBase<w, false, decltype(&w::Wrapper::InstanceGet), &w::Wrapper::InstanceGet> {
 
     };
 
-    template<class w> struct HookManager<FunctionType::InstanceSetter, w> : SetterBase<w, false, &w::Wrapper::InstanceSet> {
+    template<class w> struct HookManager<FunctionType::InstanceSetter, w> : SetterBase<w, false, decltype(&w::Wrapper::InstanceSet), &w::Wrapper::InstanceSet> {
         
     };
 
