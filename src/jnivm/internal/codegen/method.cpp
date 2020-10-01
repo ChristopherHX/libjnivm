@@ -151,7 +151,7 @@ std::string Method::GenerateJNIBinding(std::string scope, const std::string &cna
 				ss << ", " << parameters[i] << " arg" << i;
 			}
 			ss << ") {";
-			ss << "   return std::make_shared<" << scope << ">(env, cl";
+			ss << "   return std::make_shared<" << cl << ">(env, cl";
 			for (int i = 0; i < parameters.size(); i++) {
 				ss << ", arg" << i;
 			}
