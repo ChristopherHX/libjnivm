@@ -65,6 +65,8 @@ namespace jnivm {
         std::string GenerateHeader();
         // Default Stub implementation of all declared members
         std::string GenerateStubs();
+        // Register the previous class types to the java native interface
+        std::string GenerateJNIPreDeclaration();
         // Register the previous classes to the java native interface
         std::string GenerateJNIBinding();
         // Dumps all previous functions at once, into a single file

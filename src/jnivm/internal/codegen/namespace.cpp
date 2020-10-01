@@ -60,6 +60,20 @@ std::string Namespace::GenerateStubs(std::string scope) {
 	return ss.str();
 }
 
+std::string jnivm::Namespace::GenerateJNIPreDeclaration(std::string scope) {
+	std::ostringstream ss;
+	if (name.length()) {
+		scope += "::" + name;
+	}
+	for (auto &cl : classes) {
+		ss << "env->GetClass<jnivm::" << std::regex_replace(cl->nativeprefix, std::regex("/"), "::") << ">(\"" << cl->nativeprefix << "\");\n";
+	}
+	for (auto &np : namespaces) {
+		ss << np->GenerateJNIPreDeclaration(scope);
+	}
+	return ss.str();
+}
+
 std::string Namespace::GenerateJNIBinding(std::string scope) {
 	std::ostringstream ss;
 	if (name.length()) {

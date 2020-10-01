@@ -14,6 +14,7 @@ namespace jnivm {
         std::string GenerateHeader(std::string scope);
         std::string GeneratePreDeclaration();
         std::string GenerateStubs(std::string scope);
+        std::string GenerateJNIPreDeclaration(std::string scope);
         std::string GenerateJNIBinding(std::string scope);
     };
 }
