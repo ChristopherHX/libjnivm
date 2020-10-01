@@ -1,6 +1,7 @@
 #include <jnivm/internal/jValuesfromValist.h>
 #include <jnivm/internal/skipJNIType.h>
 #include <cstring>
+#include <string>
 #include <stdexcept>
 #include <algorithm>
 
