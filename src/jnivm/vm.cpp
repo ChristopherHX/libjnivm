@@ -278,6 +278,7 @@ T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 #ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
 #endif
+#ifdef JNI_RETURN_NON_ZERO
 		if constexpr(std::is_same_v<T, jobject>) {
 			if(!strcmp(mid->signature.data() + mid->signature.find_last_of(")") + 1, "Ljava/lang/String;")) {
 			auto d = mid->name.data();
@@ -289,6 +290,7 @@ T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 				return (jobject)JNITypes<std::shared_ptr<Object>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<Object>());
 			}
 		}
+#endif
 		return defaultVal<T>();
 	}
 };
@@ -430,7 +432,8 @@ T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
 #ifdef JNI_TRACE
 		Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
 #endif
-if constexpr(std::is_same_v<T, jobject>) {
+#ifdef JNI_RETURN_NON_ZERO
+		if constexpr(std::is_same_v<T, jobject>) {
 			if(!strcmp(mid->signature.data() + mid->signature.find_last_of(")") + 1, "Ljava/lang/String;")) {
 			auto d = mid->name.data();
 			return env->NewStringUTF("");
@@ -441,6 +444,7 @@ if constexpr(std::is_same_v<T, jobject>) {
 				return (jobject)JNITypes<std::shared_ptr<Object>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<Object>());
 			}
 		}
+#endif
 		return defaultVal<T>();
 	}
 };

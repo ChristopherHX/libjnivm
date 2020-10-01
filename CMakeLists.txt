@@ -24,6 +24,10 @@ if(JNIVM_ENABLE_DEBUG)
     target_compile_definitions(jnivm PUBLIC JNI_DEBUG)
     target_sources(jnivm PRIVATE src/jnivm/internal/codegen/class.cpp src/jnivm/internal/codegen/field.cpp src/jnivm/internal/codegen/method.cpp src/jnivm/internal/codegen/namespace.cpp src/jnivm/internal/codegen/parseJNIType.cpp src/jnivm/internal/codegen/vm.cpp)
 endif()
+set(JNIVM_ENABLE_RETURN_NON_ZERO OFF CACHE STRING "Unsafe return a nonzero value of non primitive jni types creates Objects (Experimental)")
+if(JNIVM_ENABLE_RETURN_NON_ZERO)
+    target_compile_definitions(jnivm PUBLIC JNI_RETURN_NON_ZERO)
+endif()
 
 set(JNIVM_ENABLE_TESTS OFF CACHE STRING "Enable jnivm Tests via googletest")
 
