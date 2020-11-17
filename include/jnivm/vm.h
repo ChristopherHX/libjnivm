@@ -35,7 +35,9 @@ namespace jnivm {
         void attachLibrary(const std::string &rpath, const std::string &options, LibraryOptions loptions) {
             auto handle = loptions.dlopen(rpath.c_str(), 0);
             auto JNI_OnLoad = (jint (*)(JavaVM* vm, void* reserved))loptions.dlsym(handle, "JNI_OnLoad");
-            JNI_OnLoad(&javaVM, nullptr);
+            if (JNI_OnLoad) {
+                JNI_OnLoad(&javaVM, nullptr);
+            }
         }
         std::mutex mtx;
         // Stores all global references
