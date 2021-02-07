@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 2.6)
 
 project(jnivm LANGUAGES CXX)
 
-add_library(jnivm src/jnivm.cpp src/fake-jni/fake-jni.cpp  src/jnivm/internal/findclass.cpp src/jnivm/internal/jValuesfromValist.cpp src/jnivm/internal/scopedVaList.cpp src/jnivm/internal/skipJNIType.cpp src/jnivm/env.cpp src/jnivm/method.cpp src/jnivm/vm.cpp include/jni.h include/jnivm.h)
+add_library(jnivm src/fake-jni/fake-jni.cpp  src/jnivm/internal/findclass.cpp src/jnivm/internal/jValuesfromValist.cpp src/jnivm/internal/scopedVaList.cpp src/jnivm/internal/skipJNIType.cpp src/jnivm/env.cpp src/jnivm/method.cpp src/jnivm/vm.cpp include/jni.h include/jnivm.h)
 target_include_directories(jnivm PUBLIC include/)
 target_link_libraries(jnivm logger ${CMAKE_DL_LIBS})
 option(JNIVM_ENABLE_TRACE "enable jnivm trace api calls" OFF)
