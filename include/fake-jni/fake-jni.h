@@ -27,18 +27,10 @@ namespace FakeJni {
     using JLongArray = jnivm::Array<JLong>;
     using JDoubleArray = jnivm::Array<JDouble>;
 
-    // template<class T> using JArray = jnivm::Array<T>;
-
-
     struct LocalFrame : public JniEnvContext {
         LocalFrame(int size = 0) : JniEnvContext() {}
         LocalFrame(const Jvm& vm, int size = 0) : JniEnvContext(vm) {}
     };
-
-    
-    // struct Data {
-
-    // };
 
     class JniEnv {
     public:
@@ -46,45 +38,6 @@ namespace FakeJni {
             return JniEnvContext::env;
         }
     };
-
-    // template<class> class Field {
-
-    // };
-
-    // template<class R, R*v> class Field<v> {
-    // };
-
-    // template<auto T> using Field = Data;
-    // template<auto T> using Function = Data;
-    // template<class... T> using Constructor = Data;
-
-    // struct Descriptor {
-    //     Descriptor(Data && d, const char*) {
-
-    //     }
-    //     Descriptor(Data && d) {
-
-    //     }
-    // };
-
-    // template<auto T> struct Field {
-    //     operator Data&&() {
-            
-    //     }
-    // };
-
-    // template<auto T> using Field = Data;
-    // template<auto T> using Function = Data;
-    // template<class... T> using Constructor = Data<;
-
-    // struct Descriptor {
-    //     Descriptor(Data && d, const char*) {
-
-    //     }
-    //     Descriptor(Data && d) {
-
-    //     }
-    // };
 
 #ifdef __clang__
     template<auto T> struct Field {
@@ -126,7 +79,6 @@ namespace jnivm {
     }
 
 }
-//std::vector<std::shared_ptr<jnivm::Method>>
 #define DEFINE_CLASS_NAME(cname, ...) constexpr static const char name[] = cname ;\
                                 static std::string getClassName() {\
                                     return name;\
