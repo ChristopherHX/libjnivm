@@ -77,6 +77,31 @@ TEST(JNIVM, Strings) {
     ASSERT_FALSE(memcmp(samplestr2 + 1, ret, (len - 2) * sizeof(jchar)));
 }
 
+TEST(JNIVM, Strings2) {
+    jnivm::VM vm;
+    auto env = vm.GetJNIEnv();
+    const char samplestr[] = u8"Hello World";
+    const char16_t samplestr2[] = u"Hello World";
+    auto jstr = env->NewString((jchar*)samplestr2, sizeof(samplestr2) / sizeof(char16_t) - 1);
+    auto len = env->GetStringLength(jstr);
+    ASSERT_EQ(sizeof(samplestr2) / sizeof(char16_t) - 1, len);
+    jchar ret[sizeof(samplestr2) / sizeof(char16_t) - 3];
+    env->GetStringRegion(jstr, 1, len - 2, ret);
+    ASSERT_FALSE(memcmp(samplestr2 + 1, ret, (len - 2) * sizeof(jchar)));
+}
+
+TEST(JNIVM, ModifiedUtf8Null) {
+    jnivm::VM vm;
+    auto env = vm.GetJNIEnv();
+    const char16_t samplestr[] = u"String with \0 Nullbyte";
+    auto js = env->NewString((jchar*)samplestr, sizeof(samplestr) / sizeof(char16_t));
+    char buf[3] = { 0 };
+    env->GetStringUTFRegion(js, 12, 1, buf);
+    ASSERT_EQ(buf[0], '\300');
+    ASSERT_EQ(buf[1], '\200');
+    ASSERT_EQ(buf[2], '\0');
+}
+
 TEST(JNIVM, ObjectArray) {
     jnivm::VM vm;
     auto env = vm.GetJNIEnv();
