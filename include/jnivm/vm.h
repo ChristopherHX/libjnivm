@@ -28,10 +28,9 @@ namespace jnivm {
 #ifdef JNI_DEBUG
         // For Generating Stub header files out of captured jni usage
         Namespace np;
-#else
+#endif
         // Map of all classes hooked or implicitly declared
         std::unordered_map<std::string, std::shared_ptr<Class>> classes;
-#endif
         void attachLibrary(const std::string &rpath, const std::string &options, LibraryOptions loptions) {
             auto handle = loptions.dlopen(rpath.c_str(), 0);
             auto JNI_OnLoad = (jint (*)(JavaVM* vm, void* reserved))loptions.dlsym(handle, "JNI_OnLoad");
