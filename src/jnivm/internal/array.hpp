@@ -8,6 +8,8 @@ namespace jnivm {
     };
     jobjectArray NewObjectArray(JNIEnv * env, jsize length, jclass c, jobject init) {
         auto arr = std::make_shared<Array<Object>>(new std::shared_ptr<Object>[length], length);
+        auto cl = (Class*)FindClass(env, (std::string("[L") + ((Class*)c)->nativeprefix + ";").data());
+        arr->clazz = std::shared_ptr<Class>(cl->shared_from_this(), cl);
         if(init) {
             for (jsize i = 0; i < length; i++) {
                 arr->data[i] = (*(Object*)init).shared_from_this();
@@ -23,7 +25,10 @@ namespace jnivm {
     };
 
     template <class T> typename JNITypes<T>::Array NewArray(JNIEnv * env, jsize length) {
-        return (typename JNITypes<T>::Array)JNITypes<std::shared_ptr<Array<T>>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<Array<T>>(new T[length] {0}, length));
+        auto arr = std::make_shared<Array<T>>(new T[length] {0}, length);
+        auto cl = (Class*)FindClass(env, (std::string("[") + JNITypes<T>::GetJNISignature((ENV*)env->functions->reserved0)).data());
+        arr->clazz = std::shared_ptr<Class>(cl->shared_from_this(), cl);
+        return (typename JNITypes<T>::Array)JNITypes<std::shared_ptr<Array<T>>>::ToJNIType((ENV*)env->functions->reserved0, arr);
     };
 
     template <class T>
