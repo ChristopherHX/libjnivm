@@ -90,3 +90,15 @@ jclass jnivm::InternalFindClass(JNIEnv *env, const char *name) {
 	// curc->nativeprefix = std::move(prefix);
 	return (jclass)JNITypes<std::shared_ptr<Class>>::ToJNIType(std::addressof(nenv), curc);
 }
+
+void jnivm::Declare(JNIEnv *env, const char *signature) {
+	for (const char *cur = signature, *end = cur + strlen(cur); cur != end;
+			cur++) {
+		if (*cur == 'L') {
+			auto cend = std::find(cur, end, ';');
+			std::string classpath(cur + 1, cend);
+			InternalFindClass(env, classpath.data());
+			cur = cend;
+		}
+	}
+}

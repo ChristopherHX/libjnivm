@@ -7,6 +7,7 @@
 #include <jnivm/internal/findclass.h>
 #include <jnivm/internal/jValuesfromValist.h>
 #include <jnivm/internal/codegen/namespace.h>
+#include "internal/vm.hpp"
 #include <locale>
 #include <sstream>
 #include <climits>
@@ -27,7 +28,7 @@ jclass DefineClass(JNIEnv *, const char *, jobject, const jbyte *, jsize) {
 	return 0;
 };
 
-jclass FindClass(JNIEnv *env, const char *name) {
+jclass jnivm::FindClass(JNIEnv *env, const char *name) {
 	// std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
 	auto&& nenv = *(ENV*)env->functions->reserved0;
 	std::lock_guard<std::mutex> lock(nenv.vm->mtx);
@@ -274,7 +275,6 @@ template<class ...jnitypes> constexpr JNINativeInterface GetInterface() {
 		ToReflectedMethod,
 		GetSuperclass,
 		IsAssignableFrom,
-		/* spec doesn't show jboolean parameter */
 		ToReflectedField,
 		Throw,
 		ThrowNew,
@@ -341,7 +341,6 @@ template<class ...jnitypes> constexpr JNINativeInterface GetInterface() {
 		ReleaseStringChars,
 		NewStringUTF,
 		GetStringUTFLength,
-		/* JNI spec says this returns const jbyte*, but that's inconsistent */
 		GetStringUTFChars,
 		ReleaseStringUTFChars,
 		GetArrayLength,
@@ -352,7 +351,6 @@ template<class ...jnitypes> constexpr JNINativeInterface GetInterface() {
 		GetArrayElements<jnitypes>...,
 		ReleaseArrayElements<jnitypes>...,
 		GetArrayRegion<jnitypes>...,
-		/* spec shows these without const; some jni.h do, some don't */
 		SetArrayRegion<jnitypes>...,
 		RegisterNatives,
 		UnregisterNatives,
@@ -371,7 +369,6 @@ template<class ...jnitypes> constexpr JNINativeInterface GetInterface() {
 		NewDirectByteBuffer,
 		GetDirectBufferAddress,
 		GetDirectBufferCapacity,
-		/* added in JNI 1.6 */
 		GetObjectRefType,
 	};
 }

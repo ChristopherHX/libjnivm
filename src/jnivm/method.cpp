@@ -9,6 +9,11 @@ Method * Class::getMethod(const char *sig, const char *name) {
             if(m->signature == sig) {
                 return m.get();
             }
+#ifdef JNI_TRACE
+			else {
+				
+			}
+#endif
         }
     }
     return nullptr;
@@ -17,6 +22,9 @@ Method * Class::getMethod(const char *sig, const char *name) {
 #include <jnivm/internal/scopedVaList.h>
 
 jvalue Method::jinvoke(const jnivm::ENV &env, jclass cl, ...) {
+	if(signature.empty()) {
+		throw std::runtime_error("jni signature is empty");
+	}
 	ScopedVaList list;
 	va_start(list.list, cl);
 	auto type = signature[signature.find_last_of(')') + 1];
@@ -47,6 +55,9 @@ jvalue Method::jinvoke(const jnivm::ENV &env, jclass cl, ...) {
 }
 
 jvalue Method::jinvoke(const jnivm::ENV &env, jobject obj, ...) {
+	if(signature.empty()) {
+		throw std::runtime_error("jni signature is empty");
+	}
 	ScopedVaList list;
 	va_start(list.list, obj);
 	auto type = signature[signature.find_last_of(')') + 1];
