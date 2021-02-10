@@ -106,10 +106,7 @@ T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 template <class T>
 T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
     if(id) {
-#ifdef JNI_TRACE
-        Log::debug("JNIVM", "Known Function %s,  %s", ((Method *)id)->name.data(), ((Method *)id)->signature.data());
-#endif
-            return CallMethod<T>(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
+        return CallMethod<T>(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
     } else {
 #ifdef JNI_TRACE
         Log::debug("JNIVM", "CallMethod Method ID is null");
