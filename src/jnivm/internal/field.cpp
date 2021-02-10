@@ -63,7 +63,10 @@ template <class T> void jnivm::SetField(JNIEnv *env, jobject obj, jfieldID id, T
         Log::warn("JNIVM", "SetField field is null");
 #endif
     if (fid && fid->setnativehandle) {
-        (*(std::function<void(ENV*, Object*, const jvalue*)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, (jvalue*)&value);
+        jvalue val;
+        memset(&val, 0, sizeof(val));
+        memcpy(&val, &value, sizeof(T));
+        (*(std::function<void(ENV*, Object*, const jvalue*)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, &val);
     } else {
 #ifdef JNI_TRACE
         Log::debug("JNIVM", "Unknown Field Setter %s", fid->name.data());
@@ -99,7 +102,10 @@ void jnivm::SetStaticField(JNIEnv *env, jclass cl, jfieldID id, T value) {
         Log::warn("JNIVM", "SetStaticField field is null");
 #endif
     if (fid && fid->setnativehandle) {
-        (*(std::function<void(ENV*, Class*, const jvalue *)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, (jvalue*)&value);
+        jvalue val;
+        memset(&val, 0, sizeof(val));
+        memcpy(&val, &value, sizeof(T));
+        (*(std::function<void(ENV*, Class*, const jvalue *)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, &val);
     } else {
 #ifdef JNI_TRACE
         Log::debug("JNIVM", "Unknown Field Setter %s", fid->name.data());
