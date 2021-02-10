@@ -234,3 +234,10 @@ TEST(JNIVM, returnedarrayrefs) {
     env->PopLocalFrame(nullptr);
     env->PopLocalFrame(nullptr);
 }
+
+TEST(JNIVM, classofclassobject) {
+    jnivm::VM vm;
+    auto env = vm.GetJNIEnv();
+    jclass c = env->FindClass("Class2");
+    ASSERT_EQ(env->GetObjectClass(c), env->FindClass("java/lang/Class"));
+}
