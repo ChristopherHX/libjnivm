@@ -6,7 +6,7 @@ using namespace jnivm;
 jstring jnivm::NewString(JNIEnv *env, const jchar * str, jsize size) {
     std::stringstream ss;
     char out[3];
-    for (size_t i = 0; i < size; i++) {
+    for (jsize i = 0; i < size; i++) {
         ss.write(out, JCharToUTF(str[i], out, sizeof(out)));
     }
     return (jstring)JNITypes<std::shared_ptr<String>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<String>(ss.str()));
@@ -16,7 +16,6 @@ jsize jnivm::GetStringLength(JNIEnv *env, jstring str) {
         std::string * cstr = (String*)str;
         size_t count = 0;
         jsize length = 0;
-        jchar dummy;
         auto cur = cstr->data(), end = cur + cstr->length();
         
         while(cur != end) {
@@ -63,7 +62,7 @@ void jnivm::ReleaseStringUTFChars(JNIEnv * env, jstring str, const char * cstr) 
 
 void jnivm::GetStringRegion(JNIEnv *, jstring str, jsize start, jsize length, jchar * buf) {
     std::string * cstr = (String*)str;
-    jchar dummy, * bend = buf + length;
+    jchar* bend = buf + length;
     auto cur = cstr->data(), end = cur + cstr->length();
     while(start) {
         cur += UTFToJCharLength(cur);
@@ -79,7 +78,6 @@ void jnivm::GetStringRegion(JNIEnv *, jstring str, jsize start, jsize length, jc
 
 void jnivm::GetStringUTFRegion(JNIEnv *, jstring str, jsize start, jsize len, char * buf) {
     std::string * cstr = (String*)str;
-    jchar dummy;
     char * bend = buf + len;
     auto cur = cstr->data(), end = cur + cstr->length();
     while(start) {

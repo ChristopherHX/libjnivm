@@ -46,7 +46,7 @@ std::string Method::GenerateHeader(const std::string &cname) {
 			ss << ", jnivm::Class* cl";
 		}
 	}
-	for (int i = 0; i < parameters.size(); i++) {
+	for (size_t i = 0; i < parameters.size(); i++) {
 		if(i || !JNIVM_FAKE_JNI_SYNTAX) {
 			ss << ", ";
 		}
@@ -96,7 +96,7 @@ std::string Method::GenerateStubs(std::string scope, const std::string &cname) {
 			ss << ", jnivm::Class* cl";
 		}
 	}
-	for (int i = 0; i < parameters.size(); i++) {
+	for (size_t i = 0; i < parameters.size(); i++) {
 		if(i || !JNIVM_FAKE_JNI_SYNTAX) {
 			ss << ", ";
 		}
@@ -147,12 +147,12 @@ std::string Method::GenerateJNIBinding(std::string scope, const std::string &cna
 		}
 		if (name == "<init>") {
 			ss << "[](jnivm::ENV *env, jnivm::Class* cl";
-			for (int i = 0; i < parameters.size(); i++) {
+			for (size_t i = 0; i < parameters.size(); i++) {
 				ss << ", " << parameters[i] << " arg" << i;
 			}
 			ss << ") {";
 			ss << "   return std::make_shared<" << cl << ">(env, cl";
-			for (int i = 0; i < parameters.size(); i++) {
+			for (size_t i = 0; i < parameters.size(); i++) {
 				ss << ", arg" << i;
 			}
 			ss << ");}";
@@ -164,7 +164,7 @@ std::string Method::GenerateJNIBinding(std::string scope, const std::string &cna
 	} else {
 		if (name == "<init>") {
 			ss << "{Constructor<" << scope;
-			for (int i = 0; i < parameters.size(); i++) {
+			for (size_t i = 0; i < parameters.size(); i++) {
 				ss << ", " << parameters[i];
 			}
 			ss << ">, \"" << name << "\"},\n";
