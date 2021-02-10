@@ -50,7 +50,7 @@ int jnivm::JCharToUTFLength(jchar c) {
         return 2;
     } else if((c & (0b10000000 - 1)) == c) {
         return 1;
-    } else if((c & ((1 << 5 + 6) - 1)) == c) {
+    } else if((c & ((1 << (5 + 6)) - 1)) == c) {
         return 2;
     } else {
         return 3;
