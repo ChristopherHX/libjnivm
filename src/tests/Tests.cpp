@@ -241,3 +241,14 @@ TEST(JNIVM, classofclassobject) {
     jclass c = env->FindClass("Class2");
     ASSERT_EQ(env->GetObjectClass(c), env->FindClass("java/lang/Class"));
 }
+
+TEST(JNIVM, DONOTReturnSpecializedStubs) {
+    jnivm::VM vm;
+    auto env = vm.GetEnv();
+    std::shared_ptr<jnivm::Array<Class2>> a = std::make_shared<jnivm::Array<Class2>>();
+    static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<Class2>>>::ToJNIType(env.get(), a)), jobjectArray>::value);
+    static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<Class2>>>::ToJNIReturnType(env.get(), a)), jobject>::value);
+
+    static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<jbyte>>>::ToJNIType(env.get(), nullptr)), jbyteArray>::value);
+    static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<jbyte>>>::ToJNIReturnType(env.get(), nullptr)), jobject>::value);
+}

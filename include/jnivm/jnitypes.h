@@ -58,10 +58,16 @@ namespace jnivm {
             // Return jni Reference
             return (jobject)p.get();
         }
+        static constexpr jobject ToJNIReturnType(ENV* env, const std::shared_ptr<T>& p) {
+            return ToJNIType(env, p);
+        }
     };
 
     template<class T> struct ___JNIType {
         static T ToJNIType(ENV* env, T v) {
+            return v;
+        }
+        static T ToJNIReturnType(ENV* env, T v) {
             return v;
         }
     };
@@ -153,17 +159,20 @@ namespace jnivm {
         }
     };
 
-    template <class T> struct JNITypes<Array<T>> {
+    template <class T> struct JNITypes<impl::Array<T>> {
         using Array = jobjectArray;
         static std::string GetJNISignature(ENV * env) {
             return "[" + JNITypes<T>::GetJNISignature(env);
         }
     };
 
-    template <class T> struct JNITypes<std::shared_ptr<Array<T>>> : JNITypes<Array<T>> {
+    template <class T> struct JNITypes<std::shared_ptr<impl::Array<T>>> : JNITypes<impl::Array<T>> {
         static typename JNITypes<T>::Array ToJNIType(ENV* env, std::shared_ptr<Array<T>> v) {
             env->localframe.front().push_back(v);
             return (typename JNITypes<T>::Array)v.get();
+        }
+        static constexpr jobject ToJNIReturnType(ENV* env, std::shared_ptr<Array<T>> v) {
+            return ToJNIType(env, v);
         }
         static std::shared_ptr<Array<T>> JNICast(const jvalue& v) {
             return v.l ? std::shared_ptr<Array<T>>((*(Array<T>*)v.l).shared_from_this(), (Array<T>*)v.l) : std::shared_ptr<Array<T>>();
