@@ -10,6 +10,22 @@
 #ifdef JNI_DEBUG
 #include <jnivm/internal/codegen/namespace.h>
 #endif
+#ifdef _WIN32
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <Processthreadsapi.h>
+#else
+#include <pthread.h>
+#endif
+
+namespace jnivm {
+
+#ifdef _WIN32
+    using pthread_t = DWORD;
+#endif
+
+}
 
 namespace jnivm {
     class ENV;

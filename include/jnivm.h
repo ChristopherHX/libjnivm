@@ -1,24 +1,10 @@
 #pragma once
 #include <string>
-#ifdef _WIN32
-#include <Processthreadsapi.h>
-#else
-#include <pthread.h>
-#endif
 #include <stdexcept>
 
 #include "jnivm/javatypes.h"
 #include "jnivm/vm.h"
 #include "jnivm/env.h"
-
-namespace jnivm {
-
-#ifdef _WIN32
-    using pthread_t = DWORD;
-#endif
-
-}
-
 
 namespace FakeJni {
     using Jvm = jnivm::VM;

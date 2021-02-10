@@ -159,22 +159,24 @@ namespace jnivm {
         }
     };
 
-    template <class T> struct JNITypes<impl::Array<T>> {
+    template <class T> struct JNITypes<Array<T>> {
         using Array = jobjectArray;
         static std::string GetJNISignature(ENV * env) {
             return "[" + JNITypes<T>::GetJNISignature(env);
         }
     };
 
-    template <class T> struct JNITypes<std::shared_ptr<impl::Array<T>>> : JNITypes<impl::Array<T>> {
-        static typename JNITypes<T>::Array ToJNIType(ENV* env, std::shared_ptr<Array<T>> v) {
+    // jnivm::Array<T> needs to be fully qualified in msvc or produces a weird syntax error
+    // Only inside method signature's
+    template <class T> struct JNITypes<std::shared_ptr<Array<T>>> : JNITypes<Array<T>> {
+        static typename JNITypes<T>::Array ToJNIType(ENV* env, std::shared_ptr<jnivm::Array<T>> v) {
             env->localframe.front().push_back(v);
             return (typename JNITypes<T>::Array)v.get();
         }
-        static constexpr jobject ToJNIReturnType(ENV* env, std::shared_ptr<Array<T>> v) {
+        static constexpr jobject ToJNIReturnType(ENV* env, std::shared_ptr<jnivm::Array<T>> v) {
             return ToJNIType(env, v);
         }
-        static std::shared_ptr<Array<T>> JNICast(const jvalue& v) {
+        static std::shared_ptr<jnivm::Array<T>> JNICast(const jvalue& v) {
             return v.l ? std::shared_ptr<Array<T>>((*(Array<T>*)v.l).shared_from_this(), (Array<T>*)v.l) : std::shared_ptr<Array<T>>();
         }
     };
