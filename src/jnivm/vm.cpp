@@ -42,7 +42,6 @@ jfieldID FromReflectedField(JNIEnv *, jobject) {
 	Log::warn("JNIVM", "Not Implemented Method FromReflectedField called");
 	return 0;
 };
-/* spec doesn't show jboolean parameter */
 jobject ToReflectedMethod(JNIEnv *, jclass, jmethodID, jboolean) {
 	Log::warn("JNIVM", "Not Implemented Method ToReflectedMethod called");
 	return 0;
@@ -55,7 +54,6 @@ jboolean IsAssignableFrom(JNIEnv *, jclass, jclass) {
 	Log::warn("JNIVM", "Not Implemented Method IsAssignableFrom called");
 	return 0;
 };
-/* spec doesn't show jboolean parameter */
 jobject ToReflectedField(JNIEnv *, jclass, jfieldID, jboolean) {
 	Log::warn("JNIVM", "Not Implemented Method ToReflectedField called");
 	return 0;
@@ -183,8 +181,7 @@ jboolean IsInstanceOf(JNIEnv *, jobject jo, jclass cl) {
 
 #include "internal/array.hpp"
 
-jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method,
-										 jint i) {
+jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method, jint i) {
 	auto&& clazz = (Class*)c;
 	if(!clazz) {
 		Log::error("JNIVM", "RegisterNatives failed, class is nullptr");
@@ -243,7 +240,7 @@ jboolean ExceptionCheck(JNIEnv *) {
 return JNI_FALSE;
  };
 #include "internal/bytebuffer.hpp"
-/* added in JNI 1.6 */
+
 jobjectRefType GetObjectRefType(JNIEnv *, jobject) {
 	return jobjectRefType::JNIInvalidRefType;
 };
