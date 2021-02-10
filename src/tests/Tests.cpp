@@ -67,7 +67,7 @@ TEST(JNIVM, StringFields) {
 TEST(JNIVM, Strings) {
     jnivm::VM vm;
     auto env = vm.GetJNIEnv();
-    const char samplestr[] = u8"Hello World";
+    const char samplestr[] = "Hello World";
     const char16_t samplestr2[] = u"Hello World";
     auto jstr = env->NewStringUTF(samplestr);
     auto len = env->GetStringLength(jstr);
@@ -80,7 +80,7 @@ TEST(JNIVM, Strings) {
 TEST(JNIVM, Strings2) {
     jnivm::VM vm;
     auto env = vm.GetJNIEnv();
-    const char samplestr[] = u8"Hello World";
+    const char samplestr[] = "Hello World";
     const char16_t samplestr2[] = u"Hello World";
     auto jstr = env->NewString((jchar*)samplestr2, sizeof(samplestr2) / sizeof(char16_t) - 1);
     auto len = env->GetStringLength(jstr);
