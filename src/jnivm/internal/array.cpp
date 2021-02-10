@@ -12,16 +12,16 @@ jobjectArray jnivm::NewObjectArray(JNIEnv * env, jsize length, jclass c, jobject
     arr->clazz = std::shared_ptr<Class>(cl->shared_from_this(), cl);
     if(init) {
         for (jsize i = 0; i < length; i++) {
-            arr->data[i] = (*(Object*)init).shared_from_this();
+            (*arr)[i] = (*(Object*)init).shared_from_this();
         }
     }
     return (jobjectArray)JNITypes<std::shared_ptr<Array<Object>>>::ToJNIType((ENV*)env->functions->reserved0, arr);
 }
 jobject jnivm::GetObjectArrayElement(JNIEnv *env, jobjectArray a, jsize i ) {
-    return JNITypes<std::shared_ptr<Object>>::ToJNIType((ENV*)env->functions->reserved0, ((Array<Object>*)a)->data[i]);
+    return JNITypes<std::shared_ptr<Object>>::ToJNIType((ENV*)env->functions->reserved0, (*(Array<Object>*)a)[i]);
 }
 void jnivm::SetObjectArrayElement(JNIEnv *, jobjectArray a, jsize i, jobject v) {
-    ((Array<Object>*)a)->data[i] = v ? (*(Object*)v).shared_from_this() : nullptr;
+    (*(Array<Object>*)a)[i] = v ? (*(Object*)v).shared_from_this() : nullptr;
 }
 
 template <class T> typename JNITypes<T>::Array jnivm::NewArray(JNIEnv * env, jsize length) {
@@ -36,7 +36,7 @@ T *jnivm::GetArrayElements(JNIEnv *, typename JNITypes<T>::Array a, jboolean *is
     if (iscopy) {
         *iscopy = false;
     }
-    return a ? ((Array<T>*)a)->data : nullptr;
+    return a ? ((Array<T>*)a)->getArray() : nullptr;
 }
 
 template <class T>
@@ -47,14 +47,14 @@ void jnivm::ReleaseArrayElements(JNIEnv *, typename JNITypes<T>::Array a, T *car
 template <class T>
 void jnivm::GetArrayRegion(JNIEnv *, typename JNITypes<T>::Array a, jsize start, jsize len, T * buf) {
     auto ja = (Array<T> *)a;
-    memcpy(buf, ja->data + start, sizeof(T)* len);
+    memcpy(buf, ja->getArray() + start, sizeof(T)* len);
 }
 
 /* spec shows these without const; some jni.h do, some don't */
 template <class T>
 void jnivm::SetArrayRegion(JNIEnv *, typename JNITypes<T>::Array a, jsize start, jsize len, const T * buf) {
     auto ja = (Array<T> *)a;
-    memcpy(ja->data + start, buf, sizeof(T)* len);
+    memcpy(ja->getArray() + start, buf, sizeof(T)* len);
 }
 
 #define DeclareTemplate(type) template j ## type ## Array jnivm::NewArray<j ## type>(JNIEnv *env, jsize length)

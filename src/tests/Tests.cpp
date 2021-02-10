@@ -190,7 +190,7 @@ public:
     }
     static std::shared_ptr<jnivm::Array<Class2>> test2() {
         auto array = std::make_shared<jnivm::Array<Class2>>(1);
-        array->data[0] = std::make_shared<Class2>();
+        (*array)[0] = std::make_shared<Class2>();
         return array;
     }
 };

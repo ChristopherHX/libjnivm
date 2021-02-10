@@ -9,7 +9,7 @@ namespace FakeJni {
     using JString = jnivm::String;
     using JClass = jnivm::Class;
 
-    template<class T> using JArray = jnivm::Array<std::shared_ptr<T>>;
+    template<class T> using JArray = jnivm::Array<T>;
     using JBoolean = jboolean;
     using JByte = jbyte;
     using JChar = jchar;
