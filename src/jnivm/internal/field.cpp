@@ -18,6 +18,9 @@ jfieldID jnivm::GetFieldID(JNIEnv *env, jclass cl, const char *name, const char 
     std::shared_ptr<Field> next;
     if (ccl != cur->fields.end()) {
         next = *ccl;
+#ifdef JNI_TRACE
+        LOG("JNIVM", "Found symbol, Class: %s, %sField: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, isStatic ? "Static" : "", name, type);
+#endif
     } else {
         next = std::make_shared<Field>();
         cur->fields.emplace_back(next);
