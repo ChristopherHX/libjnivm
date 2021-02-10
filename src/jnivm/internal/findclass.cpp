@@ -2,14 +2,14 @@
 #include <jnivm/env.h>
 #include <jnivm/jnitypes.h>
 #include <cstring>
-#include <log.h>
+#include "log.h"
 
 jclass jnivm::InternalFindClass(JNIEnv *env, const char *name) {
 	auto prefix = name;
 	auto && nenv = *(ENV*)env->functions->reserved0;
 	auto && vm = nenv.vm;
 #ifdef JNI_TRACE
-	Log::trace("JNIVM", "InternalFindClass %s", name);
+	LOG("JNIVM", "InternalFindClass %s", name);
 #endif
 	std::shared_ptr<Class> curc = nullptr;
 #ifdef JNI_DEBUG

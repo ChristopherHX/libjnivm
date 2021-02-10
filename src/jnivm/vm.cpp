@@ -11,19 +11,19 @@
 #include <locale>
 #include <sstream>
 #include <climits>
-#include <log.h>
+#include "internal/log.h"
 
 using namespace jnivm;
 
 jint GetVersion(JNIEnv *) {
 #ifdef JNI_DEBUG
-	Log::error("JNIVM", "GetVersion unsupported");
+	LOG("JNIVM", "GetVersion unsupported");
 #endif
 	return 0;
 };
 jclass DefineClass(JNIEnv *, const char *, jobject, const jbyte *, jsize) {
 #ifdef JNI_DEBUG
-	Log::error("JNIVM", "DefineClass unsupported");
+	LOG("JNIVM", "DefineClass unsupported");
 #endif
 	return 0;
 };
@@ -35,35 +35,35 @@ jclass jnivm::FindClass(JNIEnv *env, const char *name) {
 	return InternalFindClass(env, name);
 };
 jmethodID FromReflectedMethod(JNIEnv *, jobject) {
-	Log::warn("JNIVM", "Not Implemented Method FromReflectedMethod called");
+	LOG("JNIVM", "Not Implemented Method FromReflectedMethod called");
 	return 0;
 };
 jfieldID FromReflectedField(JNIEnv *, jobject) {
-	Log::warn("JNIVM", "Not Implemented Method FromReflectedField called");
+	LOG("JNIVM", "Not Implemented Method FromReflectedField called");
 	return 0;
 };
 jobject ToReflectedMethod(JNIEnv *, jclass, jmethodID, jboolean) {
-	Log::warn("JNIVM", "Not Implemented Method ToReflectedMethod called");
+	LOG("JNIVM", "Not Implemented Method ToReflectedMethod called");
 	return 0;
 };
 jclass GetSuperclass(JNIEnv *, jclass) {
-	Log::warn("JNIVM", "Not Implemented Method GetSuperclass called");
+	LOG("JNIVM", "Not Implemented Method GetSuperclass called");
 	return 0;
 };
 jboolean IsAssignableFrom(JNIEnv *, jclass, jclass) {
-	Log::warn("JNIVM", "Not Implemented Method IsAssignableFrom called");
+	LOG("JNIVM", "Not Implemented Method IsAssignableFrom called");
 	return 0;
 };
 jobject ToReflectedField(JNIEnv *, jclass, jfieldID, jboolean) {
-	Log::warn("JNIVM", "Not Implemented Method ToReflectedField called");
+	LOG("JNIVM", "Not Implemented Method ToReflectedField called");
 	return 0;
 };
 jint Throw(JNIEnv *, jthrowable) {
-	Log::warn("JNIVM", "Not Implemented Method Throw called");
+	LOG("JNIVM", "Not Implemented Method Throw called");
 	return 0;
 };
 jint ThrowNew(JNIEnv *, jclass, const char *) {
-	Log::warn("JNIVM", "Not Implemented Method ThrowNew called");
+	LOG("JNIVM", "Not Implemented Method ThrowNew called");
 	return 0;
 };
 jthrowable ExceptionOccurred(JNIEnv *) {
@@ -72,7 +72,7 @@ jthrowable ExceptionOccurred(JNIEnv *) {
 void ExceptionDescribe(JNIEnv *) {  };
 void ExceptionClear(JNIEnv *) {  };
 void FatalError(JNIEnv *, const char * err) {
-	Log::warn("JNIVM", "Not Implemented Method FatalError called: %s", err);
+	LOG("JNIVM", "Not Implemented Method FatalError called: %s", err);
 };
 jint PushLocalFrame(JNIEnv * env, jint cap) {
 #ifdef EnableJNIVMGC
@@ -96,7 +96,7 @@ jobject PopLocalFrame(JNIEnv * env, jobject previousframe) {
 	nenv.localframe.front().clear();
 	nenv.freeframes.splice_after(nenv.freeframes.before_begin(), nenv.localframe, nenv.localframe.before_begin());
 	if(nenv.localframe.empty()) {
-		Log::warn("JNIVM", "Freed top level frame of this ENV, recreate it");
+		LOG("JNIVM", "Freed top level frame of this ENV, recreate it");
 		nenv.localframe.emplace_front();
 	}
 #endif
@@ -123,7 +123,7 @@ void DeleteGlobalRef(JNIEnv * env, jobject obj) {
 	if(f != fe) {
 		nvm.globals.erase(f);
 	} else {
-		Log::error("JNIVM", "Failed to delete Global Reference");
+		LOG("JNIVM", "Failed to delete Global Reference");
 	}
 #endif
 };
@@ -139,7 +139,7 @@ void DeleteLocalRef(JNIEnv * env, jobject obj) {
 			return;
 		}
 	}
-	Log::error("JNIVM", "Failed to delete Local Reference");
+	LOG("JNIVM", "Failed to delete Local Reference");
 #endif
 };
 jboolean IsSameObject(JNIEnv *, jobject lobj, jobject robj) {
@@ -162,7 +162,7 @@ jint EnsureLocalCapacity(JNIEnv * env, jint cap) {
 	return 0;
 };
 jobject AllocObject(JNIEnv *env, jclass cl) {
-	Log::warn("JNIVM", "Not Implemented Method AllocObject called");
+	LOG("JNIVM", "Not Implemented Method AllocObject called");
 	return nullptr;
 };
 
@@ -184,7 +184,7 @@ jboolean IsInstanceOf(JNIEnv *, jobject jo, jclass cl) {
 jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method, jint i) {
 	auto&& clazz = (Class*)c;
 	if(!clazz) {
-		Log::error("JNIVM", "RegisterNatives failed, class is nullptr");
+		LOG("JNIVM", "RegisterNatives failed, class is nullptr");
 	} else {
 		std::lock_guard<std::mutex> lock(clazz->mtx);
 		while(i--) {
@@ -209,7 +209,7 @@ jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method, jint 
 jint UnregisterNatives(JNIEnv *env, jclass c) {
 	auto&& clazz = (Class*)c;
 	if(!clazz) {
-		Log::error("JNIVM", "UnRegisterNatives failed, class is nullptr");
+		LOG("JNIVM", "UnRegisterNatives failed, class is nullptr");
 	} else {
 		std::lock_guard<std::mutex> lock(clazz->mtx);
 		((Class*)c)->natives.clear();
@@ -217,11 +217,11 @@ jint UnregisterNatives(JNIEnv *env, jclass c) {
 	return 0;
 };
 jint MonitorEnter(JNIEnv *, jobject) {
-	Log::error("JNIVM", "MonitorEnter unsupported");
+	LOG("JNIVM", "MonitorEnter unsupported");
 	return 0;
 };
 jint MonitorExit(JNIEnv *, jobject) {
-	Log::error("JNIVM", "MonitorEnter unsupported");
+	LOG("JNIVM", "MonitorEnter unsupported");
 	return 0;
 };
 jint GetJavaVM(JNIEnv * env, JavaVM ** vm) {

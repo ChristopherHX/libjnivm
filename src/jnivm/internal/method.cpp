@@ -1,5 +1,5 @@
 #include "method.h"
-#include <log.h>
+#include "log.h"
 #include <jnivm/internal/jValuesfromValist.h>
 #include <jnivm/internal/scopedVaList.h>
 
@@ -38,7 +38,7 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
         }
     } else {
 #ifdef JNI_DEBUG
-        Log::warn("JNIVM", "Get%sMethodID class is null %s, %s", isStatic ? "Static" : "", str0, str1);
+        LOG("JNIVM", "Get%sMethodID class is null %s, %s", isStatic ? "Static" : "", str0, str1);
 #endif
     }
     if(!next) {
@@ -56,7 +56,11 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
         Declare(env, next->signature.data());
 #endif
 #ifdef JNI_TRACE
-        Log::trace("JNIVM", "Unresolved symbol, Class: %s, %sMethod: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, isStatic ? "Static" : "", str0, str1);
+        LOG("JNIVM", "Unresolved symbol, Class: %s, %sMethod: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, isStatic ? "Static" : "", str0, str1);
+#endif
+    } else {
+#ifdef JNI_TRACE
+        LOG("JNIVM", "Found symbol, Class: %s, %sMethod: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, isStatic ? "Static" : "", str0, str1);
 #endif
     }
     return (jmethodID)next.get();
@@ -73,18 +77,23 @@ T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
     auto mid = ((Method *)id);
 #ifdef JNI_DEBUG
     if(!obj)
-        Log::warn("JNIVM", "CallMethod object is null");
+        LOG("JNIVM", "CallMethod object is null");
     if(!id)
-        Log::warn("JNIVM", "CallMethod field is null");
+        LOG("JNIVM", "CallMethod field is null");
 #endif
 #ifdef JNI_TRACE
-        Log::debug("JNIVM", "Call Function %s, %s", mid->name.data(), mid->signature.data());
+        LOG("JNIVM", "Call Function %s, %s", mid->name.data(), mid->signature.data());
 #endif
-    if (mid->nativehandle) {
+    if (mid && mid->nativehandle) {
+#ifdef JNI_TRACE
+        Class* cl = obj ? (Class*)env->GetObjectClass(obj) : nullptr;
+        LOG("JNIVM", "Call Function Class=`%s` Method=`%s`", cl ? cl->nativeprefix.data() : "???", mid->name.data());
+#endif
         return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
     } else {
 #ifdef JNI_TRACE
-        Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
+        Class* cl = obj ? (Class*)env->GetObjectClass(obj) : nullptr;
+        LOG("JNIVM", "Unknown Function Class=`%s` Method=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid ? mid->name.data() : "???");
 #endif
 #ifdef JNI_RETURN_NON_ZERO
         if constexpr(std::is_same_v<T, jobject>) {
@@ -95,7 +104,7 @@ T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
             else if(mid->signature[mid->signature.find_last_of(")") + 1] == '[' ){
                 // return env->NewObjectArray(0, nullptr, nullptr);
             } else {
-                return (jobject)JNITypes<std::shared_ptr<Object>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<Object>());
+                return JNITypes<std::shared_ptr<Object>>::ToJNIReturnType((ENV*)env->functions->reserved0, std::make_shared<Object>());
             }
         }
 #endif
@@ -109,7 +118,7 @@ T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
         return CallMethod<T>(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
     } else {
 #ifdef JNI_TRACE
-        Log::debug("JNIVM", "CallMethod Method ID is null");
+        LOG("JNIVM", "CallMethod Method ID is null");
 #endif
         return defaultVal<T>();
     }
@@ -127,17 +136,20 @@ T jnivm::CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id
     auto mid = ((Method *)id);
 #ifdef JNI_DEBUG
     if(!obj)
-        Log::warn("JNIVM", "CallNonvirtualMethod object is null");
+        LOG("JNIVM", "CallNonvirtualMethod object is null");
     if(!cl)
-        Log::warn("JNIVM", "CallNonvirtualMethod class is null");
+        LOG("JNIVM", "CallNonvirtualMethod class is null");
     if(!id)
-        Log::warn("JNIVM", "CallNonvirtualMethod field is null");
+        LOG("JNIVM", "CallNonvirtualMethod field is null");
 #endif
     if (mid->nativehandle) {
+#ifdef JNI_TRACE
+        LOG("JNIVM", "Call Function Class=`%s` Method=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid->name.data());
+#endif
         return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
     } else {
 #ifdef JNI_TRACE
-        Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
+        LOG("JNIVM", "Unknown Function Class=`%s` Method=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid ? mid->name.data() : "???");
 #endif
         return defaultVal<T>();
     }
@@ -160,15 +172,18 @@ T jnivm::CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param)
     auto mid = ((Method *)id);
 #ifdef JNI_DEBUG
     if(!cl)
-        Log::warn("JNIVM", "CallStaticMethod class is null");
+        LOG("JNIVM", "CallStaticMethod class is null");
     if(!id)
-        Log::warn("JNIVM", "CallStaticMethod method is null");
+        LOG("JNIVM", "CallStaticMethod method is null");
 #endif
-    if (mid->nativehandle) {
+    if (mid && mid->nativehandle) {
+#ifdef JNI_TRACE
+        LOG("JNIVM", "Call Function Class=`%s` Method=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid->name.data());
+#endif
         return (*(std::function<T(ENV*, Class*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, param);
     } else {
 #ifdef JNI_TRACE
-        Log::debug("JNIVM", "Unknown Function %s", mid->name.data());
+        LOG("JNIVM", "Unknown Function Class=`%s` Method=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid ? mid->name.data() : "???");
 #endif
 #ifdef JNI_RETURN_NON_ZERO
         if constexpr(std::is_same_v<T, jobject>) {
@@ -179,7 +194,7 @@ T jnivm::CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param)
             else if(mid->signature[mid->signature.find_last_of(")") + 1] == '[' ){
                 // return env->NewObjectArray(0, nullptr, nullptr);
             } else {
-                return (jobject)JNITypes<std::shared_ptr<Object>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<Object>());
+                return (jobject)JNITypes<std::shared_ptr<Object>>::ToJNIReturnType((ENV*)env->functions->reserved0, std::make_shared<Object>());
             }
         }
 #endif
