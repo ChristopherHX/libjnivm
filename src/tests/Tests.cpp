@@ -45,7 +45,7 @@ TEST(JNIVM, StringFields) {
     auto obj = std::make_shared<Class1>();
     auto ncl = env->FindClass("Class1");
     auto field = env->GetFieldID((jclass)ncl, "s", "Ljava/lang/String;");
-    static_assert(sizeof(jchar) == sizeof(char16_t));
+    static_assert(sizeof(jchar) == sizeof(char16_t), "jchar is not as large as char16_t");
     auto str1 = env->NewString((jchar*) u"Hello World", 11);
     auto str2 = env->NewStringUTF("Hello World");
     env->SetObjectField((jobject)obj.get(), field, str1);
@@ -246,11 +246,11 @@ TEST(JNIVM, DONOTReturnSpecializedStubs) {
     jnivm::VM vm;
     auto env = vm.GetEnv();
     std::shared_ptr<jnivm::Array<Class2>> a = std::make_shared<jnivm::Array<Class2>>();
-    static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<Class2>>>::ToJNIType(env.get(), a)), jobjectArray>::value);
-    static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<Class2>>>::ToJNIReturnType(env.get(), a)), jobject>::value);
+    static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<Class2>>>::ToJNIType(env.get(), a)), jobjectArray>::value, "Invalid Return Type");
+    static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<Class2>>>::ToJNIReturnType(env.get(), a)), jobject>::value, "Invalid Return Type");
 
-    static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<jbyte>>>::ToJNIType(env.get(), nullptr)), jbyteArray>::value);
-    static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<jbyte>>>::ToJNIReturnType(env.get(), nullptr)), jobject>::value);
+    static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<jbyte>>>::ToJNIType(env.get(), nullptr)), jbyteArray>::value, "Invalid Return Type");
+    static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<jbyte>>>::ToJNIReturnType(env.get(), nullptr)), jobject>::value, "Invalid Return Type");
 }
 
 TEST(JNIVM, Excepts) {
