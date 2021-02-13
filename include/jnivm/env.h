@@ -18,11 +18,12 @@ namespace jnivm {
         JNINativeInterface ninterface;
         // Holder of the invocation table
         JNIEnv env;
+#ifdef EnableJNIVMGC
         // All explicit local Objects are stored here controlled by push and pop localframe
         std::forward_list<std::vector<std::shared_ptr<Object>>> localframe;
         // save previous poped vector frames here, precleared
         std::forward_list<std::vector<std::shared_ptr<Object>>> freeframes;
-
+#endif
         std::shared_ptr<Throwable> current_exception;
 
         ENV(VM * vm, const JNINativeInterface & defaultinterface) : vm(vm), ninterface(defaultinterface), env{&ninterface}, localframe({{}}) {
