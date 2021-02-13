@@ -66,10 +66,30 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
     return (jmethodID)next.get();
 };
 
-template<class T> T jnivm::defaultVal() {
+template<class T> T jnivm::defaultVal(ENV* env, std::string signature) {
     return {};
 }
-template<> void jnivm::defaultVal<void>() {
+template<> void jnivm::defaultVal(ENV* env, std::string signature) {
+}
+
+template<> jobject jnivm::defaultVal(ENV* env, std::string signature) {
+#ifdef JNI_RETURN_NON_ZERO
+    size_t off = signature.find_last_of(")");
+    if(off != -1) {
+        if(!strcmp(signature.data() + off + 1, "Ljava/lang/String;")) {
+            return env->env.NewStringUTF("");
+        }
+        else if(signature[off + 1] == '[' ){
+            return env->env.NewObjectArray(0, env->env.FindClass(signature[off + 2] == 'L' && signature[signature.size() - 1] == ';' ? signature.substr(off + 3, signature.size() - (off + 3)).data() : &signature.data()[off + 1]), nullptr);
+        } else if (signature[off + 1] == 'L' && signature[signature.size() - 1] == ';'){
+            auto c = env->GetClass(signature.substr(off + 2, signature.size() - (off + 2)).data());
+            if(c->Instantiate) {
+                return JNITypes<std::shared_ptr<Object>>::ToJNIReturnType(env, c->Instantiate());
+            }
+        }
+    }
+#endif
+    return nullptr;
 }
 
 template <class T>
@@ -95,27 +115,14 @@ T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
 #ifdef JNI_TRACE
             env->ExceptionDescribe();
 #endif
-            return defaultVal<T>();
+            return defaultVal<T>((ENV*)env->functions->reserved0, mid ? mid->signature : "");
         }
     } else {
 #ifdef JNI_TRACE
         Class* cl = obj ? (Class*)env->GetObjectClass(obj) : nullptr;
         LOG("JNIVM", "Unknown Function Class=`%s` Method=`%s` Signature=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid ? mid->name.data() : "???", mid ? mid->signature.data() : "???");
 #endif
-#ifdef JNI_RETURN_NON_ZERO
-        if constexpr(std::is_same_v<T, jobject>) {
-            if(!strcmp(mid->signature.data() + mid->signature.find_last_of(")") + 1, "Ljava/lang/String;")) {
-            auto d = mid->name.data();
-            return env->NewStringUTF("");
-            }
-            else if(mid->signature[mid->signature.find_last_of(")") + 1] == '[' ){
-                // return env->NewObjectArray(0, nullptr, nullptr);
-            } else {
-                return JNITypes<std::shared_ptr<Object>>::ToJNIReturnType((ENV*)env->functions->reserved0, std::make_shared<Object>());
-            }
-        }
-#endif
-        return defaultVal<T>();
+        return defaultVal<T>((ENV*)env->functions->reserved0, mid ? mid->signature : "");
     }
 };
 
@@ -127,7 +134,7 @@ T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
 #ifdef JNI_TRACE
         LOG("JNIVM", "CallMethod Method ID is null");
 #endif
-        return defaultVal<T>();
+        return defaultVal<T>((ENV*)env->functions->reserved0, "");
     }
 };
 
@@ -158,7 +165,7 @@ T jnivm::CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id
 #ifdef JNI_TRACE
         LOG("JNIVM", "Unknown Function Class=`%s` Method=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid ? mid->name.data() : "???");
 #endif
-        return defaultVal<T>();
+        return defaultVal<T>((ENV*)env->functions->reserved0, mid ? mid->signature : "");
     }
 };
 
@@ -192,20 +199,7 @@ T jnivm::CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param)
 #ifdef JNI_TRACE
         LOG("JNIVM", "Unknown Function Class=`%s` Method=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid ? mid->name.data() : "???");
 #endif
-#ifdef JNI_RETURN_NON_ZERO
-        if constexpr(std::is_same_v<T, jobject>) {
-            if(!strcmp(mid->signature.data() + mid->signature.find_last_of(")") + 1, "Ljava/lang/String;")) {
-            auto d = mid->name.data();
-            return env->NewStringUTF("");
-            }
-            else if(mid->signature[mid->signature.find_last_of(")") + 1] == '[' ){
-                // return env->NewObjectArray(0, nullptr, nullptr);
-            } else {
-                return (jobject)JNITypes<std::shared_ptr<Object>>::ToJNIReturnType((ENV*)env->functions->reserved0, std::make_shared<Object>());
-            }
-        }
-#endif
-        return defaultVal<T>();
+        return defaultVal<T>((ENV*)env->functions->reserved0, mid ? mid->signature : "");
     }
 };
 

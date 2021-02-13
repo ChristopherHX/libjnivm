@@ -8,8 +8,9 @@ namespace jnivm {
     template<bool isStatic>
     jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0, const char *str1);
 
-    template<class T> T defaultVal();
-    template<> void defaultVal<void>();
+    template<class T> T defaultVal(ENV* env, std::string signature);
+    template<> void defaultVal(ENV* env, std::string signature);
+    template<> jobject defaultVal(ENV* env, std::string signature);
 
     template <class T>
     T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param);

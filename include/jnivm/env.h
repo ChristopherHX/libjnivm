@@ -69,9 +69,28 @@ namespace jnivm {
 #ifndef JNIVM_ENV_H_2
 #define JNIVM_ENV_H_2
 #include "vm.h"
+#include <functional>
+#include <memory>
+namespace jnivm {
+    template<class T, bool isDefaultConstructable = std::is_default_constructible<T>::value> struct Factory {
+        static std::function<std::shared_ptr<jnivm::Object>()> CreateLambda() {
+            return nullptr;
+        }
+    };
+
+    template<class T> struct Factory<T, true> {
+        static std::function<std::shared_ptr<jnivm::Object>()> CreateLambda() {
+            return []() -> std::shared_ptr<jnivm::Object> {
+                return std::make_shared<T>();
+            };
+        }
+    };
+}
 
 template<class T> std::shared_ptr<jnivm::Class> jnivm::ENV::GetClass(const char *name) {
     std::lock_guard<std::mutex> lock(vm->mtx);
-    return vm->typecheck[typeid(T)] = GetClass(name);
+    auto& c = vm->typecheck[typeid(T)] = GetClass(name);
+    c->Instantiate = jnivm::Factory<T>::CreateLambda();
+    return c;
 }
 #endif
