@@ -190,7 +190,8 @@ template<class T> std::string jnivm::JNITypes<std::shared_ptr<T>>::GetJNISignatu
 }
 
 template<class T> std::shared_ptr<jnivm::Class> jnivm::JNITypes<std::shared_ptr<T>>::GetClass(jnivm::ENV *env) {
-    std::lock_guard<std::mutex> lock(env->vm->mtx);
+    // ToDo find the deadlock or replace with recursive_mutex
+    // std::lock_guard<std::mutex> lock(env->vm->mtx);
     auto r = env->vm->typecheck.find(typeid(T));
     if(r != env->vm->typecheck.end()) {
         return r->second;

@@ -384,4 +384,13 @@ TEST(JNIVM, FakeJniTest) {
     jclass c = (&frame.getJniEnv())->FindClass("FakeJniTest");
     jmethodID ctor = (&frame.getJniEnv())->GetMethodID(c, "<init>", "()V");
     jobject o = (&frame.getJniEnv())->NewObject(c, ctor);
+    auto ret = std::make_shared<FakeJniTest>(FakeJniTest());
+    auto id2 = (&frame.getJniEnv())->GetStaticMethodID(c, "test", "()LFakeJniTest;");
+    
+    jobject obj = (&frame.getJniEnv())->CallStaticObjectMethod(c, id2);
+#ifdef JNI_RETURN_NON_ZERO
+    ASSERT_NE(obj, nullptr);
+#else
+    ASSERT_EQ(obj, nullptr);
+#endif
 }
