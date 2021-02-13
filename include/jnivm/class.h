@@ -3,6 +3,7 @@
 #include <mutex>
 #include <unordered_map>
 #include <vector>
+#include <functional>
 
 namespace jnivm {
     class ENV;
@@ -23,6 +24,7 @@ namespace jnivm {
 #endif
         std::vector<std::shared_ptr<Field>> fields;
         std::vector<std::shared_ptr<Method>> methods;
+        std::function<std::shared_ptr<Object>()> Instantiate;
 
         Class() {
 
