@@ -263,7 +263,7 @@ jobjectRefType GetObjectRefType(JNIEnv *, jobject) {
 template<class ...jnitypes> struct JNINativeInterfaceCompose;
 template<class X, class ...jnitypes> struct JNINativeInterfaceCompose<X, jnitypes...> {
 	using Type = decltype(std::tuple_cat(std::declval<std::tuple<X, X, X>>(), std::declval<typename JNINativeInterfaceCompose<jnitypes...>::Type>()));
-	template<class Y> struct index : std::conditional_t<std::is_same_v<X,Y>, std::integral_constant<size_t, 0>, std::integral_constant<size_t, 1 + JNINativeInterfaceCompose<jnitypes...>::template index<Y>::value>> {};
+	template<class Y> struct index : std::conditional_t<std::is_same<X,Y>::value, std::integral_constant<size_t, 0>, std::integral_constant<size_t, 1 + JNINativeInterfaceCompose<jnitypes...>::template index<Y>::value>> {};
 };
 template<> struct JNINativeInterfaceCompose<> {
 	using Type = std::tuple<>;

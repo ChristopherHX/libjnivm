@@ -14,7 +14,7 @@ namespace jnivm {
 
     template<class T> struct JNITypes : JNITypes<std::shared_ptr<T>> {
         JNITypes() {
-            static_assert(std::is_base_of<Object, T>::value || std::is_same_v<Object, Object>, "You have to extend jnivm::Object");
+            static_assert(std::is_base_of<Object, T>::value || std::is_same<Object, Object>::value, "You have to extend jnivm::Object");
         }
     };
 
@@ -28,7 +28,7 @@ namespace jnivm {
 
     template<class T> struct JNITypes<std::shared_ptr<T>> {
         JNITypes() {
-            static_assert(std::is_base_of<Object, T>::value || std::is_same_v<Object, Object>, "You have to extend jnivm::Object");
+            static_assert(std::is_base_of<Object, T>::value || std::is_same<Object, Object>::value, "You have to extend jnivm::Object");
         }
 
         using Array = jobjectArray;
