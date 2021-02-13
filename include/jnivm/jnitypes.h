@@ -4,13 +4,13 @@
 #include <vector>
 #include <unordered_map>
 #include <jni.h>
-#include "vm.h"
-#include "env.h"
 #include "array.h"
 #include <type_traits>
 
 namespace jnivm {
     class Class;
+    class ENV;
+    class VM;
 
     template<class T> struct JNITypes : JNITypes<std::shared_ptr<T>> {
         JNITypes() {
@@ -35,27 +35,13 @@ namespace jnivm {
 
         static std::string GetJNISignature(ENV * env);
 
-        static std::shared_ptr<jnivm::Class> GetClass(ENV * env) {
-            auto r = env->vm->typecheck.find(typeid(T));
-            if(r != env->vm->typecheck.end()) {
-                return r->second;
-            } else {
-                return nullptr;
-            }
-        }
+        static std::shared_ptr<jnivm::Class> GetClass(ENV * env);
+        
         static std::shared_ptr<T> JNICast(const jvalue& v) {
             return v.l ? std::shared_ptr<T>((*(T*)v.l).shared_from_this(), (T*)v.l) : std::shared_ptr<T>();
         }
-        static jobject ToJNIType(ENV* env, const std::shared_ptr<T>& p) {
-            if(!p) return nullptr;
-            // Cache return values in localframe list of this thread, destroy delayed
-            env->localframe.front().push_back(p);
-            if(!p->clazz) {
-                p->clazz = GetClass(env);
-            }
-            // Return jni Reference
-            return (jobject)p.get();
-        }
+        static jobject ToJNIType(ENV* env, const std::shared_ptr<T>& p);
+
         static constexpr jobject ToJNIReturnType(ENV* env, const std::shared_ptr<T>& p) {
             return ToJNIType(env, p);
         }
@@ -167,10 +153,7 @@ namespace jnivm {
     // jnivm::Array<T> needs to be fully qualified in msvc or produces a weird syntax error
     // Only inside method signature's
     template <class T> struct JNITypes<std::shared_ptr<Array<T>>> : JNITypes<Array<T>> {
-        static typename JNITypes<T>::Array ToJNIType(ENV* env, std::shared_ptr<jnivm::Array<T>> v) {
-            env->localframe.front().push_back(v);
-            return (typename JNITypes<T>::Array)v.get();
-        }
+        static typename JNITypes<T>::Array ToJNIType(ENV* env, std::shared_ptr<jnivm::Array<T>> v);
         static constexpr jobject ToJNIReturnType(ENV* env, std::shared_ptr<jnivm::Array<T>> v) {
             return ToJNIType(env, v);
         }
@@ -193,6 +176,8 @@ template<class T> struct ClassName<T, true> {
     }
 };
 
+#include "vm.h"
+#include "env.h"
 
 template<class T> std::string jnivm::JNITypes<std::shared_ptr<T>>::GetJNISignature(jnivm::ENV *env){
     std::lock_guard<std::mutex> lock(env->vm->mtx);
@@ -202,4 +187,30 @@ template<class T> std::string jnivm::JNITypes<std::shared_ptr<T>>::GetJNISignatu
     } else {
         return "L" + ClassName<T, hasname<T>::value>::getClassName() + ";"; 
     }
+}
+
+template<class T> std::shared_ptr<jnivm::Class> jnivm::JNITypes<std::shared_ptr<T>>::GetClass(jnivm::ENV *env) {
+    std::lock_guard<std::mutex> lock(env->vm->mtx);
+    auto r = env->vm->typecheck.find(typeid(T));
+    if(r != env->vm->typecheck.end()) {
+        return r->second;
+    } else {
+        return nullptr;
+    }
+}
+
+template<class T> jobject jnivm::JNITypes<std::shared_ptr<T>>::ToJNIType(jnivm::ENV *env, const std::shared_ptr<T> &p) {
+    if(!p) return nullptr;
+    // Cache return values in localframe list of this thread, destroy delayed
+    env->localframe.front().push_back(p);
+    if(!p->clazz) {
+        p->clazz = GetClass(env);
+    }
+    // Return jni Reference
+    return (jobject)p.get();
+}
+
+template<class T> typename jnivm::JNITypes<T>::Array jnivm::JNITypes<std::shared_ptr<jnivm::Array<T>>>::ToJNIType(jnivm::ENV *env, std::shared_ptr<jnivm::Array<T>> v) {
+    env->localframe.front().push_back(v);
+    return (typename JNITypes<T>::Array)v.get();
 }
