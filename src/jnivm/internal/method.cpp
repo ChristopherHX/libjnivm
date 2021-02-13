@@ -80,9 +80,9 @@ template<> jobject jnivm::defaultVal(ENV* env, std::string signature) {
             return env->env.NewStringUTF("");
         }
         else if(signature[off + 1] == '[' ){
-            return env->env.NewObjectArray(0, env->env.FindClass(signature[off + 2] == 'L' && signature[signature.size() - 1] == ';' ? signature.substr(off + 3, signature.size() - (off + 3)).data() : &signature.data()[off + 1]), nullptr);
+            return env->env.NewObjectArray(0, env->env.FindClass(signature[off + 2] == 'L' && signature[signature.size() - 1] == ';' ? signature.substr(off + 3, signature.size() - (off + 4)).data() : &signature.data()[off + 1]), nullptr);
         } else if (signature[off + 1] == 'L' && signature[signature.size() - 1] == ';'){
-            auto c = env->GetClass(signature.substr(off + 2, signature.size() - (off + 2)).data());
+            auto c = env->GetClass(signature.substr(off + 2, signature.size() - (off + 3)).data());
             if(c->Instantiate) {
                 return JNITypes<std::shared_ptr<Object>>::ToJNIReturnType(env, c->Instantiate());
             }
