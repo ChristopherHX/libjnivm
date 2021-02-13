@@ -182,17 +182,24 @@ namespace jnivm {
 
 #include "class.h"
 
+template<class T, bool Y = false> struct ClassName {
+    static constexpr std::string getClassName() {
+        throw std::runtime_error("Unknown class");
+    }
+};
+template<class T> struct ClassName<T, true> {
+    static constexpr std::string getClassName() {
+        return T::getClassName();
+    }
+};
+
+
 template<class T> std::string jnivm::JNITypes<std::shared_ptr<T>>::GetJNISignature(jnivm::ENV *env){
     std::lock_guard<std::mutex> lock(env->vm->mtx);
     auto r = env->vm->typecheck.find(typeid(T));
     if(r != env->vm->typecheck.end()) {
         return "L" + r->second->nativeprefix + ";";
     } else {
-        if constexpr(hasname<T>::value) {
-            // return std::string("L") + T::name + ";"; 
-            return "L" + T::getClassName() + ";"; 
-        } else {
-            throw std::runtime_error("Unknown class");
-        }
+        return "L" + ClassName<T, hasname<T>::value>::getClassName() + ";"; 
     }
 }
