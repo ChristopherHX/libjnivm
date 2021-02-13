@@ -252,3 +252,136 @@ TEST(JNIVM, DONOTReturnSpecializedStubs) {
     static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<jbyte>>>::ToJNIType(env.get(), nullptr)), jbyteArray>::value);
     static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<jbyte>>>::ToJNIReturnType(env.get(), nullptr)), jobject>::value);
 }
+
+TEST(JNIVM, Excepts) {
+    jnivm::VM vm;
+    auto env = vm.GetEnv();
+    auto _Class2 = env->GetClass<Class2>("Class2");
+    _Class2->HookInstanceFunction(env.get(), "test", [](jnivm::ENV*, jnivm::Object *) {
+        throw std::runtime_error("Test");
+    });
+    auto o = std::make_shared<Class2>();
+    auto obj = jnivm::JNITypes<decltype(o)>::ToJNIReturnType(env.get(), o);
+    auto c = (jclass) jnivm::JNITypes<decltype(_Class2)>::ToJNIType(env.get(), _Class2);
+    auto nenv = &*env;
+    auto mid = nenv->GetMethodID(c, "test", "()V");
+    nenv->CallVoidMethod(obj, mid);
+    jthrowable th = nenv->ExceptionOccurred();
+    ASSERT_NE(th, nullptr);
+    nenv->ExceptionDescribe();
+    nenv->ExceptionClear();
+    jthrowable th2 = nenv->ExceptionOccurred();
+    ASSERT_EQ(th2, nullptr);
+    nenv->ExceptionDescribe();
+}
+
+TEST(JNIVM, Monitor) {
+    jnivm::VM vm;
+    auto env = vm.GetEnv();
+    auto _Class2 = env->GetClass<Class2>("Class2");
+    _Class2->HookInstanceFunction(env.get(), "test", [](jnivm::ENV*, jnivm::Object *) {
+        throw std::runtime_error("Test");
+    });
+    auto o = std::make_shared<Class2>();
+    auto obj = jnivm::JNITypes<decltype(o)>::ToJNIReturnType(env.get(), o);
+    auto c = (jclass) jnivm::JNITypes<decltype(_Class2)>::ToJNIType(env.get(), _Class2);
+    auto nenv = &*env;
+    nenv->MonitorEnter(c);
+    nenv->MonitorEnter(c);
+    // Should work
+    nenv->MonitorExit(c);
+    nenv->MonitorExit(c);
+}
+
+class TestInterface {
+public:
+    virtual void Test() = 0;
+};
+class TestClass : public jnivm::Extends<jnivm::Object, TestInterface> {
+    virtual void Test() override {
+
+    }
+};
+
+TEST(JNIVM, Interfaces) {
+    jnivm::VM vm;
+    auto env = vm.GetEnv();
+    vm.GetEnv()->GetClass<TestClass>("TestClass");
+    vm.GetEnv()->GetClass<TestInterface>("TestInterface");
+    auto bc = TestClass::GetBaseClass(env.get());
+    ASSERT_EQ(bc->name, "Object");
+    auto interfaces = TestClass::GetInterfaces(env.get());
+    ASSERT_EQ(interfaces.size(), 1);
+    ASSERT_EQ(interfaces[0]->name, "TestInterface");
+}
+
+class TestClass2 : public jnivm::Extends<TestClass> {
+
+};
+
+TEST(JNIVM, InheritedInterfaces) {
+    jnivm::VM vm;
+    auto env = vm.GetEnv();
+    vm.GetEnv()->GetClass<TestClass>("TestClass");
+    vm.GetEnv()->GetClass<TestInterface>("TestInterface");
+    vm.GetEnv()->GetClass<TestClass2>("TestClass2");
+    auto bc = TestClass2::GetBaseClass(env.get());
+    ASSERT_EQ(bc->name, "TestClass");
+    auto interfaces = TestClass2::GetInterfaces(env.get());
+    ASSERT_EQ(interfaces.size(), 1);
+    ASSERT_EQ(interfaces[0]->name, "TestInterface");
+}
+
+class TestInterface2 {
+public:
+    virtual void Test2() = 0;
+};
+
+class TestClass3 : public jnivm::Extends<TestClass2, TestInterface2> {
+    virtual void Test() override {
+
+    }
+    virtual void Test2() override {
+
+    }
+};
+
+TEST(JNIVM, InheritedInterfacesWithNew) {
+    jnivm::VM vm;
+    auto env = vm.GetEnv();
+    vm.GetEnv()->GetClass<TestClass>("TestClass");
+    vm.GetEnv()->GetClass<TestInterface>("TestInterface")->Hook(env.get(), "Test", &TestInterface::Test);
+    vm.GetEnv()->GetClass<TestInterface2>("TestInterface2")->Hook(env.get(), "Test2", &TestInterface2::Test2);
+    vm.GetEnv()->GetClass<TestClass2>("TestClass2");
+    vm.GetEnv()->GetClass<TestClass3>("TestClass3");
+    auto bc = TestClass3::GetBaseClass(env.get());
+    ASSERT_EQ(bc->name, "TestClass2");
+    auto interfaces = TestClass3::GetInterfaces(env.get());
+    ASSERT_EQ(interfaces.size(), 2);
+    ASSERT_EQ(interfaces[0]->name, "TestInterface");
+    ASSERT_EQ(interfaces[1]->name, "TestInterface2");
+}
+
+#include <fake-jni/fake-jni.h>
+
+class FakeJniTest : public FakeJni::JObject {
+    jint f = 1;
+public:
+    DEFINE_CLASS_NAME("FakeJniTest")
+};
+
+BEGIN_NATIVE_DESCRIPTOR(FakeJniTest)
+FakeJni::Constructor<FakeJniTest>{},
+#ifdef __cpp_nontype_template_parameter_auto
+{FakeJni::Field<&FakeJniTest::f>{}, "f"}
+#endif
+END_NATIVE_DESCRIPTOR
+
+TEST(JNIVM, FakeJniTest) {
+    FakeJni::Jvm jvm;
+    jvm.registerClass<FakeJniTest>();
+    FakeJni::LocalFrame frame(jvm);
+    jclass c = (&frame.getJniEnv())->FindClass("FakeJniTest");
+    jmethodID ctor = (&frame.getJniEnv())->GetMethodID(c, "<init>", "()V");
+    jobject o = (&frame.getJniEnv())->NewObject(c, ctor);
+}
