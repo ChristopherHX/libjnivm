@@ -230,11 +230,11 @@ jint UnregisterNatives(JNIEnv *env, jclass c) {
 };
 
 jint MonitorEnter(JNIEnv *, jobject o) {
-	((Object*)o)->lock.lock();
+	((Object*)o)->lock.lock.lock();
 	return 0;
 };
 jint MonitorExit(JNIEnv *, jobject o) {
-	((Object*)o)->lock.unlock();
+	((Object*)o)->lock.lock.unlock();
 	return 0;
 }
 

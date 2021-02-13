@@ -6,10 +6,17 @@
 namespace jnivm {
     class Class;
     class ENV;
+    struct ObjectMutexWrapper {
+        ObjectMutexWrapper() = default;
+        ObjectMutexWrapper(const ObjectMutexWrapper& other) : ObjectMutexWrapper() {}
+        ObjectMutexWrapper(ObjectMutexWrapper&& other) = default;
+        std::recursive_mutex lock;
+    };
+
     class Object : public std::enable_shared_from_this<Object> {
     public:
         std::shared_ptr<Class> clazz;
-        std::recursive_mutex lock;
+        ObjectMutexWrapper lock;
         Object(const std::shared_ptr<Class>& clazz) : clazz(clazz) {}
         Object() : clazz(nullptr) {}
 
