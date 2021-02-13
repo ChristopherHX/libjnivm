@@ -46,7 +46,7 @@ namespace FakeJni {
         }
     };
 
-#ifdef __clang__
+#ifdef __cpp_nontype_template_parameter_auto
     template<auto T> struct Field {
         using Type = decltype(T);
         static constexpr Type handle = T;
