@@ -28,8 +28,15 @@ namespace FakeJni {
     using JDoubleArray = jnivm::Array<JDouble>;
 
     struct LocalFrame : public JniEnvContext {
-        LocalFrame(int size = 0) : JniEnvContext() {}
-        LocalFrame(const Jvm& vm, int size = 0) : JniEnvContext(vm) {}
+        LocalFrame(int size = 0) : JniEnvContext() {
+            (&getJniEnv())->PushLocalFrame(size);
+        }
+        LocalFrame(const Jvm& vm, int size = 0) : JniEnvContext(vm) {
+            (&getJniEnv())->PushLocalFrame(size);
+        }
+        ~LocalFrame() {
+            (&getJniEnv())->PopLocalFrame(nullptr);
+        }
     };
 
     class JniEnv {
