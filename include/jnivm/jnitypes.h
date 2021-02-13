@@ -183,12 +183,12 @@ namespace jnivm {
 #include "class.h"
 
 template<class T, bool Y = false> struct ClassName {
-    static constexpr std::string getClassName() {
+    static std::string getClassName() {
         throw std::runtime_error("Unknown class");
     }
 };
 template<class T> struct ClassName<T, true> {
-    static constexpr std::string getClassName() {
+    static std::string getClassName() {
         return T::getClassName();
     }
 };
