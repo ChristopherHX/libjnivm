@@ -86,6 +86,7 @@ namespace jnivm {
         }
     };
 }
+#include "class.h"
 
 template<class T> std::shared_ptr<jnivm::Class> jnivm::ENV::GetClass(const char *name) {
     std::lock_guard<std::mutex> lock(vm->mtx);
