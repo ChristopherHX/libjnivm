@@ -22,11 +22,9 @@ namespace jnivm {
 
     };
 
-#ifdef __clang__
     template<class T> struct hasname<T, std::void_t<decltype(T::getClassName())>> : std::true_type{
 
     };
-#endif
 
     template<class T> struct JNITypes<std::shared_ptr<T>> {
         JNITypes() {
