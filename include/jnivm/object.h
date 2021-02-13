@@ -9,7 +9,7 @@ namespace jnivm {
     struct ObjectMutexWrapper {
         ObjectMutexWrapper() = default;
         ObjectMutexWrapper(const ObjectMutexWrapper& other) : ObjectMutexWrapper() {}
-        ObjectMutexWrapper(ObjectMutexWrapper&& other) = default;
+        ObjectMutexWrapper(ObjectMutexWrapper&& other) : ObjectMutexWrapper() {}
         std::recursive_mutex lock;
     };
 
