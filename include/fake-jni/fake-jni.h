@@ -86,14 +86,13 @@ namespace jnivm {
     }
 
 }
-#define DEFINE_CLASS_NAME(cname, ...) constexpr static const char name[] = cname ;\
-                                static std::string getClassName() {\
-                                    return name;\
-                                }\
-                                static std::shared_ptr<jnivm::Class> getDescriptor();\
-                                virtual jnivm::Class& getClass() override {\
-                                    return *getDescriptor();\
-                                }
+#define DEFINE_CLASS_NAME(cname, ...)   static std::string getClassName() {\
+                                            return cname;\
+                                        }\
+                                        static std::shared_ptr<jnivm::Class> getDescriptor();\
+                                        virtual jnivm::Class& getClass() override {\
+                                            return *getDescriptor();\
+                                        }
 #define BEGIN_NATIVE_DESCRIPTOR(name, ...)  std::shared_ptr<jnivm::Class> name ::getDescriptor() {\
                                                 using ClassName = name ;\
                                                 static std::vector<FakeJni::Descriptor> desc({
@@ -101,7 +100,7 @@ namespace jnivm {
                                                 FakeJni::LocalFrame frame;\
                                                 static std::shared_ptr<jnivm::Class> clazz = nullptr;\
                                                 if(!clazz) {\
-                                                    clazz = frame.getJniEnv().GetClass<ClassName>(ClassName::name);\
+                                                    clazz = frame.getJniEnv().GetClass<ClassName>(ClassName::getClassName().data());\
                                                     for(auto&& des : desc) {\
                                                         des.registre(std::addressof(frame.getJniEnv()), clazz.get());\
                                                     }\
