@@ -50,4 +50,8 @@ if(JNIVM_ENABLE_TESTS)
 
     add_executable(JNIVMTests src/tests/Tests.cpp)
     target_link_libraries(JNIVMTests gtest gtest_main jnivm)
+
+    if(JNIVM_ENABLE_RETURN_NON_ZERO)
+        target_compile_definitions(JNIVMTests PRIVATE JNI_RETURN_NON_ZERO)
+    endif()
 endif()
