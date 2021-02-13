@@ -4,6 +4,7 @@
 #include <vector>
 #include <forward_list>
 #include <jni.h>
+#include "throwable.h"
 
 namespace jnivm {
     class VM;
@@ -21,6 +22,9 @@ namespace jnivm {
         std::forward_list<std::vector<std::shared_ptr<Object>>> localframe;
         // save previous poped vector frames here, precleared
         std::forward_list<std::vector<std::shared_ptr<Object>>> freeframes;
+
+        std::shared_ptr<Throwable> current_exception;
+
         ENV(VM * vm, const JNINativeInterface & defaultinterface) : vm(vm), ninterface(defaultinterface), env{&ninterface}, localframe({{}}) {
             ninterface.reserved0 = this;
         }

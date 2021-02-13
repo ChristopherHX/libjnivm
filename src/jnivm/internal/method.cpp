@@ -81,19 +81,26 @@ T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
     if(!id)
         LOG("JNIVM", "CallMethod field is null");
 #endif
-#ifdef JNI_TRACE
-        LOG("JNIVM", "Call Function %s, %s", mid->name.data(), mid->signature.data());
-#endif
     if (mid && mid->nativehandle) {
 #ifdef JNI_TRACE
         Class* cl = obj ? (Class*)env->GetObjectClass(obj) : nullptr;
-        LOG("JNIVM", "Call Function Class=`%s` Method=`%s`", cl ? cl->nativeprefix.data() : "???", mid->name.data());
+        LOG("JNIVM", "Call Function Class=`%s` Method=`%s` Signature=`%s`", cl ? cl->nativeprefix.data() : "???", mid->name.data(), mid->signature.data());
 #endif
-        return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
+        try {
+            return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
+        } catch (...) {
+            auto cur = std::make_shared<Throwable>();
+            cur->except = std::current_exception();
+            ((ENV*)env->functions->reserved0)->current_exception = cur;
+#ifdef JNI_TRACE
+            env->ExceptionDescribe();
+#endif
+            return defaultVal<T>();
+        }
     } else {
 #ifdef JNI_TRACE
         Class* cl = obj ? (Class*)env->GetObjectClass(obj) : nullptr;
-        LOG("JNIVM", "Unknown Function Class=`%s` Method=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid ? mid->name.data() : "???");
+        LOG("JNIVM", "Unknown Function Class=`%s` Method=`%s` Signature=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid ? mid->name.data() : "???", mid ? mid->signature.data() : "???");
 #endif
 #ifdef JNI_RETURN_NON_ZERO
         if constexpr(std::is_same_v<T, jobject>) {

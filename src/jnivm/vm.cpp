@@ -66,11 +66,23 @@ jint ThrowNew(JNIEnv *, jclass, const char *) {
 	LOG("JNIVM", "Not Implemented Method ThrowNew called");
 	return 0;
 };
-jthrowable ExceptionOccurred(JNIEnv *) {
-	return (jthrowable)0;
+jthrowable ExceptionOccurred(JNIEnv * env) {
+	return (jthrowable) JNITypes<std::shared_ptr<Throwable>>::ToJNIType((ENV *)(env->functions->reserved0), ((ENV *)(env->functions->reserved0))->current_exception) ;
 };
-void ExceptionDescribe(JNIEnv *) {  };
-void ExceptionClear(JNIEnv *) {  };
+void ExceptionDescribe(JNIEnv *env) {
+	if(((ENV *)(env->functions->reserved0))->current_exception) {
+		try {
+			std::rethrow_exception(((ENV *)(env->functions->reserved0))->current_exception->except);
+		} catch (const std::exception& ex) {
+			LOG("JNIVM", "Exception with Message `%s` was thrown", ex.what());
+		}
+	} else {
+		LOG("JNIVM", "No pending Exception");
+	}
+};
+void ExceptionClear(JNIEnv *env) {
+	((ENV *)(env->functions->reserved0))->current_exception = nullptr;
+};
 void FatalError(JNIEnv *, const char * err) {
 	LOG("JNIVM", "Not Implemented Method FatalError called: %s", err);
 };
@@ -216,14 +228,16 @@ jint UnregisterNatives(JNIEnv *env, jclass c) {
 	}
 	return 0;
 };
-jint MonitorEnter(JNIEnv *, jobject) {
-	LOG("JNIVM", "MonitorEnter unsupported");
+
+jint MonitorEnter(JNIEnv *, jobject o) {
+	((Object*)o)->lock.lock();
 	return 0;
 };
-jint MonitorExit(JNIEnv *, jobject) {
-	LOG("JNIVM", "MonitorEnter unsupported");
+jint MonitorExit(JNIEnv *, jobject o) {
+	((Object*)o)->lock.unlock();
 	return 0;
-};
+}
+
 jint GetJavaVM(JNIEnv * env, JavaVM ** vm) {
 	if(vm) {
 		std::lock_guard<std::mutex> lock(((ENV *)(env->functions->reserved0))->vm->mtx);
@@ -236,9 +250,10 @@ jweak NewWeakGlobalRef(JNIEnv *, jobject obj) {
 };
 void DeleteWeakGlobalRef(JNIEnv *, jweak) {
 };
-jboolean ExceptionCheck(JNIEnv *) {
-return JNI_FALSE;
- };
+
+jboolean ExceptionCheck(JNIEnv *env) {
+	return (bool)((ENV *)(env->functions->reserved0))->current_exception;
+}
 #include "internal/bytebuffer.hpp"
 
 jobjectRefType GetObjectRefType(JNIEnv *, jobject) {
