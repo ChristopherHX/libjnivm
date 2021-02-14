@@ -1,3 +1,4 @@
+#pragma once
 #include <jnivm/array.h>
 #include <jnivm/jnitypes.h>
 
