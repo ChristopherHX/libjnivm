@@ -26,8 +26,8 @@ namespace jnivm {
 
     };
 
-    template<class T> struct JNITypes<std::shared_ptr<T>> {
-        JNITypes() {
+    template<class T, class B = jobject> struct JNITypesObjectBase {
+        JNITypesObjectBase() {
             static_assert(std::is_base_of<Object, T>::value || std::is_same<Object, Object>::value, "You have to extend jnivm::Object");
         }
 
@@ -38,14 +38,25 @@ namespace jnivm {
         static std::shared_ptr<jnivm::Class> GetClass(ENV * env);
         
         static std::shared_ptr<T> JNICast(const jvalue& v) {
-            return v.l ? std::shared_ptr<T>((*(T*)v.l).shared_from_this(), (T*)v.l) : std::shared_ptr<T>();
+            return JNICast(v.l);
         }
-        static jobject ToJNIType(ENV* env, const std::shared_ptr<T>& p);
+        static std::shared_ptr<T> JNICast(const jobject& o) {
+            return o ? std::shared_ptr<T>((*(T*)o).shared_from_this(), (T*)o) : std::shared_ptr<T>();
+        }
+
+        static B ToJNIType(ENV* env, const std::shared_ptr<T>& p);
 
         static constexpr jobject ToJNIReturnType(ENV* env, const std::shared_ptr<T>& p) {
             return ToJNIType(env, p);
         }
     };
+
+    template<class T> struct JNITypes<std::shared_ptr<T>> : JNITypesObjectBase<T> {};
+
+    class String;
+    class Class;
+    template<> struct JNITypes<std::shared_ptr<String>> : JNITypesObjectBase<String, jstring> {};
+    template<> struct JNITypes<std::shared_ptr<Class>> : JNITypesObjectBase<Class, jclass> {};
 
     template<class T> struct ___JNIType {
         static T ToJNIType(ENV* env, T v) {
@@ -179,7 +190,7 @@ template<class T> struct ClassName<T, true> {
 #include "vm.h"
 #include "env.h"
 
-template<class T> std::string jnivm::JNITypes<std::shared_ptr<T>>::GetJNISignature(jnivm::ENV *env){
+template<class T, class B> std::string jnivm::JNITypesObjectBase<T, B>::GetJNISignature(jnivm::ENV *env){
     std::lock_guard<std::mutex> lock(env->vm->mtx);
     auto r = env->vm->typecheck.find(typeid(T));
     if(r != env->vm->typecheck.end()) {
@@ -189,7 +200,7 @@ template<class T> std::string jnivm::JNITypes<std::shared_ptr<T>>::GetJNISignatu
     }
 }
 
-template<class T> std::shared_ptr<jnivm::Class> jnivm::JNITypes<std::shared_ptr<T>>::GetClass(jnivm::ENV *env) {
+template<class T, class B> std::shared_ptr<jnivm::Class> jnivm::JNITypesObjectBase<T, B>::GetClass(jnivm::ENV *env) {
     // ToDo find the deadlock or replace with recursive_mutex
     // std::lock_guard<std::mutex> lock(env->vm->mtx);
     auto r = env->vm->typecheck.find(typeid(T));
@@ -200,7 +211,7 @@ template<class T> std::shared_ptr<jnivm::Class> jnivm::JNITypes<std::shared_ptr<
     }
 }
 
-template<class T> jobject jnivm::JNITypes<std::shared_ptr<T>>::ToJNIType(jnivm::ENV *env, const std::shared_ptr<T> &p) {
+template<class T, class B> B jnivm::JNITypesObjectBase<T, B>::ToJNIType(jnivm::ENV *env, const std::shared_ptr<T> &p) {
     if(!p) return nullptr;
     // Cache return values in localframe list of this thread, destroy delayed
     env->localframe.front().push_back(p);
@@ -208,7 +219,7 @@ template<class T> jobject jnivm::JNITypes<std::shared_ptr<T>>::ToJNIType(jnivm::
         p->clazz = GetClass(env);
     }
     // Return jni Reference
-    return (jobject)p.get();
+    return (B)p.get();
 }
 
 template<class T> typename jnivm::JNITypes<T>::Array jnivm::JNITypes<std::shared_ptr<jnivm::Array<T>>>::ToJNIType(jnivm::ENV *env, std::shared_ptr<jnivm::Array<T>> v) {

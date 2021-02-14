@@ -88,7 +88,7 @@ jclass jnivm::InternalFindClass(JNIEnv *env, const char *name) {
 	}
 #endif
 	// curc->nativeprefix = std::move(prefix);
-	return (jclass)JNITypes<std::shared_ptr<Class>>::ToJNIType(std::addressof(nenv), curc);
+	return JNITypes<std::shared_ptr<Class>>::ToJNIType(std::addressof(nenv), curc);
 }
 
 void jnivm::Declare(JNIEnv *env, const char *signature) {

@@ -9,7 +9,7 @@ jstring jnivm::NewString(JNIEnv *env, const jchar * str, jsize size) {
     for (jsize i = 0; i < size; i++) {
         ss.write(out, JCharToUTF(str[i], out, sizeof(out)));
     }
-    return (jstring)JNITypes<std::shared_ptr<String>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<String>(ss.str()));
+    return JNITypes<std::shared_ptr<String>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<String>(ss.str()));
 };
 jsize jnivm::GetStringLength(JNIEnv *env, jstring str) {
     if(str) {
@@ -46,7 +46,7 @@ void jnivm::ReleaseStringChars(JNIEnv * env, jstring str, const jchar * cstr) {
     delete[] cstr;
 };
 jstring jnivm::NewStringUTF(JNIEnv * env, const char *str) {
-    return (jstring)JNITypes<std::shared_ptr<String>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<String>(str ? str : ""));
+    return JNITypes<std::shared_ptr<String>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<String>(str ? str : ""));
 };
 jsize jnivm::GetStringUTFLength(JNIEnv *, jstring str) {
     return str ? ((String*)str)->length() : 0;
