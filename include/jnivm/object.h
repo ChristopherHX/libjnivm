@@ -24,9 +24,8 @@ namespace jnivm {
             return *clazz.get();
         }
 
-        static std::shared_ptr<Class> GetBaseClass(ENV* env) {
-            return nullptr;
-        }
+        static std::shared_ptr<Class> GetBaseClass(ENV* env);
+        
         static std::vector<std::shared_ptr<Class>> GetInterfaces(ENV* env) {
             return {};
         }

@@ -86,14 +86,22 @@ namespace jnivm {
     }
 
 }
-#define DEFINE_CLASS_NAME(cname, ...)   static std::string getClassName() {\
+#define DEFINE_CLASS_NAME(cname, ...)   static std::shared_ptr<jnivm::Class> GetBaseClass(jnivm::ENV* env);\
+                                        static std::vector<std::shared_ptr<jnivm::Class>> GetInterfaces(jnivm::ENV* env);\
+                                        static std::string getClassName() {\
                                             return cname;\
                                         }\
                                         static std::shared_ptr<jnivm::Class> getDescriptor();\
                                         virtual jnivm::Class& getClass() override {\
                                             return *getDescriptor();\
                                         }
-#define BEGIN_NATIVE_DESCRIPTOR(name, ...)  std::shared_ptr<jnivm::Class> name ::getDescriptor() {\
+#define BEGIN_NATIVE_DESCRIPTOR(name, ...)  std::shared_ptr<jnivm::Class> name ::GetBaseClass(jnivm::ENV *env) {\
+                                                return jnivm::Extends< __VA_ARGS__ >::GetBaseClass(env);\
+                                            }\
+                                            std::vector<std::shared_ptr<jnivm::Class>> name ::GetInterfaces(jnivm::ENV *env) {\
+                                                return jnivm::Extends< __VA_ARGS__ >::GetInterfaces(env);\
+                                            }\
+                                            std::shared_ptr<jnivm::Class> name ::getDescriptor() {\
                                                 using ClassName = name ;\
                                                 static std::vector<FakeJni::Descriptor> desc({
 #define END_NATIVE_DESCRIPTOR                   });\

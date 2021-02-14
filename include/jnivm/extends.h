@@ -3,7 +3,7 @@
 #include "env.h"
  
 namespace jnivm {
-    template<class Base, class... Interfaces> class Extends : public Base, public Interfaces... {
+    template<class Base = Object, class... Interfaces> class Extends : public Base, public Interfaces... {
     public:
         static std::shared_ptr<Class> GetBaseClass(ENV* env) {
             auto other = Base::GetBaseClass(env);

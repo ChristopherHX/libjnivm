@@ -25,6 +25,8 @@ namespace jnivm {
         std::vector<std::shared_ptr<Field>> fields;
         std::vector<std::shared_ptr<Method>> methods;
         std::function<std::shared_ptr<Object>()> Instantiate;
+        std::function<std::shared_ptr<Class>(ENV*)> superclass;
+        std::function<std::vector<std::shared_ptr<Class>>(ENV*)> interfaces;
 
         Class() {
 

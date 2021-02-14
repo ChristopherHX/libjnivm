@@ -46,13 +46,28 @@ jobject ToReflectedMethod(JNIEnv *, jclass, jmethodID, jboolean) {
 	LOG("JNIVM", "Not Implemented Method ToReflectedMethod called");
 	return 0;
 };
-jclass GetSuperclass(JNIEnv *, jclass) {
-	LOG("JNIVM", "Not Implemented Method GetSuperclass called");
-	return 0;
+jclass GetSuperclass(JNIEnv * env, jclass c) {
+	auto cl = (Class*) c;
+	return cl->superclass ? (jclass)cl->superclass((ENV *)env->functions->reserved0).get() : env->FindClass("java/lang/Object");
 };
-jboolean IsAssignableFrom(JNIEnv *, jclass, jclass) {
-	LOG("JNIVM", "Not Implemented Method IsAssignableFrom called");
-	return 0;
+jboolean IsAssignableFrom(JNIEnv *env, jclass c1, jclass c2) {
+	jclass ct1 = c1;
+	while(!env->IsSameObject(ct1, c2)) {
+		jclass nc = GetSuperclass(env, ct1);
+		if(nc == ct1) {
+			auto cl = (Class*) c1;
+			if(cl->interfaces) {
+				for(auto&& i : cl->interfaces((ENV *)env->functions->reserved0)) {
+					if(env->IsSameObject((jobject)i.get(), c2)) {
+						return JNI_TRUE;
+					}
+				}
+			}
+			return JNI_FALSE;
+		}
+		ct1 = nc;
+	}
+	return JNI_TRUE;
 };
 jobject ToReflectedField(JNIEnv *, jclass, jfieldID, jboolean) {
 	LOG("JNIVM", "Not Implemented Method ToReflectedField called");
@@ -181,8 +196,8 @@ jobject AllocObject(JNIEnv *env, jclass cl) {
 jclass GetObjectClass(JNIEnv *env, jobject jo) {
 	return jo ? (jclass)&((Object*)jo)->getClass() : (jclass)env->FindClass("Invalid");
 };
-jboolean IsInstanceOf(JNIEnv *, jobject jo, jclass cl) {
-	return jo && (jclass)((Object*)jo)->clazz.get() == cl;
+jboolean IsInstanceOf(JNIEnv *env, jobject jo, jclass cl) {
+	return jo && IsAssignableFrom(env, GetObjectClass(env, jo), cl);
 };
 
 #include "internal/method.h"
@@ -479,4 +494,8 @@ std::shared_ptr<jnivm::Class> jnivm::VM::findClass(const char *name) {
 
 jobject jnivm::VM::createGlobalReference(std::shared_ptr<jnivm::Object> obj) {
     return GetEnv()->env.NewGlobalRef((jobject)obj.get());
+}
+
+std::shared_ptr<jnivm::Class> jnivm::Object::GetBaseClass(jnivm::ENV *env) {
+	return env->GetClass("java/lang/Object");
 }

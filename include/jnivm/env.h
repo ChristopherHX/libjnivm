@@ -85,6 +85,19 @@ namespace jnivm {
             };
         }
     };
+
+    template<class T, class=void> struct IsClass {
+        static void AddInherience(std::shared_ptr<jnivm::Class> &c) {
+
+        }
+    };
+
+    template<class T> struct IsClass<T, std::void_t<decltype(T::GetBaseClass(std::declval<ENV*>())), decltype(T::GetInterfaces(std::declval<ENV*>()))>> {
+        static void AddInherience(std::shared_ptr<jnivm::Class> &c) {
+            c->superclass = &T::GetBaseClass;
+            c->interfaces = &T::GetInterfaces;
+        }
+    };
 }
 #include "class.h"
 
@@ -92,6 +105,7 @@ template<class T> std::shared_ptr<jnivm::Class> jnivm::ENV::GetClass(const char 
     std::lock_guard<std::mutex> lock(vm->mtx);
     auto& c = vm->typecheck[typeid(T)] = GetClass(name);
     c->Instantiate = jnivm::Factory<T>::CreateLambda();
+    IsClass<T>::AddInherience(c);
     return c;
 }
 #endif
