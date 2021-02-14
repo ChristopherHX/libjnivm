@@ -12,6 +12,10 @@ namespace jnivm {
             using Object = jnivm::Object;
             using String = jnivm::String;
             using Class = jnivm::Class;
+            namespace reflect {
+                using Method = jnivm::Method;
+                using Field = jnivm::Field;
+            }
         }
         namespace nio {
             using ByteBuffer = jnivm::ByteBuffer;

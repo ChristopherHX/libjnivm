@@ -34,16 +34,25 @@ jclass jnivm::FindClass(JNIEnv *env, const char *name) {
 	std::lock_guard<std::mutex> lock(nenv.vm->mtx);
 	return InternalFindClass(env, name);
 };
-jmethodID FromReflectedMethod(JNIEnv *, jobject) {
-	LOG("JNIVM", "Not Implemented Method FromReflectedMethod called");
-	return 0;
+jmethodID FromReflectedMethod(JNIEnv *env, jobject obj) {
+	if(obj && env->functions->IsSameObject(env, env->functions->GetObjectClass(env, obj), FindClass(env, "java/lang/reflect/Method"))) {
+		return (jmethodID) obj;
+	} else {
+		return nullptr;
+	}
 };
-jfieldID FromReflectedField(JNIEnv *, jobject) {
-	LOG("JNIVM", "Not Implemented Method FromReflectedField called");
-	return 0;
+jfieldID FromReflectedField(JNIEnv *env, jobject obj) {
+	if(obj && env->functions->IsSameObject(env, env->functions->GetObjectClass(env, obj), FindClass(env, "java/lang/reflect/Field"))) {
+		return (jfieldID) obj;
+	} else {
+		return nullptr;
+	}
 };
-jobject ToReflectedMethod(JNIEnv *, jclass, jmethodID, jboolean) {
-	LOG("JNIVM", "Not Implemented Method ToReflectedMethod called");
+jobject ToReflectedMethod(JNIEnv * env, jclass c, jmethodID mid, jboolean isStatic) {
+	auto method = (Method*)mid;
+	if(c && method && method->_static == (bool)isStatic) {
+		return env->NewLocalRef((jobject) method);
+	}
 	return 0;
 };
 jclass GetSuperclass(JNIEnv * env, jclass c) {
@@ -69,8 +78,11 @@ jboolean IsAssignableFrom(JNIEnv *env, jclass c1, jclass c2) {
 	}
 	return JNI_TRUE;
 };
-jobject ToReflectedField(JNIEnv *, jclass, jfieldID, jboolean) {
-	LOG("JNIVM", "Not Implemented Method ToReflectedField called");
+jobject ToReflectedField(JNIEnv * env, jclass c, jfieldID fid, jboolean isStatic) {
+	auto field = (Field*)fid;
+	if(c && field && field->_static == (bool)isStatic) {
+		return env->NewLocalRef((jobject) field);
+	}
 	return 0;
 };
 jint Throw(JNIEnv *, jthrowable) {
