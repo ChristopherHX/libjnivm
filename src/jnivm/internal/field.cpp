@@ -1,6 +1,12 @@
 #include "field.hpp"
 #include <jnivm/internal/findclass.h>
 #include "log.h"
+#include <jnivm/field.h>
+#include <jnivm/class.h>
+#include <functional>
+#include "method.h"
+
+using namespace jnivm;
 
 template<bool isStatic>
 jfieldID jnivm::GetFieldID(JNIEnv *env, jclass cl, const char *name, const char *type) {
@@ -22,6 +28,21 @@ jfieldID jnivm::GetFieldID(JNIEnv *env, jclass cl, const char *name, const char 
         LOG("JNIVM", "Found symbol, Class: %s, %sField: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, isStatic ? "Static" : "", name, type);
 #endif
     } else {
+        auto cl2 = env->GetSuperclass(cl);
+        if(cl2 != cl) {
+            auto id = GetFieldID<isStatic>(env, cl2, name, type);
+            if(id) {
+                return id;
+            }
+        }
+        if(!isStatic && cur->interfaces) {
+            for(auto&& i : cur->interfaces((ENV*)env->functions->reserved0)) {
+                auto id = GetFieldID<false>(env, (jclass)i.get(), name, type);
+                if(id) {
+                    return id;
+                }
+            }
+        }
         next = std::make_shared<Field>();
         cur->fields.emplace_back(next);
         next->name = std::move(sname);
@@ -55,7 +76,7 @@ template <class T> T jnivm::GetField(JNIEnv *env, jobject obj, jfieldID id) {
 #ifdef JNI_TRACE
         LOG("JNIVM", "Unknown Field Getter %s", fid->name.data());
 #endif
-        return {};
+        return defaultVal<T>((ENV*)env->functions->reserved0, fid ? fid->type : "");
     }
 }
 
@@ -88,12 +109,22 @@ template <class T> T jnivm::GetStaticField(JNIEnv *env, jclass cl, jfieldID id) 
         LOG("JNIVM", "GetStaticField field is null");
 #endif
     if (fid && fid->getnativehandle) {
-        return (*(std::function<T(ENV*, Class*, const jvalue *)>*)fid->getnativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, nullptr);
+        try {
+            return (*(std::function<T(ENV*, Class*, const jvalue *)>*)fid->getnativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, nullptr);
+        } catch (...) {
+            auto cur = std::make_shared<Throwable>();
+            cur->except = std::current_exception();
+            ((ENV*)env->functions->reserved0)->current_exception = cur;
+    #ifdef JNI_TRACE
+            env->ExceptionDescribe();
+    #endif
+            return defaultVal<T>((ENV*)env->functions->reserved0, fid ? fid->type : "");
+        }
     } else {
 #ifdef JNI_TRACE
         LOG("JNIVM", "Unknown Field Getter %s", fid->name.data());
 #endif
-        return {};
+        return defaultVal<T>((ENV*)env->functions->reserved0, fid ? fid->type : "");
     }
 }
 
@@ -107,10 +138,19 @@ void jnivm::SetStaticField(JNIEnv *env, jclass cl, jfieldID id, T value) {
         LOG("JNIVM", "SetStaticField field is null");
 #endif
     if (fid && fid->setnativehandle) {
-        jvalue val;
-        memset(&val, 0, sizeof(val));
-        memcpy(&val, &value, sizeof(T));
-        (*(std::function<void(ENV*, Class*, const jvalue *)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, &val);
+        try {
+            jvalue val;
+            memset(&val, 0, sizeof(val));
+            memcpy(&val, &value, sizeof(T));
+            (*(std::function<void(ENV*, Class*, const jvalue *)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, &val);
+        } catch (...) {
+            auto cur = std::make_shared<Throwable>();
+            cur->except = std::current_exception();
+            ((ENV*)env->functions->reserved0)->current_exception = cur;
+    #ifdef JNI_TRACE
+            env->ExceptionDescribe();
+    #endif
+        }
     } else {
 #ifdef JNI_TRACE
         LOG("JNIVM", "Unknown Field Setter %s", fid->name.data());

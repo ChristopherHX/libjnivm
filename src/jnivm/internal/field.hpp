@@ -1,6 +1,5 @@
-#include <jnivm/field.h>
-#include <jnivm/class.h>
-#include <functional>
+#pragma once
+#include <jni.h>
 
 namespace jnivm {
 

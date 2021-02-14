@@ -42,6 +42,22 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
 #endif
     }
     if(!next) {
+        auto cl2 = env->GetSuperclass(cl);
+        if(cl2 != cl) {
+            auto id = GetMethodID<isStatic>(env, cl2, str0, str1);
+            if(id) {
+                return id;
+            }
+        }
+        if(!isStatic && cur->interfaces) {
+            for(auto&& i : cur->interfaces((ENV*)env->functions->reserved0)) {
+                auto id = GetMethodID<false>(env, (jclass)i.get(), str0, str1);
+                if(id) {
+                    return id;
+                }
+            }
+        }
+        
         next = std::make_shared<Method>();
         if(cur) {
             cur->methods.push_back(next);
@@ -74,19 +90,25 @@ template<> void jnivm::defaultVal(ENV* env, std::string signature) {
 
 template<> jobject jnivm::defaultVal(ENV* env, std::string signature) {
 #ifdef JNI_RETURN_NON_ZERO
-    size_t off = signature.find_last_of(")");
-    if(off != -1) {
+    if(!signature.empty()) {
+        size_t off = signature.find_last_of(")");
         if(!strcmp(signature.data() + off + 1, "Ljava/lang/String;")) {
+            LOG("JNIVM", "Constructed empty string=`%s`", &signature.data()[off + 1]);
             return env->env.NewStringUTF("");
         }
         else if(signature[off + 1] == '[' ){
+            LOG("JNIVM", "Constructed array=`%s`", &signature.data()[off + 1]);
             return env->env.NewObjectArray(0, env->env.FindClass(signature[off + 2] == 'L' && signature[signature.size() - 1] == ';' ? signature.substr(off + 3, signature.size() - (off + 4)).data() : &signature.data()[off + 1]), nullptr);
         } else if (signature[off + 1] == 'L' && signature[signature.size() - 1] == ';'){
             auto c = env->GetClass(signature.substr(off + 2, signature.size() - (off + 3)).data());
             if(c->Instantiate) {
+                LOG("JNIVM", "Constructed object=`%s`", &signature.data()[off + 1]);
                 return JNITypes<std::shared_ptr<Object>>::ToJNIReturnType(env, c->Instantiate());
             }
         }
+        LOG("JNIVM", "Failed to construct return value of signature=`%s`", signature.data());
+    } else {
+        LOG("JNIVM", "Failed to guess return value of empty signature");
     }
 #endif
     return nullptr;
@@ -160,7 +182,17 @@ T jnivm::CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id
 #ifdef JNI_TRACE
         LOG("JNIVM", "Call Function Class=`%s` Method=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid->name.data());
 #endif
-        return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
+        try {
+            return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
+        } catch (...) {
+            auto cur = std::make_shared<Throwable>();
+            cur->except = std::current_exception();
+            ((ENV*)env->functions->reserved0)->current_exception = cur;
+#ifdef JNI_TRACE
+            env->ExceptionDescribe();
+#endif
+            return defaultVal<T>((ENV*)env->functions->reserved0, mid ? mid->signature : "");
+        }
     } else {
 #ifdef JNI_TRACE
         LOG("JNIVM", "Unknown Function Class=`%s` Method=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid ? mid->name.data() : "???");
@@ -194,7 +226,17 @@ T jnivm::CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param)
 #ifdef JNI_TRACE
         LOG("JNIVM", "Call Function Class=`%s` Method=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid->name.data());
 #endif
-        return (*(std::function<T(ENV*, Class*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, param);
+        try {
+            return (*(std::function<T(ENV*, Class*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, param);
+        } catch (...) {
+            auto cur = std::make_shared<Throwable>();
+            cur->except = std::current_exception();
+            ((ENV*)env->functions->reserved0)->current_exception = cur;
+#ifdef JNI_TRACE
+            env->ExceptionDescribe();
+#endif
+            return defaultVal<T>((ENV*)env->functions->reserved0, mid ? mid->signature : "");
+        }
     } else {
 #ifdef JNI_TRACE
         LOG("JNIVM", "Unknown Function Class=`%s` Method=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid ? mid->name.data() : "???");
