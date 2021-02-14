@@ -85,12 +85,19 @@ jobject ToReflectedField(JNIEnv * env, jclass c, jfieldID fid, jboolean isStatic
 	}
 	return 0;
 };
-jint Throw(JNIEnv *, jthrowable) {
-	LOG("JNIVM", "Not Implemented Method Throw called");
+jint Throw(JNIEnv *env, jthrowable ex) {
+	auto except = (Throwable*) ex;
+	((ENV *)env->functions->reserved0)->current_exception = except ? std::shared_ptr<Throwable>(except->shared_from_this(), except) : nullptr;
 	return 0;
 };
-jint ThrowNew(JNIEnv *, jclass, const char *) {
-	LOG("JNIVM", "Not Implemented Method ThrowNew called");
+jint ThrowNew(JNIEnv *env, jclass c, const char * message) {
+	try {
+		throw std::runtime_error(message);
+	} catch(...) {
+		auto th = std::make_shared<Throwable>();
+		th->except = std::current_exception();
+		((ENV *)env->functions->reserved0)->current_exception = th;
+	}
 	return 0;
 };
 jthrowable ExceptionOccurred(JNIEnv * env) {
