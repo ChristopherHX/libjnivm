@@ -111,7 +111,8 @@ void ExceptionClear(JNIEnv *env) {
 	((ENV *)(env->functions->reserved0))->current_exception = nullptr;
 };
 void FatalError(JNIEnv *, const char * err) {
-	LOG("JNIVM", "Not Implemented Method FatalError called: %s", err);
+	LOG("JNIVM", "FatalError called: %s", err);
+	abort();
 };
 jint PushLocalFrame(JNIEnv * env, jint cap) {
 #ifdef EnableJNIVMGC
