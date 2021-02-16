@@ -303,6 +303,15 @@ class TestClass : public jnivm::Extends<jnivm::Object, TestInterface> {
     }
 };
 
+#include <jnivm/weak.h>
+TEST(JNIVM, BaseClass) {
+    jnivm::VM vm;
+    auto env = vm.GetEnv();
+    
+    jnivm::Weak::GetBaseClass(env.get());
+    jnivm::Object::GetBaseClass(env.get());
+}
+
 TEST(JNIVM, Interfaces) {
     jnivm::VM vm;
     auto env = vm.GetEnv();
@@ -319,55 +328,66 @@ class TestClass2 : public jnivm::Extends<TestClass> {
 
 };
 
-TEST(JNIVM, InheritedInterfaces) {
-    jnivm::VM vm;
-    auto env = vm.GetEnv();
-    vm.GetEnv()->GetClass<TestClass>("TestClass");
-    vm.GetEnv()->GetClass<TestInterface>("TestInterface");
-    vm.GetEnv()->GetClass<TestClass2>("TestClass2");
-    auto bc = TestClass2::GetBaseClass(env.get());
-    ASSERT_EQ(bc->name, "TestClass");
-    auto interfaces = TestClass2::GetInterfaces(env.get());
-    ASSERT_EQ(interfaces.size(), 1);
-    ASSERT_EQ(interfaces[0]->name, "TestInterface");
-}
+// TEST(JNIVM, InheritedInterfaces) {
+//     jnivm::VM vm;
+//     auto env = vm.GetEnv();
+//     vm.GetEnv()->GetClass<TestClass>("TestClass");
+//     vm.GetEnv()->GetClass<TestInterface>("TestInterface");
+//     vm.GetEnv()->GetClass<TestClass2>("TestClass2");
+//     auto bc = TestClass2::GetBaseClass(env.get());
+//     ASSERT_EQ(bc->name, "TestClass");
+//     auto interfaces = TestClass2::GetInterfaces(env.get());
+//     ASSERT_EQ(interfaces.size(), 1);
+//     ASSERT_EQ(interfaces[0]->name, "TestInterface");
+// }
 
 class TestInterface2 {
 public:
     virtual void Test2() = 0;
 };
 
+struct TestClass3Ex : std::exception {
+
+};
+
 class TestClass3 : public jnivm::Extends<TestClass2, TestInterface2> {
     virtual void Test() override {
-
+        throw TestClass3Ex();
     }
     virtual void Test2() override {
 
     }
 };
 
-TEST(JNIVM, InheritedInterfacesWithNew) {
-    jnivm::VM vm;
-    auto env = vm.GetEnv();
-    vm.GetEnv()->GetClass<TestClass>("TestClass");
-    vm.GetEnv()->GetClass<TestInterface>("TestInterface")->Hook(env.get(), "Test", &TestInterface::Test);
-    vm.GetEnv()->GetClass<TestInterface2>("TestInterface2")->Hook(env.get(), "Test2", &TestInterface2::Test2);
-    vm.GetEnv()->GetClass<TestClass2>("TestClass2");
-    vm.GetEnv()->GetClass<TestClass3>("TestClass3");
-    auto bc = TestClass3::GetBaseClass(env.get());
-    ASSERT_EQ(bc->name, "TestClass2");
-    auto interfaces = TestClass3::GetInterfaces(env.get());
-    ASSERT_EQ(interfaces.size(), 2);
-    ASSERT_EQ(interfaces[0]->name, "TestInterface");
-    ASSERT_EQ(interfaces[1]->name, "TestInterface2");
-}
+// TEST(JNIVM, InheritedInterfacesWithNew) {
+//     jnivm::VM vm;
+//     auto env = vm.GetEnv();
+//     vm.GetEnv()->GetClass<TestClass>("TestClass");
+//     vm.GetEnv()->GetClass<TestInterface>("TestInterface")->Hook(env.get(), "Test", &TestInterface::Test);
+//     vm.GetEnv()->GetClass<TestInterface2>("TestInterface2")->Hook(env.get(), "Test2", &TestInterface2::Test2);
+//     vm.GetEnv()->GetClass<TestClass2>("TestClass2");
+//     vm.GetEnv()->GetClass<TestClass3>("TestClass3");
+//     auto bc = TestClass3::GetBaseClass(env.get());
+//     ASSERT_EQ(bc->name, "TestClass2");
+//     auto interfaces = TestClass3::GetInterfaces(env.get());
+//     ASSERT_EQ(interfaces.size(), 2);
+//     ASSERT_EQ(interfaces[0]->name, "TestInterface");
+//     ASSERT_EQ(interfaces[1]->name, "TestInterface2");
+// }
 
 #include <fake-jni/fake-jni.h>
 
-class FakeJniTest : public FakeJni::JObject {
+class Y {
+    virtual void test() = 0;
+};
+
+class FakeJniTest : public FakeJni::JObject, public Y {
     jint f = 1;
 public:
-    DEFINE_CLASS_NAME("FakeJniTest")
+    DEFINE_CLASS_NAME("FakeJniTest", FakeJni::JObject, Y)
+    virtual void test() override {
+
+    }
 };
 
 BEGIN_NATIVE_DESCRIPTOR(FakeJniTest)
@@ -382,6 +402,7 @@ TEST(JNIVM, FakeJniTest) {
     jvm.registerClass<FakeJniTest>();
     FakeJni::LocalFrame frame(jvm);
     jclass c = (&frame.getJniEnv())->FindClass("FakeJniTest");
+    // auto r = FakeJniTest::DynCast<FakeJniTest>();
     jmethodID ctor = (&frame.getJniEnv())->GetMethodID(c, "<init>", "()V");
     jobject o = (&frame.getJniEnv())->NewObject(c, ctor);
     auto ret = std::make_shared<FakeJniTest>(FakeJniTest());
@@ -393,4 +414,123 @@ TEST(JNIVM, FakeJniTest) {
 #else
     ASSERT_EQ(obj, nullptr);
 #endif
+}
+
+template<char...ch> struct TemplateString {
+    
+};
+
+// #define ToTemplateString(literal) decltype([](){ \
+//     \
+// }\
+// }())}
+
+TEST(JNIVM, Inherience) {
+    jnivm::VM vm;
+    auto env = vm.GetEnv();
+    vm.GetEnv()->GetClass<TestInterface>("TestInterface")->Hook(env.get(), "Test", &TestInterface::Test);
+    vm.GetEnv()->GetClass<TestInterface2>("TestInterface2")->Hook(env.get(), "Test2", &TestInterface2::Test2);
+    vm.GetEnv()->GetClass<TestClass>("TestClass");
+    vm.GetEnv()->GetClass<TestClass2>("TestClass2");
+    vm.GetEnv()->GetClass<TestClass3>("TestClass3");
+    // auto safecast = TestClass3::DynCast<TestClass3>();
+    jclass testClass = (&*env)->FindClass("TestClass");
+    jclass testClass2 = (&*env)->FindClass("TestClass2");
+    jclass testClass3 = (&*env)->FindClass("TestClass3");
+    jclass testInterface = (&*env)->FindClass("TestInterface");
+    jclass testInterface2 = (&*env)->FindClass("TestInterface2");
+    jclass c = (&*env)->FindClass("java/lang/Class");
+    ASSERT_TRUE((&*env)->IsInstanceOf(testClass, c));
+    ASSERT_FALSE((&*env)->IsAssignableFrom(testClass, c));
+    ASSERT_TRUE((&*env)->IsAssignableFrom(testClass, testClass));
+    ASSERT_TRUE((&*env)->IsAssignableFrom(testClass2, testClass));
+    ASSERT_TRUE((&*env)->IsAssignableFrom(testClass, testInterface));
+    ASSERT_FALSE((&*env)->IsAssignableFrom(testClass, testInterface2));
+    ASSERT_TRUE((&*env)->IsAssignableFrom(testClass2, testInterface));
+    ASSERT_FALSE((&*env)->IsAssignableFrom(testClass2, testInterface2));
+    ASSERT_TRUE((&*env)->IsAssignableFrom(testClass3, testInterface));
+    ASSERT_TRUE((&*env)->IsAssignableFrom(testClass3, testInterface2));
+    ASSERT_FALSE((&*env)->IsAssignableFrom(testInterface2, testClass3));
+    auto test = (&*env)->GetMethodID(testInterface, "Test", "()V");
+    auto test2 = (&*env)->GetMethodID(testClass3, "Test2", "()V");
+    auto obje = std::make_shared<TestClass3>();
+    auto v1 = jnivm::JNITypes<decltype(obje)>::ToJNIReturnType(env.get(), obje);
+    std::shared_ptr<TestInterface> obji = obje;
+    auto& testClass3_ = typeid(TestClass3);
+    auto v2_1 = static_cast<jnivm::Object*>(obje.get());
+    auto v2 = jnivm::JNITypes<std::shared_ptr<TestInterface>>::ToJNIReturnType(env.get(), obji);
+    auto obje2 = jnivm::JNITypes<std::shared_ptr<TestClass3>>::JNICast(env.get(), v2);
+    ASSERT_EQ(obje, obje2);
+    auto obji2 = jnivm::JNITypes<std::shared_ptr<TestInterface>>::JNICast(env.get(), v2);
+    ASSERT_EQ(obji, obji2);
+
+    ASSERT_FALSE((&*env)->ExceptionCheck());
+    (&*env)->CallVoidMethod((jobject)(TestClass3*)obje.get(), test);
+    ASSERT_TRUE((&*env)->ExceptionCheck());
+    (&*env)->ExceptionClear();
+    ASSERT_FALSE((&*env)->ExceptionCheck());
+    (&*env)->CallVoidMethod((jobject)(TestClass3*)obje.get(), test2);
+    ASSERT_FALSE((&*env)->ExceptionCheck());
+    // decltype(TemplateStringConverter<void>::ToTemplateString("Test")) y;
+    // static constexpr const char test2[] = __FUNCTION__;
+    // struct TemplateStringConverter {
+    //     static constexpr auto ToTemplateString() {
+    //         return TemplateString<test2[0], test2[1], test2[2], test2[sizeof(test2) - 1]>();
+    //     }
+    // };
+    
+}
+
+class TestInterface3 : public jnivm::Extends<TestInterface, TestInterface2> {
+
+};
+
+class TestClass4 : public jnivm::Extends<TestClass3, TestInterface3> {
+    virtual void Test() override {
+        throw TestClass3Ex();
+    }
+    virtual void Test2() override {
+        throw std::runtime_error("Hi");
+        
+    }
+};
+
+TEST(JNIVM, Inherience2) {
+    jnivm::VM vm;
+    auto env = vm.GetEnv();
+    vm.GetEnv()->GetClass<TestInterface>("TestInterface")->Hook(env.get(), "Test", &TestInterface::Test);
+    vm.GetEnv()->GetClass<TestInterface2>("TestInterface2")->Hook(env.get(), "Test2", &TestInterface2::Test2);
+    vm.GetEnv()->GetClass<TestInterface3>("TestInterface3");
+    vm.GetEnv()->GetClass<TestClass>("TestClass");
+    vm.GetEnv()->GetClass<TestClass2>("TestClass2");
+    vm.GetEnv()->GetClass<TestClass3>("TestClass3");
+    vm.GetEnv()->GetClass<TestClass4>("TestClass4");
+    // auto safecast = TestClass3::DynCast<TestClass3>();
+    jclass testClass = (&*env)->FindClass("TestClass");
+    jclass testClass2 = (&*env)->FindClass("TestClass2");
+    jclass testClass3 = (&*env)->FindClass("TestClass3");
+    jclass testClass4 = (&*env)->FindClass("TestClass4");
+    jclass testInterface = (&*env)->FindClass("TestInterface");
+    jclass testInterface2 = (&*env)->FindClass("TestInterface2");
+    jclass testInterface3 = (&*env)->FindClass("TestInterface3");
+    jclass c = (&*env)->FindClass("java/lang/Class");
+    ASSERT_TRUE((&*env)->IsInstanceOf(testClass, c));
+    ASSERT_FALSE((&*env)->IsAssignableFrom(testClass, c));
+    ASSERT_TRUE((&*env)->IsAssignableFrom(testClass4, testInterface3));
+    ASSERT_TRUE((&*env)->IsAssignableFrom(testClass4, testInterface2));
+    ASSERT_TRUE((&*env)->IsAssignableFrom(testClass4, testInterface));
+    auto test = (&*env)->GetMethodID(testInterface, "Test", "()V");
+    auto test2 = (&*env)->GetMethodID(testClass4, "Test2", "()V");
+    auto i = std::make_shared<TestClass4>();
+    auto v1 = jnivm::JNITypes<std::shared_ptr<TestClass4>>::ToJNIReturnType(env.get(), i);
+    auto v2 = jnivm::JNITypes<std::shared_ptr<TestInterface>>::ToJNIReturnType(env.get(), (std::shared_ptr<TestInterface>)i);
+    auto v3 = jnivm::JNITypes<std::shared_ptr<TestInterface2>>::JNICast(env.get(), v2);
+    auto v4 = jnivm::JNITypes<std::shared_ptr<TestClass4>>::JNICast(env.get(), v2);
+    ASSERT_EQ(v1, (jobject)i.get());
+    ASSERT_EQ(v4, i);
+    (&*env)->CallVoidMethod(v1, test2);
+    (&*env)->CallVoidMethod(v2, test2);
+    auto weak = (&*env)->NewWeakGlobalRef(v2);
+    auto v5 = jnivm::JNITypes<std::shared_ptr<TestClass4>>::JNICast(env.get(), weak);
+
 }

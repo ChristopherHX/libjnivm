@@ -72,25 +72,25 @@ template<class... param> jvalue jnivm::Method::invoke(const jnivm::ENV &env, jni
         auto type = signature[signature.find_last_of(')') + 1];
         switch (type) {
         case 'V':
-            ((void(*)(const JNIEnv*, jnivm::Object*, param...))nativehandle.get())(&env.env, obj, params...);
+            ((void(*)(const JNIEnv*, jobject, param...))nativehandle.get())(&env.env, (jobject)obj, params...);
             return {};
         case 'Z':
-            return { .z = ((jboolean(*)(const JNIEnv*, jnivm::Object*, param...))nativehandle.get())(&env.env, obj, params...)};
+            return { .z = ((jboolean(*)(const JNIEnv*, jobject, param...))nativehandle.get())(&env.env, (jobject)obj, params...)};
         case 'B':
-            return { .b = ((jbyte(*)(const JNIEnv*, jnivm::Object*, param...))nativehandle.get())(&env.env, obj, params...)};
+            return { .b = ((jbyte(*)(const JNIEnv*, jobject, param...))nativehandle.get())(&env.env, (jobject)obj, params...)};
         case 'S':
-            return { .s = ((jshort(*)(const JNIEnv*, jnivm::Object*, param...))nativehandle.get())(&env.env, obj, params...)};
+            return { .s = ((jshort(*)(const JNIEnv*, jobject, param...))nativehandle.get())(&env.env, (jobject)obj, params...)};
         case 'I':
-            return { .i = ((jint(*)(const JNIEnv*, jnivm::Object*, param...))nativehandle.get())(&env.env, obj, params...)};
+            return { .i = ((jint(*)(const JNIEnv*, jobject, param...))nativehandle.get())(&env.env, (jobject)obj, params...)};
         case 'J':
-            return { .j = ((jlong(*)(const JNIEnv*, jnivm::Object*, param...))nativehandle.get())(&env.env, obj, params...)};
+            return { .j = ((jlong(*)(const JNIEnv*, jobject, param...))nativehandle.get())(&env.env, (jobject)obj, params...)};
         case 'F':
-            return { .f = ((jfloat(*)(const JNIEnv*, jnivm::Object*, param...))nativehandle.get())(&env.env, obj, params...)};
+            return { .f = ((jfloat(*)(const JNIEnv*, jobject, param...))nativehandle.get())(&env.env, (jobject)obj, params...)};
         case 'D':
-            return { .d = ((jdouble(*)(const JNIEnv*, jnivm::Object*, param...))nativehandle.get())(&env.env, obj, params...)};
+            return { .d = ((jdouble(*)(const JNIEnv*, jobject, param...))nativehandle.get())(&env.env, (jobject)obj, params...)};
         case '[':
         case 'L':
-            return { .l = ((jobject(*)(const JNIEnv*, jnivm::Object*, param...))nativehandle.get())(&env.env, obj, params...)};
+            return { .l = ((jobject(*)(const JNIEnv*, jobject, param...))nativehandle.get())(&env.env, (jobject)obj, params...)};
         default:
             throw std::runtime_error("Unsupported signature");
         }

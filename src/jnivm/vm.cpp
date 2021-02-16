@@ -12,6 +12,7 @@
 #include <sstream>
 #include <climits>
 #include "internal/log.h"
+#include <jnivm/weak.h>
 
 using namespace jnivm;
 
@@ -57,21 +58,27 @@ jobject ToReflectedMethod(JNIEnv * env, jclass c, jmethodID mid, jboolean isStat
 };
 jclass GetSuperclass(JNIEnv * env, jclass c) {
 	auto cl = (Class*) c;
-	return cl->superclass ? (jclass)cl->superclass((ENV *)env->functions->reserved0).get() : env->FindClass("java/lang/Object");
+	return cl->superclass ? (jclass)cl->superclass((ENV *)env->functions->reserved0).get() : nullptr;
 };
+bool HasInterface(JNIEnv *env, jclass ct1, jclass c2) {
+	auto cl = (Class*) ct1;
+	if(cl->interfaces) {
+		for(auto&& i : cl->interfaces((ENV *)env->functions->reserved0)) {
+			if(env->IsSameObject((jobject)i.get(), c2) || HasInterface(env, (jclass)i.get(), c2)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
 jboolean IsAssignableFrom(JNIEnv *env, jclass c1, jclass c2) {
 	jclass ct1 = c1;
 	while(!env->IsSameObject(ct1, c2)) {
+		if(HasInterface(env, ct1, c2)) {
+			return JNI_TRUE;
+		}
 		jclass nc = GetSuperclass(env, ct1);
-		if(nc == ct1) {
-			auto cl = (Class*) c1;
-			if(cl->interfaces) {
-				for(auto&& i : cl->interfaces((ENV *)env->functions->reserved0)) {
-					if(env->IsSameObject((jobject)i.get(), c2)) {
-						return JNI_TRUE;
-					}
-				}
-			}
+		if(!nc || nc == ct1) {
 			return JNI_FALSE;
 		}
 		ct1 = nc;
@@ -101,7 +108,7 @@ jint ThrowNew(JNIEnv *env, jclass c, const char * message) {
 	return 0;
 };
 jthrowable ExceptionOccurred(JNIEnv * env) {
-	return (jthrowable) JNITypes<std::shared_ptr<Throwable>>::ToJNIType((ENV *)(env->functions->reserved0), ((ENV *)(env->functions->reserved0))->current_exception) ;
+	return JNITypes<std::shared_ptr<Throwable>>::ToJNIType((ENV *)(env->functions->reserved0), ((ENV *)(env->functions->reserved0))->current_exception) ;
 };
 void ExceptionDescribe(JNIEnv *env) {
 	if(((ENV *)(env->functions->reserved0))->current_exception) {
@@ -279,12 +286,19 @@ jint GetJavaVM(JNIEnv * env, JavaVM ** vm) {
 		*vm = ((ENV *)(env->functions->reserved0))->vm->GetJavaVM();
 	}
 	return 0;
-};
-jweak NewWeakGlobalRef(JNIEnv *, jobject obj) {
-	return obj;
-};
-void DeleteWeakGlobalRef(JNIEnv *, jweak) {
-};
+}
+
+jweak NewWeakGlobalRef(JNIEnv *env, jobject obj) {
+	auto weak = std::make_shared<Weak>();
+	weak->wrapped = ((Object*)obj)->weak_from_this();
+	auto cl = (Class*) FindClass(env, "java/lang/weak");
+	weak->clazz = std::shared_ptr<Class>(cl->shared_from_this(), cl);
+	// return (jweak) JNITypes<std::shared_ptr<Weak>>::ToJNIType(env, weak);
+	return (jweak) NewGlobalRef(env, (jobject)weak.get());
+}
+void DeleteWeakGlobalRef(JNIEnv *env, jweak w) {
+	DeleteGlobalRef(env, w);
+}
 
 jboolean ExceptionCheck(JNIEnv *env) {
 	return (bool)((ENV *)(env->functions->reserved0))->current_exception;
@@ -486,6 +500,9 @@ VM::VM() : ninterface(GetInterface<jboolean, jbyte, jchar, jshort, jint, jlong, 
 	env->GetClass<Class>("java/lang/Class");
 	env->GetClass<String>("java/lang/String");
 	env->GetClass<ByteBuffer>("java/nio/ByteBuffer");
+	env->GetClass<Throwable>("java/lang/Throwable");
+	env->GetClass<Method>("java/lang/reflect/Method");
+	env->GetClass<Field>("java/lang/reflect/Field");
 }
 
 JavaVM *VM::GetJavaVM() {

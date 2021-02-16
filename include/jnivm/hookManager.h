@@ -25,7 +25,7 @@ namespace jnivm {
                 method->signature = std::move(ssig);
                 cl->methods.push_back(method);
             }
-            using Funk = std::function<typename Function<decltype(Func)>::Return(ENV* env, std::conditional_t<isStatic, Class, Object>* obj, const jvalue* values)>;
+            using Funk = std::function<typename Function<decltype(Func)>::Return(ENV* env, std::conditional_t<isStatic, Class*, jobject> obj, const jvalue* values)>;
             method->nativehandle = std::shared_ptr<void>(new Funk(std::bind(Func, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
                 delete (Funk*)v;
             });
@@ -62,7 +62,7 @@ namespace jnivm {
                 field->type = std::move(ssig);
                 cl->fields.push_back(field);
             }
-            using Funk = std::function<typename Function<decltype(Func)>::Return(ENV* env, std::conditional_t<isStatic, Class, Object>* obj, const jvalue* values)>;
+            using Funk = std::function<typename Function<decltype(Func)>::Return(ENV* env, std::conditional_t<isStatic, Class*, jobject> obj, const jvalue* values)>;
             field.get()->*handle = std::shared_ptr<void>(new Funk(std::bind(Func, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [](void * v) {
                 delete (Funk*)v;
             });

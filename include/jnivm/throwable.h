@@ -1,3 +1,4 @@
+#pragma once
 #include <jnivm/object.h>
 
 namespace jnivm {

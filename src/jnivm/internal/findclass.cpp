@@ -4,7 +4,7 @@
 #include <cstring>
 #include "log.h"
 
-jclass jnivm::InternalFindClass(JNIEnv *env, const char *name) {
+std::shared_ptr<jnivm::Class> jnivm::InternalFindClass2(JNIEnv *env, const char *name) {
 	auto prefix = name;
 	auto && nenv = *(ENV*)env->functions->reserved0;
 	auto && vm = nenv.vm;
@@ -88,7 +88,11 @@ jclass jnivm::InternalFindClass(JNIEnv *env, const char *name) {
 	}
 #endif
 	// curc->nativeprefix = std::move(prefix);
-	return JNITypes<std::shared_ptr<Class>>::ToJNIType(std::addressof(nenv), curc);
+	return curc;
+}
+
+jclass jnivm::InternalFindClass(JNIEnv *env, const char *name) {
+	return JNITypes<std::shared_ptr<Class>>::ToJNIType((ENV*)env->functions->reserved0, InternalFindClass2(env, name));
 }
 
 void jnivm::Declare(JNIEnv *env, const char *signature) {

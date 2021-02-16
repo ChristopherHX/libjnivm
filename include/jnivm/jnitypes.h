@@ -37,16 +37,30 @@ namespace jnivm {
 
         static std::shared_ptr<jnivm::Class> GetClass(ENV * env);
         
-        static std::shared_ptr<T> JNICast(const jvalue& v) {
-            return JNICast(v.l);
+        static std::shared_ptr<T> JNICast(ENV* env, const jvalue& v) {
+            return JNICast(env, v.l);
         }
-        static std::shared_ptr<T> JNICast(const jobject& o) {
-            return o ? std::shared_ptr<T>((*(T*)o).shared_from_this(), (T*)o) : std::shared_ptr<T>();
+        static std::shared_ptr<T> JNICast(ENV* env, const jobject& o) {
+            if(!o) {
+                return nullptr;
+            }
+            auto obj = ((Object*)o)->shared_from_this();
+            auto c = &obj->getClass();
+            if(c) {
+                return c->SafeCast<T>(env, obj);
+            } else {
+                auto other = GetClass(env);
+                if(other) {
+                    return other->SafeCast<T>(env, obj);
+                }
+            }
+            return nullptr;
         }
 
-        static B ToJNIType(ENV* env, const std::shared_ptr<T>& p);
-
-        static constexpr jobject ToJNIReturnType(ENV* env, const std::shared_ptr<T>& p) {
+        template<class Y>
+        static B ToJNIType(ENV* env, const std::shared_ptr<Y>& p);
+        template<class Y>
+        static constexpr jobject ToJNIReturnType(ENV* env, const std::shared_ptr<Y>& p) {
             return ToJNIType(env, p);
         }
     };
@@ -55,8 +69,10 @@ namespace jnivm {
 
     class String;
     class Class;
+    class Throwable;
     template<> struct JNITypes<std::shared_ptr<String>> : JNITypesObjectBase<String, jstring> {};
     template<> struct JNITypes<std::shared_ptr<Class>> : JNITypesObjectBase<Class, jclass> {};
+    template<> struct JNITypes<std::shared_ptr<Throwable>> : JNITypesObjectBase<Throwable, jthrowable> {};
 
     template<class T> struct ___JNIType {
         static T ToJNIType(ENV* env, T v) {
@@ -72,7 +88,7 @@ namespace jnivm {
         static std::string GetJNISignature(ENV * env) {
             return "Z";
         }
-        static jboolean JNICast(const jvalue& v) {
+        static jboolean JNICast(ENV* env, const jvalue& v) {
             return v.z;
         }
     };
@@ -82,7 +98,7 @@ namespace jnivm {
         static std::string GetJNISignature(ENV * env) {
             return "B";
         }
-        static jbyte JNICast(const jvalue& v) {
+        static jbyte JNICast(ENV* env, const jvalue& v) {
             return v.b;
         }
     };
@@ -92,7 +108,7 @@ namespace jnivm {
         static std::string GetJNISignature(ENV * env) {
             return "S";
         }
-        static jshort JNICast(const jvalue& v) {
+        static jshort JNICast(ENV* env, const jvalue& v) {
             return v.s;
         }
     };
@@ -102,7 +118,7 @@ namespace jnivm {
         static std::string GetJNISignature(ENV * env) {
             return "I";
         }
-        static jint JNICast(const jvalue& v) {
+        static jint JNICast(ENV* env, const jvalue& v) {
             return v.i;
         }
     };
@@ -112,7 +128,7 @@ namespace jnivm {
         static std::string GetJNISignature(ENV * env) {
             return "J";
         }
-        static jlong JNICast(const jvalue& v) {
+        static jlong JNICast(ENV* env, const jvalue& v) {
             return v.j;
         }
     };
@@ -122,7 +138,7 @@ namespace jnivm {
         static std::string GetJNISignature(ENV * env) {
             return "F";
         }
-        static jfloat JNICast(const jvalue& v) {
+        static jfloat JNICast(ENV* env, const jvalue& v) {
             return v.f;
         }
     };
@@ -132,7 +148,7 @@ namespace jnivm {
         static std::string GetJNISignature(ENV * env) {
             return "D";
         }
-        static jdouble JNICast(const jvalue& v) {
+        static jdouble JNICast(ENV* env, const jvalue& v) {
             return v.d;
         }
     };
@@ -142,7 +158,7 @@ namespace jnivm {
         static std::string GetJNISignature(ENV * env) {
             return "C";
         }
-        static jchar JNICast(const jvalue& v) {
+        static jchar JNICast(ENV* env, const jvalue& v) {
             return v.c;
         }
     };
@@ -168,7 +184,7 @@ namespace jnivm {
         static constexpr jobject ToJNIReturnType(ENV* env, std::shared_ptr<jnivm::Array<T>> v) {
             return ToJNIType(env, v);
         }
-        static std::shared_ptr<jnivm::Array<T>> JNICast(const jvalue& v) {
+        static std::shared_ptr<jnivm::Array<T>> JNICast(ENV* env, const jvalue& v) {
             return v.l ? std::shared_ptr<Array<T>>((*(Array<T>*)v.l).shared_from_this(), (Array<T>*)v.l) : std::shared_ptr<Array<T>>();
         }
     };
@@ -211,15 +227,40 @@ template<class T, class B> std::shared_ptr<jnivm::Class> jnivm::JNITypesObjectBa
     }
 }
 
-template<class T, class B> B jnivm::JNITypesObjectBase<T, B>::ToJNIType(jnivm::ENV *env, const std::shared_ptr<T> &p) {
+template<class T, class B> template<class Y> B jnivm::JNITypesObjectBase<T, B>::ToJNIType(jnivm::ENV *env, const std::shared_ptr<Y> &p) {
     if(!p) return nullptr;
     // Cache return values in localframe list of this thread, destroy delayed
-    env->localframe.front().push_back(p);
-    if(!p->clazz) {
-        p->clazz = GetClass(env);
+    auto c = GetClass(env);
+    if(!c) {
+        throw std::runtime_error("Unknown class, please register first!");
     }
-    // Return jni Reference
-    return (B)p.get();
+    auto guessoffset = (void**)p.get();
+    if(std::is_abstract<T>::value && std::is_polymorphic<T>::value) {
+        while(*(guessoffset - 2) == nullptr && *(guessoffset - 3) == (void*)-1) {
+            guessoffset -= 4;
+            while(*guessoffset == nullptr || *guessoffset != (guessoffset - 1)) {
+                guessoffset--;
+            }
+        }
+        guessoffset --;
+        // guessoffset += 2;
+    }
+    std::shared_ptr<Object> obj(p, (Object*)(guessoffset)/* c->SafeCast(env, (T*)p.get()) */);
+    if(obj) {
+        env->localframe.front().push_back(obj);
+        if(!obj->clazz) {
+            if((void*)obj.get() != (void*)(T*)p.get()) {
+                throw std::runtime_error("Cannot fix missing class if type is an interface");
+            }
+            obj->clazz = c;
+        }
+        // Return jni Reference
+        return (B)obj.get();
+    } else {
+        auto proxy = std::make_shared<InterfaceProxy>(typeid(Y), std::shared_ptr<void>(p, (void*)p.get()));
+        env->localframe.front().push_back(proxy);
+        return (B)proxy.get();
+    }
 }
 
 template<class T> typename jnivm::JNITypes<T>::Array jnivm::JNITypes<std::shared_ptr<jnivm::Array<T>>>::ToJNIType(jnivm::ENV *env, std::shared_ptr<jnivm::Array<T>> v) {

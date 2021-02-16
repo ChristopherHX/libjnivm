@@ -27,9 +27,47 @@ namespace jnivm {
         std::function<std::shared_ptr<Object>()> Instantiate;
         std::function<std::shared_ptr<Class>(ENV*)> superclass;
         std::function<std::vector<std::shared_ptr<Class>>(ENV*)> interfaces;
+        std::unordered_map<std::type_index, std::pair<void*(*)(ENV*, void*), void*(*)(ENV*, void*)>> dynCast;
 
         Class() {
 
+        }
+
+        template<class T> std::shared_ptr<T> SafeCast(ENV* env,const std::shared_ptr<Object> & obj) {
+            auto converter = dynCast.find(typeid(T));
+            if(converter != dynCast.end()) {
+                void * res = converter->second.first(env, obj.get());
+                if(res != nullptr) {
+                    return std::shared_ptr<T>(obj, static_cast<T*>(res));
+                }
+            }
+            auto proxy = dynamic_cast<InterfaceProxy*>(obj.get());
+            if(proxy != nullptr) {
+                if(proxy->orgtype == typeid(T)) {
+                    return std::shared_ptr<T>(proxy->rawptr, static_cast<T*>(proxy->rawptr.get()));
+                } else {
+                    converter = dynCast.find(proxy->orgtype);
+                    if(converter != dynCast.end()) {
+                        void * res = converter->second.first(env, proxy/* ->rawptr.get() */);
+                        if(res != nullptr) {
+                            return std::shared_ptr<T>(proxy->rawptr, static_cast<T*>(res));
+                        }
+                    }
+                }
+            }
+            // LOG("JNIVM", "Failed to convert from Object");
+            return nullptr;
+        }
+        template<class T> Object* SafeCast(ENV* env, T* obj) {
+            auto converter = dynCast.find(typeid(T));
+            if(converter != dynCast.end()) {
+                void * res = converter->second.second(env, obj);
+                if(res != nullptr) {
+                    return (Object*)res;
+                }
+            }
+            // LOG("JNIVM", "Failed to convert to Object");
+            return nullptr;
         }
 
         Method* getMethod(const char* sig, const char* name);

@@ -86,8 +86,22 @@ namespace jnivm {
     }
 
 }
-#define DEFINE_CLASS_NAME(cname, ...)   static std::shared_ptr<jnivm::Class> GetBaseClass(jnivm::ENV* env);\
-                                        static std::vector<std::shared_ptr<jnivm::Class>> GetInterfaces(jnivm::ENV* env);\
+
+                                        // template<class DynamicBase>\
+                                        // static std::unordered_map<std::type_index, std::unordered_map<std::type_index, void*(*)(void*)>> DynCast() {\
+                                        //     return jnivm::Extends< __VA_ARGS__ >::DynCast<DynamicBase>();\
+                                        // }\
+
+#define DEFINE_CLASS_NAME(cname, ...)   static std::shared_ptr<jnivm::Class> GetBaseClass(jnivm::ENV *env) {\
+                                            return jnivm::Extends< __VA_ARGS__ >::GetBaseClass(env);\
+                                        }\
+                                        static std::vector<std::shared_ptr<jnivm::Class>> GetInterfaces(jnivm::ENV *env) {\
+                                            return jnivm::Extends< __VA_ARGS__ >::GetInterfaces(env);\
+                                        }\
+                                        template<class DynamicBase>\
+                                        static auto DynCast(jnivm::ENV * env) {\
+                                            return jnivm::Extends< __VA_ARGS__ >::DynCast<DynamicBase>(env);\
+                                        }\
                                         static std::string getClassName() {\
                                             return cname;\
                                         }\
@@ -95,13 +109,7 @@ namespace jnivm {
                                         virtual jnivm::Class& getClass() override {\
                                             return *getDescriptor();\
                                         }
-#define BEGIN_NATIVE_DESCRIPTOR(name, ...)  std::shared_ptr<jnivm::Class> name ::GetBaseClass(jnivm::ENV *env) {\
-                                                return jnivm::Extends< __VA_ARGS__ >::GetBaseClass(env);\
-                                            }\
-                                            std::vector<std::shared_ptr<jnivm::Class>> name ::GetInterfaces(jnivm::ENV *env) {\
-                                                return jnivm::Extends< __VA_ARGS__ >::GetInterfaces(env);\
-                                            }\
-                                            std::shared_ptr<jnivm::Class> name ::getDescriptor() {\
+#define BEGIN_NATIVE_DESCRIPTOR(name, ...)  std::shared_ptr<jnivm::Class> name ::getDescriptor() {\
                                                 using ClassName = name ;\
                                                 static std::vector<FakeJni::Descriptor> desc({
 #define END_NATIVE_DESCRIPTOR                   });\

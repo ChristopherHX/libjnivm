@@ -5,7 +5,7 @@
 
 using namespace jnivm;
 
-template<bool isStatic>
+template<bool isStatic, bool ReturnNull>
 jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const char *str1) {
     std::shared_ptr<Method> next;
     std::string sname = str0 ? str0 : "";
@@ -42,22 +42,24 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
 #endif
     }
     if(!next) {
-        auto cl2 = env->GetSuperclass(cl);
-        if(cl2 != cl) {
-            auto id = GetMethodID<isStatic>(env, cl2, str0, str1);
-            if(id) {
-                return id;
-            }
-        }
         if(!isStatic && cur->interfaces) {
             for(auto&& i : cur->interfaces((ENV*)env->functions->reserved0)) {
-                auto id = GetMethodID<false>(env, (jclass)i.get(), str0, str1);
+                auto id = GetMethodID<false, true>(env, (jclass)i.get(), str0, str1);
                 if(id) {
                     return id;
                 }
             }
         }
-        
+        auto cl2 = env->GetSuperclass(cl);
+        if(cl2 && cl2 != cl) {
+            auto id = GetMethodID<isStatic, true>(env, cl2, str0, str1);
+            if(id) {
+                return id;
+            }
+        }
+        if (ReturnNull) {
+            return nullptr;
+        }
         next = std::make_shared<Method>();
         if(cur) {
             cur->methods.push_back(next);
