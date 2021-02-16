@@ -38,7 +38,7 @@ namespace jnivm {
             //             }
             //         }
             //     }
-            //     DynCastType other = { {typeid(DynamicBase), {{typeid(Interfaces), &impl::template DynCast<DynamicBase, Interfaces>}...}}, {typeid(Interfaces), {{typeid(DynamicBase), &impl::template DynCast<Object, DynamicBase>}}}... };
+            //     DynCastType other = { {typeid(DynamicBase), {{typeid(Interfaces), &impl:: DynCast<DynamicBase, Interfaces>}...}}, {typeid(Interfaces), {{typeid(DynamicBase), &impl:: DynCast<Object, DynamicBase>}}}... };
             //     for(auto&& d : other) {
             //         auto f = dynCast.find(d.first);
             //         if(f == dynCast.end()) {
@@ -49,7 +49,7 @@ namespace jnivm {
             //             }
             //         }
             //     }
-            //     // dynCast.insert({ {{ typeid(DynamicBase), typeid(Interfaces) }, &impl::template DynCast<DynamicBase, Interfaces>}..., {{ typeid(Interfaces), typeid(DynamicBase) }, &impl::template DynCast<Interfaces, DynamicBase>}...});
+            //     // dynCast.insert({ {{ typeid(DynamicBase), typeid(Interfaces) }, &impl:: DynCast<DynamicBase, Interfaces>}..., {{ typeid(Interfaces), typeid(DynamicBase) }, &impl:: DynCast<Interfaces, DynamicBase>}...});
             //     return dynCast;
             // }
 
@@ -67,7 +67,7 @@ namespace jnivm {
                 //         }
                 //     }
                 // }
-                // DynCastType other = { {typeid(DynamicBase), {{typeid(Interfaces), &impl::template DynCast<DynamicBase, Interfaces>}...}}, {typeid(Interfaces), {{typeid(DynamicBase), &impl::template DynCast<Object, DynamicBase>}}}... };
+                // DynCastType other = { {typeid(DynamicBase), {{typeid(Interfaces), &impl:: DynCast<DynamicBase, Interfaces>}...}}, {typeid(Interfaces), {{typeid(DynamicBase), &impl:: DynCast<Object, DynamicBase>}}}... };
                 // for(auto&& d : other) {
                 //     auto f = dynCast.find(d.first);
                 //     if(f == dynCast.end()) {
