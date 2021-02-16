@@ -188,7 +188,7 @@ namespace jnivm {
             template<class DynamicBase>
             static DynCastType DynCast(ENV * env) {
                 int ___unused[] = { TestCast<DynamicBase, Interfaces>(env)... };
-                return { DynCast2<Interfaces, DynamicBase, (std::is_base_of<Interfaces, DynamicBase>::value && std::is_base_of<Object, DynamicBase>::value)>::template DynCast(env)...};
+                return { DynCast2<Interfaces, DynamicBase, (std::is_base_of<Interfaces, DynamicBase>::value && std::is_base_of<Object, DynamicBase>::value)>::DynCast(env)...};
             }
         };
     }
