@@ -89,7 +89,7 @@ namespace jnivm {
 
                                         // template<class DynamicBase>\
                                         // static std::unordered_map<std::type_index, std::unordered_map<std::type_index, void*(*)(void*)>> DynCast() {\
-                                        //     return jnivm::Extends< __VA_ARGS__ >::DynCast<DynamicBase>();\
+                                        //     return jnivm::Extends< __VA_ARGS__ >::template DynCast<DynamicBase>();\
                                         // }\
 
 #define DEFINE_CLASS_NAME(cname, ...)   static std::shared_ptr<jnivm::Class> GetBaseClass(jnivm::ENV *env) {\
@@ -100,7 +100,7 @@ namespace jnivm {
                                         }\
                                         template<class DynamicBase>\
                                         static auto DynCast(jnivm::ENV * env) {\
-                                            return jnivm::Extends< __VA_ARGS__ >::DynCast<DynamicBase>(env);\
+                                            return jnivm::Extends< __VA_ARGS__ >::template DynCast<DynamicBase>(env);\
                                         }\
                                         static std::string getClassName() {\
                                             return cname;\

@@ -27,8 +27,8 @@ namespace jnivm {
             // using DynCastType = std::unordered_map<std::type_index, std::unordered_map<std::type_index, void*(*)(void*)>>;
             // template<class DynamicBase>
             // static DynCastType DynCast() {
-            //     auto dynCast = Base::DynCast<DynamicBase>();
-            //     for(auto&& d : Base::DynCast<Base>()) {
+            //     auto dynCast = Base::template DynCast<DynamicBase>();
+            //     for(auto&& d : Base::template DynCast<Base>()) {
             //         auto f = dynCast.find(d.first);
             //         if(f == dynCast.end()) {
             //             dynCast.insert(d);
@@ -38,7 +38,7 @@ namespace jnivm {
             //             }
             //         }
             //     }
-            //     DynCastType other = { {typeid(DynamicBase), {{typeid(Interfaces), &impl::DynCast<DynamicBase, Interfaces>}...}}, {typeid(Interfaces), {{typeid(DynamicBase), &impl::DynCast<Object, DynamicBase>}}}... };
+            //     DynCastType other = { {typeid(DynamicBase), {{typeid(Interfaces), &impl::template DynCast<DynamicBase, Interfaces>}...}}, {typeid(Interfaces), {{typeid(DynamicBase), &impl::template DynCast<Object, DynamicBase>}}}... };
             //     for(auto&& d : other) {
             //         auto f = dynCast.find(d.first);
             //         if(f == dynCast.end()) {
@@ -49,15 +49,15 @@ namespace jnivm {
             //             }
             //         }
             //     }
-            //     // dynCast.insert({ {{ typeid(DynamicBase), typeid(Interfaces) }, &impl::DynCast<DynamicBase, Interfaces>}..., {{ typeid(Interfaces), typeid(DynamicBase) }, &impl::DynCast<Interfaces, DynamicBase>}...});
+            //     // dynCast.insert({ {{ typeid(DynamicBase), typeid(Interfaces) }, &impl::template DynCast<DynamicBase, Interfaces>}..., {{ typeid(Interfaces), typeid(DynamicBase) }, &impl::template DynCast<Interfaces, DynamicBase>}...});
             //     return dynCast;
             // }
 
             using DynCastType = std::unordered_map<std::type_index, std::pair<void*(*)(ENV*, void*), void*(*)(ENV*, void*)>>;
             template<class DynamicBase>
             static DynCastType DynCast(ENV * env) {
-                auto dynCast = Base::DynCast<Base>(env);
-                // for(auto&& d : Base::DynCast<Base>()) {
+                auto dynCast = Base::template DynCast<Base>(env);
+                // for(auto&& d : Base::template DynCast<Base>()) {
                 //     auto f = dynCast.find(d.first);
                 //     if(f == dynCast.end()) {
                 //         dynCast.insert(d);
@@ -67,7 +67,7 @@ namespace jnivm {
                 //         }
                 //     }
                 // }
-                // DynCastType other = { {typeid(DynamicBase), {{typeid(Interfaces), &impl::DynCast<DynamicBase, Interfaces>}...}}, {typeid(Interfaces), {{typeid(DynamicBase), &impl::DynCast<Object, DynamicBase>}}}... };
+                // DynCastType other = { {typeid(DynamicBase), {{typeid(Interfaces), &impl::template DynCast<DynamicBase, Interfaces>}...}}, {typeid(Interfaces), {{typeid(DynamicBase), &impl::template DynCast<Object, DynamicBase>}}}... };
                 // for(auto&& d : other) {
                 //     auto f = dynCast.find(d.first);
                 //     if(f == dynCast.end()) {
@@ -78,7 +78,7 @@ namespace jnivm {
                 //         }
                 //     }
                 // }
-                for(auto&& d : Object::DynCast<DynamicBase>(env)) {
+                for(auto&& d : Object::template DynCast<DynamicBase>(env)) {
                     dynCast.insert(d);
                 }
                 dynCast.insert({ { typeid(Interfaces), {+[](ENV* env, void* p) -> void* {
@@ -188,7 +188,7 @@ namespace jnivm {
             template<class DynamicBase>
             static DynCastType DynCast(ENV * env) {
                 int ___unused[] = { TestCast<DynamicBase, Interfaces>(env)... };
-                return { DynCast2<Interfaces, DynamicBase, (std::is_base_of<Interfaces, DynamicBase>::value && std::is_base_of<Object, DynamicBase>::value)>::DynCast(env)...};
+                return { DynCast2<Interfaces, DynamicBase, (std::is_base_of<Interfaces, DynamicBase>::value && std::is_base_of<Object, DynamicBase>::value)>::template DynCast(env)...};
             }
         };
     }

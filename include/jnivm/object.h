@@ -39,7 +39,7 @@ namespace jnivm {
         }
         // template<class DynamicBase>
         // static std::unordered_map<std::type_index, std::unordered_map<std::type_index, void*(*)(void*)>> DynCast() {
-        //     return { {typeid(DynamicBase), std::unordered_map<std::type_index, void*(*)(void*)>{{typeid(Object), &impl::DynCast<DynamicBase, Object>}}} , {typeid(Object), std::unordered_map<std::type_index, void*(*)(void*)>{{typeid(DynamicBase), &impl::DynCast<Object, DynamicBase>}}}  };
+        //     return { {typeid(DynamicBase), std::unordered_map<std::type_index, void*(*)(void*)>{{typeid(Object), &impl::template DynCast<DynamicBase, Object>}}} , {typeid(Object), std::unordered_map<std::type_index, void*(*)(void*)>{{typeid(DynamicBase), &impl::template DynCast<Object, DynamicBase>}}}  };
         // }
         template<class DynamicBase>
         static std::unordered_map<std::type_index, std::pair<void*(*)(ENV*, void*), void*(*)(ENV*, void*)>> DynCast(ENV * env);
@@ -54,10 +54,10 @@ namespace jnivm {
 
 }
 // #include <jnivm/weak.h>
-template<class DynamicBase> std::unordered_map<std::type_index, std::pair<void *(*)(jnivm::ENV*, void *), void *(*)(jnivm::ENV* env, void *)>> jnivm::Object::DynCast(jnivm::ENV * env) {
-    // return { {typeid(DynamicBase), { &impl::DynCast<DynamicBase, Object>, &impl::DynCast<Object, DynamicBase>}} };
+template<class DynamicBase> std::unordered_map<std::type_index, std::pair<void *(*)(jnivm::ENV*, void *), void *(*)(jnivm::ENV* env, void *)>> jnivm::Object::template DynCast(jnivm::ENV * env) {
+    // return { {typeid(DynamicBase), { &impl::template DynCast<DynamicBase, Object>, &impl::template DynCast<Object, DynamicBase>}} };
     return { {typeid(DynamicBase), { +[](ENV* env, void*p) -> void* {
-        auto res = impl::DynCast<Object, DynamicBase>(env, p);
+        auto res = impl::template DynCast<Object, DynamicBase>(env, p);
         if(res != nullptr) {
             return res;
         }
@@ -73,13 +73,13 @@ template<class DynamicBase> std::unordered_map<std::type_index, std::pair<void *
         // }
         auto proxy = dynamic_cast<InterfaceProxy*>(static_cast<Object*>(p));
         if(proxy != nullptr) {
-            auto res = DynamicBase::DynCast<DynamicBase>(env);
+            auto res = DynamicBase::template DynCast<DynamicBase>(env);
             auto converter = res.find(proxy->orgtype);
             if(converter != res.end()) {
                 return converter->second.second(env, proxy->rawptr.get());
             }
         }
         return nullptr;
-    }, &impl::DynCast<Object, DynamicBase>}} };
+    }, &impl::template DynCast<Object, DynamicBase>}} };
     
 }

@@ -96,7 +96,7 @@ namespace jnivm {
         static void AddInherience(std::shared_ptr<jnivm::Class> &c, ENV*env) {
             c->superclass = &T::GetBaseClass;
             c->interfaces = &T::GetInterfaces;
-            c->dynCast = T::DynCast<T>(env);
+            c->dynCast = T::template DynCast<T>(env);
         }
     };
 }
