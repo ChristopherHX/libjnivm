@@ -71,6 +71,8 @@ namespace jnivm {
 #include "vm.h"
 #include <functional>
 #include <memory>
+#include "class.h"
+
 namespace jnivm {
     template<class T, bool isDefaultConstructable = std::is_default_constructible<T>::value> struct Factory {
         static std::function<std::shared_ptr<jnivm::Object>()> CreateLambda() {
@@ -100,7 +102,6 @@ namespace jnivm {
         }
     };
 }
-#include "class.h"
 
 template<class T> std::shared_ptr<jnivm::Class> jnivm::ENV::GetClass(const char *name) {
     std::lock_guard<std::mutex> lock(vm->mtx);
