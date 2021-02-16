@@ -215,20 +215,40 @@ template<class T, class B> std::shared_ptr<jnivm::Class> jnivm::JNITypesObjectBa
 template<class T, class B> template<class Y> B jnivm::JNITypesObjectBase<T, B>::ToJNIType(jnivm::ENV *env, const std::shared_ptr<Y> &p) {
     if(!p) return nullptr;
     // Cache return values in localframe list of this thread, destroy delayed
-    auto c = GetClass(env);
-    if(!c) {
-        throw std::runtime_error("Unknown class, please register first!");
-    }
     auto guessoffset = (void**)p.get();
+    std::shared_ptr<jnivm::Class> c;
     if(std::is_abstract<T>::value && std::is_polymorphic<T>::value) {
-        while(*(guessoffset - 2) == nullptr && *(guessoffset - 3) == (void*)-1) {
-            guessoffset -= 4;
+        #ifdef _MSC_VER
+            while(*guessoffset != nullptr) {
+                guessoffset--;
+            }
+            guessoffset++;
+            auto offset = (intptr_t)**(void***)(guessoffset);
+            guessoffset = (void**)((intptr_t)guessoffset + offset);
+        #else
             while(*guessoffset == nullptr || *guessoffset != (guessoffset - 1)) {
                 guessoffset--;
             }
+            guessoffset--;
+        #endif
+            auto& otherid = *(std::type_info*)
+        #ifdef _MSC_VER
+            (*(*(void****)guessoffset-1))[3];
+        #else
+            *(*(void***)guessoffset-1);
+        #endif
+        auto r = env->vm->typecheck.find(otherid);
+        if(r != env->vm->typecheck.end()) {
+            c = r->second;
+            if(!env->env.IsAssignableFrom((jclass)c.get(), (jclass)GetClass(env).get())) {
+                throw std::runtime_error("Invalid typecast");
+            }
         }
-        guessoffset --;
-        // guessoffset += 2;
+    } else {
+        c = GetClass(env);
+    }
+    if(!c) {
+        throw std::runtime_error("Unknown class, please register first!");
     }
     std::shared_ptr<Object> obj(p, (Object*)(guessoffset)/* c->SafeCast(env, (T*)p.get()) */);
     if(obj) {
