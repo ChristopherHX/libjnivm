@@ -40,22 +40,7 @@ namespace jnivm {
         static std::shared_ptr<T> JNICast(ENV* env, const jvalue& v) {
             return JNICast(env, v.l);
         }
-        static std::shared_ptr<T> JNICast(ENV* env, const jobject& o) {
-            if(!o) {
-                return nullptr;
-            }
-            auto obj = ((Object*)o)->shared_from_this();
-            auto c = &obj->getClass();
-            if(c) {
-                return c->SafeCast<T>(env, obj);
-            } else {
-                auto other = GetClass(env);
-                if(other) {
-                    return other->SafeCast<T>(env, obj);
-                }
-            }
-            return nullptr;
-        }
+        static std::shared_ptr<T> JNICast(ENV* env, const jobject& o);
 
         template<class Y>
         static B ToJNIType(ENV* env, const std::shared_ptr<Y>& p);
@@ -266,4 +251,21 @@ template<class T, class B> template<class Y> B jnivm::JNITypesObjectBase<T, B>::
 template<class T> typename jnivm::JNITypes<T>::Array jnivm::JNITypes<std::shared_ptr<jnivm::Array<T>>>::ToJNIType(jnivm::ENV *env, std::shared_ptr<jnivm::Array<T>> v) {
     env->localframe.front().push_back(v);
     return (typename JNITypes<T>::Array)v.get();
+}
+#include "class.h"
+template<class T, class B> std::shared_ptr<T> jnivm::JNITypesObjectBase<T, B>::JNICast(jnivm::ENV *env, const jobject &o) {
+    if(!o) {
+        return nullptr;
+    }
+    auto obj = ((Object*)o)->shared_from_this();
+    auto c = &obj->getClass();
+    if(c) {
+        return c->SafeCast<T>(env, obj);
+    } else {
+        auto other = GetClass(env);
+        if(other) {
+            return other->SafeCast<T>(env, obj);
+        }
+    }
+    return nullptr;
 }
