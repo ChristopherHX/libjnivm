@@ -783,10 +783,16 @@ TEST(JNIVM, VirtualFunction) {
         int Test() {
             return (int)TestEnum::A;
         }
+        virtual int Test2() {
+            return (int)TestEnum::A;
+        }
     };
     class TestClass2 : public jnivm::Extends<TestClass> {
     public:
         int Test() {
+            return (int)TestEnum::B;
+        }
+        int Test2() override {
             return (int)TestEnum::B;
         }
     };
@@ -795,6 +801,12 @@ TEST(JNIVM, VirtualFunction) {
     auto c2 = env->GetClass<TestClass2>("TestClass2");
     c->Hook(env, "Test", &TestClass::Test);
     c2->Hook(env, "Test", &TestClass2::Test);
+    c->HookInstanceFunction(env, "Test2", [](jnivm::ENV*, jnivm::Object*o) {
+        return (dynamic_cast<TestClass*>(o))->TestClass::Test2();
+    });
+    c2->HookInstanceFunction(env, "Test2",[](jnivm::ENV*, jnivm::Object*o) {
+        return (dynamic_cast<TestClass2*>(o))->TestClass2::Test2();
+    });
     auto val = std::make_shared<TestClass2>();
     auto ptr = jnivm::JNITypes<decltype(val)>::ToJNIReturnType(env, val);
     auto _c2 = jnivm::JNITypes<decltype(c2)>::ToJNIType(env, c2);
@@ -805,6 +817,13 @@ TEST(JNIVM, VirtualFunction) {
     ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c2, env->env.GetMethodID(_c2, "Test", "()I")), (int)TestEnum::B);
     ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c, env->env.GetMethodID(_c, "Test", "()I")), (int)TestEnum::A);
     ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c, env->env.GetMethodID(_c2, "Test", "()I")), (int)TestEnum::A);
+
+    ASSERT_EQ(env->env.CallIntMethod(ptr, env->env.GetMethodID(_c, "Test2", "()I")), (int)TestEnum::B);
+    ASSERT_EQ(env->env.CallIntMethod(ptr, env->env.GetMethodID(_c2, "Test2", "()I")), (int)TestEnum::B);
+    ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c2, env->env.GetMethodID(_c, "Test2", "()I")), (int)TestEnum::B);
+    ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c2, env->env.GetMethodID(_c2, "Test2", "()I")), (int)TestEnum::B);
+    ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c, env->env.GetMethodID(_c, "Test2", "()I")), (int)TestEnum::A);
+    ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c, env->env.GetMethodID(_c2, "Test2", "()I")), (int)TestEnum::A);
 }
 
 }

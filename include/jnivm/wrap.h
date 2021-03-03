@@ -182,13 +182,13 @@ namespace jnivm {
                 return JNITypes<typename Function::Return>::ToJNIReturnType(env, handle(env, clazz, (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-3]))...));
             }
             constexpr auto InstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
-                return JNITypes<typename Function::Return>::ToJNIReturnType(env, handle(env, JNITypes<std::shared_ptr<std::remove_pointer_t<typename Function::template Parameter<O>>>>::JNICast(env, obj).get(), (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-3]))...));
+                return JNITypes<typename Function::Return>::ToJNIReturnType(env, handle(env, JNITypes<std::shared_ptr<std::remove_pointer_t<typename Function::template Parameter<E>>>>::JNICast(env, obj).get(), (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-3]))...));
             }
             constexpr auto InstanceGet(ENV * env, jobject obj, const jvalue* values) {
-                return JNITypes<typename Function::Return>::ToJNIReturnType(env, handle(env, JNITypes<std::shared_ptr<std::remove_pointer_t<typename Function::template Parameter<O>>>>::JNICast(env, obj).get(), (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-3]))...));
+                return JNITypes<typename Function::Return>::ToJNIReturnType(env, handle(env, JNITypes<std::shared_ptr<std::remove_pointer_t<typename Function::template Parameter<E>>>>::JNICast(env, obj).get(), (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-3]))...));
             }
             constexpr void InstanceSet(ENV * env, jobject obj, const jvalue* values) {
-                handle(env, JNITypes<std::shared_ptr<std::remove_pointer_t<typename Function::template Parameter<O>>>>::JNICast(env, obj).get(), (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-3]))...);
+                handle(env, JNITypes<std::shared_ptr<std::remove_pointer_t<typename Function::template Parameter<E>>>>::JNICast(env, obj).get(), (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-3]))...);
             }
             static std::string GetJNIInvokeSignature(ENV * env) {
                 return "(" + UnfoldJNISignature<typename Function::template Parameter<I>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
