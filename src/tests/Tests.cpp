@@ -709,6 +709,7 @@ template<class T> struct TestArray : TestArray<std::tuple_element_t<0, typename 
 
 
 class TestClass3 : public jnivm::Extends<TestClass2> {
+public:
     std::shared_ptr<TestArray<TestClass3>> test() {
         auto ret = std::make_shared<Test2::TestArray<Test2::TestClass3>>();
         std::shared_ptr<Test2::TestArray<TestClass2>> test = ret;
@@ -737,9 +738,9 @@ TEST(JNIVM, Hooking) {
     c->getMethod("()Z", "Test2")->invoke(*env, (jnivm::Object*)obj);
     c->getMethod("(Ljava/lang/Class;LTestClass;)V", "Test2")->invoke(*env, c.get(), c, obj);
     JNINativeMethod methods[] = {
-        { "NativeTest3", "(LTestClass;)V", &TestClass::NativeTest3 },
-        { "NativeTest4", "(Ljava/lang/Class;)V", &TestClass::NativeTest4 },
-        { "NativeTest5", "(Ljava/lang/Class;)Ljava/lang/Class;", &TestClass::NativeTest5 }
+        { "NativeTest3", "(LTestClass;)V", (void*)&TestClass::NativeTest3 },
+        { "NativeTest4", "(Ljava/lang/Class;)V", (void*)&TestClass::NativeTest4 },
+        { "NativeTest5", "(Ljava/lang/Class;)Ljava/lang/Class;", (void*)&TestClass::NativeTest5 }
     };
     env->env.RegisterNatives((jclass)c.get(), methods, 3);
     c->getMethod("(LTestClass;)V", "NativeTest3")->invoke(*env, c.get(), obj);
@@ -764,7 +765,8 @@ TEST(JNIVM, Hooking) {
     std::shared_ptr<jnivm::Array<jnivm::Object>> objArray = specArray2;
     std::shared_ptr<jnivm::Array<jnivm::Object>> objArray2 = specArray;
 
-
+    auto obj6 = std::make_shared<TestClass3>();
+    obj6->test();
 
 }
 }

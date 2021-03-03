@@ -22,9 +22,11 @@ namespace jnivm {
 
     };
 
+#ifdef __cpp_lib_void_t
     template<class T> struct hasname<T, std::void_t<decltype(T::getClassName())>> : std::true_type{
 
     };
+#endif
 
     template<class T, class B = jobject> struct JNITypesObjectBase {
         JNITypesObjectBase() {
@@ -190,15 +192,15 @@ namespace jnivm {
             if(res) {
                 return std::shared_ptr<jnivm::Array<T>>(lock, res);
             } else {
-                // throw std::runtime_error("Invalid Array Cast");
-                auto test2 = dynamic_cast<jnivm::Array<void>*>(obj);
-                auto buffer = new char[sizeof(jnivm::Array<T>)];
-                static_assert(sizeof(jnivm::Array<T>) == sizeof(jnivm::Array<void>), "Array need to have same");
-                auto wrapper = new (buffer) jnivm::Array<T>((jnivm::Array<T>::T*)test2->getArray(), test2->getSize());
-                // std::shared_ptr<jnivm::Array<T>>();
-                return std::shared_ptr<jnivm::Array<T>>(wrapper, [lock](void*p) {
-                    delete[] (char*)p;
-                });
+                throw std::runtime_error("Invalid Array Cast");
+                // auto test2 = dynamic_cast<jnivm::Array<void>*>(obj);
+                // auto buffer = new char[sizeof(jnivm::Array<T>)];
+                // static_assert(sizeof(jnivm::Array<T>) == sizeof(jnivm::Array<void>), "Array need to have same");
+                // auto wrapper = new (buffer) jnivm::Array<T>((jnivm::Array<T>::T*)test2->getArray(), test2->getSize());
+                // // std::shared_ptr<jnivm::Array<T>>();
+                // return std::shared_ptr<jnivm::Array<T>>(wrapper, [lock](void*p) {
+                //     delete[] (char*)p;
+                // });
             }
             // return v.l ? std::shared_ptr<jnivm::Array<T>>((*(jnivm::Array<T>*)v.l).shared_from_this(), (jnivm::Array<T>*)v.l) : std::shared_ptr<jnivm::Array<T>>();
         }
@@ -321,10 +323,10 @@ template<class T> static std::shared_ptr<jnivm::Object> UnpackJObject(jnivm::Obj
     }
     return obj->shared_from_this();
 }
-template<> static std::shared_ptr<jnivm::Object> UnpackJObject<jnivm::Weak>(jnivm::Object* obj) {
+template<> std::shared_ptr<jnivm::Object> UnpackJObject<jnivm::Weak>(jnivm::Object* obj) {
     return obj->shared_from_this();
 }
-template<> static std::shared_ptr<jnivm::Object> UnpackJObject<jnivm::Global>(jnivm::Object* obj) {
+template<> std::shared_ptr<jnivm::Object> UnpackJObject<jnivm::Global>(jnivm::Object* obj) {
     return obj->shared_from_this();
 }
 
@@ -338,14 +340,14 @@ template<class T, class B> std::shared_ptr<T> jnivm::JNITypesObjectBase<T, B>::J
     }
     auto c = &obj->getClass();
     if(c) {
-        auto ret = c->SafeCast<T>(env, obj);
+        auto ret = c->template SafeCast<T>(env, obj);
         if(ret) {
             return ret;
         }
     }
     auto other = GetClass(env);
     if(other) {
-        auto ret = other->SafeCast<T>(env, obj);
+        auto ret = other->template SafeCast<T>(env, obj);
         if(ret) {
             return ret;
         }

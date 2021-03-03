@@ -34,6 +34,8 @@ namespace jnivm {
 #ifndef JNIVM_METHOD_H_2
 #define JNIVM_METHOD_H_2
 #include "env.h"
+#include "jnitypes.h"
+
 template<class T> jvalue toJValue(T val);
 
 template<class... param> jvalue jnivm::Method::invoke(const jnivm::ENV &env, jnivm::Class* cl, param ...params) {
