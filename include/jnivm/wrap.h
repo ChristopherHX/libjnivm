@@ -353,8 +353,8 @@ namespace jnivm {
         using Wrapper = BaseWrapper<Function::type, 
                                     std::is_same<void, typename Function::Return>::value,
                                     std::is_same<typename Function::template Parameter<0>, ENV*>::value || std::is_same<typename Function::template Parameter<1>, ENV*>::value,
-                                    (std::is_same<typename Function::template Parameter<1>, Class*>::value || std::is_same<typename Function::template Parameter<1>, Object*>::value ||
-                                    std::is_same<typename Function::template Parameter<2>, Class*>::value || std::is_same<typename Function::template Parameter<2>, Object*>::value),
+                                    (std::is_base_of<Object, std::remove_pointer_t<typename Function::template Parameter<1>>>::value || std::is_same<typename Function::template Parameter<1>, Object*>::value ||
+                                    std::is_base_of<Object, std::remove_pointer_t<typename Function::template Parameter<2>>>::value || std::is_same<typename Function::template Parameter<2>, Object*>::value),
                                     IntSeq>;
     };
 }
