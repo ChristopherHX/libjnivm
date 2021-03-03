@@ -85,8 +85,8 @@ namespace jnivm {
                 return JNITypes<typename Function::Return>::GetJNISignature(env);
             }
         };
-        template<class I, class=void> class __InstanceFuncWrapper;
-        template<size_t O, size_t E, size_t...I> class __InstanceFuncWrapper<std::index_sequence<O, E, I...>, std::enable_if_t<(std::is_same<typename Function::template Parameter<E>, ENV*>::value || std::is_same<typename Function::template Parameter<O>, ENV*>::value)>> {
+        template<class I> class __InstanceFuncWrapper;
+        template<size_t O, size_t E, size_t...I> class __InstanceFuncWrapper<std::index_sequence<O, E, I...>> {
             Funk handle;
         public:
             __InstanceFuncWrapper(Funk handle) : handle(handle) {}
@@ -110,8 +110,8 @@ namespace jnivm {
                 return JNITypes<typename Function::Return>::GetJNISignature(env);
             }
         };
-        template<class I, class=void> class __InstanceFuncWrapper2;
-        template<size_t O, size_t...I> class __InstanceFuncWrapper2<std::index_sequence<O, I...>, void> {
+        template<class I> class __InstanceFuncWrapper2;
+        template<size_t O, size_t...I> class __InstanceFuncWrapper2<std::index_sequence<O, I...>> {
             Funk handle;
         public:
             __InstanceFuncWrapper2(Funk handle) : handle(handle) {}
