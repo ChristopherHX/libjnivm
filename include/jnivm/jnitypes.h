@@ -186,7 +186,6 @@ namespace jnivm {
     };
 
     // jnivm::Array<T> needs to be fully qualified in msvc or produces a weird syntax error
-    // Only inside method signature's
     template <class T> struct JNITypes<std::shared_ptr<Array<T>>> : JNITypes<Array<T>> {
         static typename JNITypes<T>::Array ToJNIType(ENV* env, std::shared_ptr<jnivm::Array<T>> v);
         static constexpr jobject ToJNIReturnType(ENV* env, std::shared_ptr<jnivm::Array<T>> v) {
