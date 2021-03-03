@@ -57,13 +57,15 @@ jobject ToReflectedMethod(JNIEnv * env, jclass c, jmethodID mid, jboolean isStat
 };
 jclass GetSuperclass(JNIEnv * env, jclass c) {
 	auto cl = (Class*) c;
-	return cl->superclass ? (jclass)cl->superclass((ENV *)env->functions->reserved0).get() : nullptr;
+	return cl->baseclasses ? (jclass)(cl->baseclasses((ENV *)env->functions->reserved0)[0]).get() : nullptr;
 };
-bool HasInterface(JNIEnv *env, jclass ct1, jclass c2) {
-	auto cl = (Class*) ct1;
-	if(cl->interfaces) {
-		for(auto&& i : cl->interfaces((ENV *)env->functions->reserved0)) {
-			if(env->IsSameObject((jobject)i.get(), c2) || HasInterface(env, (jclass)i.get(), c2)) {
+bool HasBaseClass(JNIEnv *env, Class* cl, Class* c2) {
+	if(cl == c2) {
+		return true;
+	}
+	if(cl->baseclasses) {
+		for(auto&& i : cl->baseclasses((ENV *)env->functions->reserved0)) {
+			if(i && HasBaseClass(env, i.get(), c2)) {
 				return true;
 			}
 		}
@@ -71,18 +73,7 @@ bool HasInterface(JNIEnv *env, jclass ct1, jclass c2) {
 	return false;
 }
 jboolean IsAssignableFrom(JNIEnv *env, jclass c1, jclass c2) {
-	jclass ct1 = c1;
-	while(!env->IsSameObject(ct1, c2)) {
-		if(HasInterface(env, ct1, c2)) {
-			return JNI_TRUE;
-		}
-		jclass nc = GetSuperclass(env, ct1);
-		if(!nc || nc == ct1) {
-			return JNI_FALSE;
-		}
-		ct1 = nc;
-	}
-	return JNI_TRUE;
+	return HasBaseClass(env, (Class*)c1, (Class*)c2);
 };
 jobject ToReflectedField(JNIEnv * env, jclass c, jfieldID fid, jboolean isStatic) {
 	auto field = (Field*)fid;
@@ -115,6 +106,7 @@ void ExceptionDescribe(JNIEnv *env) {
 			std::rethrow_exception(((ENV *)(env->functions->reserved0))->current_exception->except);
 		} catch (const std::exception& ex) {
 			LOG("JNIVM", "Exception with Message `%s` was thrown", ex.what());
+		} catch (...) {
 		}
 	} else {
 		LOG("JNIVM", "No pending Exception");
@@ -155,24 +147,35 @@ jobject PopLocalFrame(JNIEnv * env, jobject previousframe) {
 #endif
 	return 0;
 };
-jobject NewGlobalRef(JNIEnv * env, jobject obj) {
+jobject NewGlobalRef(JNIEnv * env, std::shared_ptr<Object> obj) {
 #ifdef EnableJNIVMGC
 	if(!obj) return nullptr;
 	auto&& nenv = *(ENV*)env->functions->reserved0;
 	auto&& nvm = *nenv.vm;
 	std::lock_guard<std::mutex> guard{nvm.mtx};
-	nvm.globals.emplace_back((*(Object*)obj).shared_from_this());
+	nvm.globals.emplace_back(obj);
 #endif
-	return obj;
+	return (jobject)obj.get();
 };
-void DeleteGlobalRef(JNIEnv * env, jobject obj) {
+jobject NewGlobalRef(JNIEnv * env, jobject obj) {
+	auto strong = JNITypes<std::shared_ptr<Object>>::JNICast((ENV*)env->functions->reserved0, obj);
+	if(!strong) {
+		return (jobject)nullptr;
+	}
+	auto global = std::make_shared<Global>();
+	global->wrapped = std::move(strong);
+	auto cl = (Class*) FindClass(env, "jnivm/lang/Global");
+	global->clazz = std::shared_ptr<Class>(cl->shared_from_this(), cl);
+	return NewGlobalRef(env, global);
+};
+void DeleteGlobalRef(JNIEnv * env, std::shared_ptr<Object> obj) {
 #ifdef EnableJNIVMGC
 	if(!obj) return;
 	auto&& nenv = *(ENV*)env->functions->reserved0;
 	auto&& nvm = *nenv.vm;
 	std::lock_guard<std::mutex> guard{nvm.mtx};
 	auto fe = nvm.globals.end();
-	auto f = std::find(nvm.globals.begin(), fe, (*(Object*)obj).shared_from_this());
+	auto f = std::find(nvm.globals.begin(), fe, obj);
 	if(f != fe) {
 		nvm.globals.erase(f);
 	} else {
@@ -180,13 +183,16 @@ void DeleteGlobalRef(JNIEnv * env, jobject obj) {
 	}
 #endif
 };
-void DeleteLocalRef(JNIEnv * env, jobject obj) {
+void DeleteGlobalRef(JNIEnv * env, jobject obj) {
+	DeleteGlobalRef(env, JNITypes<std::shared_ptr<Global>>::JNICast((ENV*)env->functions->reserved0, obj));
+};
+void DeleteLocalRef(JNIEnv * env, std::shared_ptr<Object> obj) {
 #ifdef EnableJNIVMGC
 	if(!obj) return;
 	auto&& nenv = *(ENV*)env->functions->reserved0;
 	for(auto && frame : nenv.localframe) {
 		auto fe = frame.end();
-		auto f = std::find(frame.begin(), fe, (*(Object*)obj).shared_from_this());
+		auto f = std::find(frame.begin(), fe, obj);
 		if(f != fe) {
 			frame.erase(f);
 			return;
@@ -195,18 +201,29 @@ void DeleteLocalRef(JNIEnv * env, jobject obj) {
 	LOG("JNIVM", "Failed to delete Local Reference");
 #endif
 };
-jboolean IsSameObject(JNIEnv *, jobject lobj, jobject robj) {
-	return lobj == robj;
+void DeleteLocalRef(JNIEnv * env, jobject obj) {
+	DeleteLocalRef(env, JNITypes<std::shared_ptr<Object>>::JNICast((ENV*)env->functions->reserved0, obj));
 };
-jobject NewLocalRef(JNIEnv * env, jobject obj) {
+jboolean IsSameObject(JNIEnv *env, jobject lobj, jobject robj) {
+	if(lobj == robj) {
+		return true;
+	}
+	auto l = JNITypes<std::shared_ptr<Object>>::JNICast((ENV*)env->functions->reserved0, lobj);
+	auto r = JNITypes<std::shared_ptr<Object>>::JNICast((ENV*)env->functions->reserved0, robj);
+	return l.get() == r.get();
+};
+jobject NewLocalRef(JNIEnv * env, std::shared_ptr<Object> obj) {
 #ifdef EnableJNIVMGC
 	if(!obj) return nullptr;
 	auto&& nenv = *(ENV*)env->functions->reserved0;
 	// Get the current localframe and create a ref
-	nenv.localframe.front().emplace_back((*(Object*)obj).shared_from_this());
+	nenv.localframe.front().emplace_back(obj);
 #endif
-	return obj;
+	return (jobject)obj.get();
 };
+jobject NewLocalRef(JNIEnv * env, jobject obj) {
+	return NewLocalRef(env, JNITypes<std::shared_ptr<Object>>::JNICast((ENV*)env->functions->reserved0, obj));
+}
 jint EnsureLocalCapacity(JNIEnv * env, jint cap) {
 #ifdef EnableJNIVMGC
 	auto&& nenv = *(ENV*)env->functions->reserved0;
@@ -220,7 +237,7 @@ jobject AllocObject(JNIEnv *env, jclass cl) {
 };
 
 jclass GetObjectClass(JNIEnv *env, jobject jo) {
-	return jo ? (jclass)&((Object*)jo)->getClass() : (jclass)env->FindClass("Invalid");
+	return jo ? (jclass)&((Object*)jo)->getClass() : env->FindClass("Invalid");
 };
 jboolean IsInstanceOf(JNIEnv *env, jobject jo, jclass cl) {
 	return jo && IsAssignableFrom(env, GetObjectClass(env, jo), cl);
@@ -247,11 +264,6 @@ jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method, jint 
 			m->signature = method->signature;
 			m->native = true;
 			using Funk = std::function<void(ENV*, Object*, const jvalue *)>;
-			// m->nativehandle = std::shared_ptr<void>(new Funk([p=method->fnPtr](ENV* e, Object*o, const jvalue *v) {
-				
-			// }), [](void * v) {
-            //     delete (Funk*)v;
-            // });
 			m->nativehandle = std::shared_ptr<void>(method->fnPtr, [](void * v) { });
 			clazz->methods.push_back(m);
 			method++;
@@ -288,15 +300,18 @@ jint GetJavaVM(JNIEnv * env, JavaVM ** vm) {
 }
 
 jweak NewWeakGlobalRef(JNIEnv *env, jobject obj) {
+	auto strong = JNITypes<std::shared_ptr<Object>>::JNICast((ENV *)(env->functions->reserved0),obj);
+	if(!strong) {
+		return (jweak)nullptr;
+	}
 	auto weak = std::make_shared<Weak>();
-	weak->wrapped = ((Object*)obj)->weak_from_this();
-	auto cl = (Class*) FindClass(env, "java/lang/weak");
+	weak->wrapped = strong->weak_from_this();
+	auto cl = (Class*) FindClass(env, "java/lang/Weak");
 	weak->clazz = std::shared_ptr<Class>(cl->shared_from_this(), cl);
-	// return (jweak) JNITypes<std::shared_ptr<Weak>>::ToJNIType(env, weak);
-	return (jweak) NewGlobalRef(env, (jobject)weak.get());
+	return (jweak) NewGlobalRef(env, weak);
 }
 void DeleteWeakGlobalRef(JNIEnv *env, jweak w) {
-	DeleteGlobalRef(env, w);
+	DeleteGlobalRef(env, JNITypes<std::shared_ptr<Weak>>::JNICast((ENV*)env->functions->reserved0, w));
 }
 
 jboolean ExceptionCheck(JNIEnv *env) {
@@ -304,8 +319,17 @@ jboolean ExceptionCheck(JNIEnv *env) {
 }
 #include "internal/bytebuffer.hpp"
 
-jobjectRefType GetObjectRefType(JNIEnv *, jobject) {
-	return jobjectRefType::JNIInvalidRefType;
+jobjectRefType GetObjectRefType(JNIEnv *env, jobject obj) {
+	if(!obj) {
+		return jobjectRefType::JNIInvalidRefType;
+	}
+	auto o = reinterpret_cast<Object*>(obj);
+	if(dynamic_cast<Weak*>(o)) {
+		return jobjectRefType::JNIWeakGlobalRefType;
+	} else if(dynamic_cast<Global*>(o)){
+		return jobjectRefType::JNIGlobalRefType;
+	}
+	return jobjectRefType::JNILocalRefType;
 };
 
 template<class ...jnitypes> struct JNINativeInterfaceCompose;
@@ -502,6 +526,8 @@ VM::VM() : ninterface(GetInterface<jboolean, jbyte, jchar, jshort, jint, jlong, 
 	env->GetClass<Throwable>("java/lang/Throwable");
 	env->GetClass<Method>("java/lang/reflect/Method");
 	env->GetClass<Field>("java/lang/reflect/Field");
+	env->GetClass<Weak>("java/lang/Weak");
+	env->GetClass<Global>("jnivm/lang/Global");
 }
 
 JavaVM *VM::GetJavaVM() {
@@ -532,6 +558,6 @@ jobject jnivm::VM::createGlobalReference(std::shared_ptr<jnivm::Object> obj) {
     return GetEnv()->env.NewGlobalRef((jobject)obj.get());
 }
 
-std::shared_ptr<jnivm::Class> jnivm::Object::GetBaseClass(jnivm::ENV *env) {
-	return env->GetClass("java/lang/Object");
+std::vector<std::shared_ptr<jnivm::Class>> jnivm::Object::GetBaseClasses(jnivm::ENV *env) {
+	return { nullptr };
 }

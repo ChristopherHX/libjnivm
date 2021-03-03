@@ -82,7 +82,7 @@ namespace FakeJni {
 namespace jnivm {
     template<class cl> void jnivm::VM::registerClass() {
         FakeJni::JniEnvContext::env = GetEnv().get();
-        cl::getDescriptor();
+        cl::registerClass();
     }
 
 }
@@ -92,11 +92,8 @@ namespace jnivm {
                                         //     return jnivm::Extends< __VA_ARGS__ >::template DynCast<DynamicBase>();\
                                         // }\
 
-#define DEFINE_CLASS_NAME(cname, ...)   static std::shared_ptr<jnivm::Class> GetBaseClass(jnivm::ENV *env) {\
-                                            return jnivm::Extends< __VA_ARGS__ >::GetBaseClass(env);\
-                                        }\
-                                        static std::vector<std::shared_ptr<jnivm::Class>> GetInterfaces(jnivm::ENV *env) {\
-                                            return jnivm::Extends< __VA_ARGS__ >::GetInterfaces(env);\
+#define DEFINE_CLASS_NAME(cname, ...)   static std::vector<std::shared_ptr<jnivm::Class>> GetBaseClasses(jnivm::ENV *env) {\
+                                            return jnivm::Extends< __VA_ARGS__ >::GetBaseClasses(env);\
                                         }\
                                         template<class DynamicBase>\
                                         static auto DynCast(jnivm::ENV * env) {\
@@ -105,21 +102,26 @@ namespace jnivm {
                                         static std::string getClassName() {\
                                             return cname;\
                                         }\
+                                        static std::shared_ptr<jnivm::Class> registerClass();\
                                         static std::shared_ptr<jnivm::Class> getDescriptor();\
                                         virtual jnivm::Class& getClass() override {\
                                             return *getDescriptor();\
                                         }
 #define BEGIN_NATIVE_DESCRIPTOR(name, ...)  std::shared_ptr<jnivm::Class> name ::getDescriptor() {\
+                                                auto cl = FakeJni::LocalFrame().getJniEnv().GetClass< name >( name ::getClassName().data());\
+                                                if(cl->methods.size() == 0 && cl->fields.size() == 0 && !cl->Instantiate && !cl->baseclasses && cl->dynCast.empty()) {\
+                                                    registerClass();\
+                                                }\
+                                                return cl;\
+                                            }\
+                                            std::shared_ptr<jnivm::Class> name ::registerClass() {\
                                                 using ClassName = name ;\
                                                 static std::vector<FakeJni::Descriptor> desc({
 #define END_NATIVE_DESCRIPTOR                   });\
                                                 FakeJni::LocalFrame frame;\
-                                                static std::shared_ptr<jnivm::Class> clazz = nullptr;\
-                                                if(!clazz) {\
-                                                    clazz = frame.getJniEnv().GetClass<ClassName>(ClassName::getClassName().data());\
-                                                    for(auto&& des : desc) {\
-                                                        des.registre(std::addressof(frame.getJniEnv()), clazz.get());\
-                                                    }\
+                                                std::shared_ptr<jnivm::Class> clazz = frame.getJniEnv().GetClass<ClassName>(ClassName::getClassName().data());\
+                                                for(auto&& des : desc) {\
+                                                    des.registre(std::addressof(frame.getJniEnv()), clazz.get());\
                                                 }\
                                                 return clazz;\
                                             }

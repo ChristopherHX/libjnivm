@@ -41,19 +41,14 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
 #endif
     }
     if(!next) {
-        if(!isStatic && cur->interfaces) {
-            for(auto&& i : cur->interfaces((ENV*)env->functions->reserved0)) {
-                auto id = GetMethodID<false, true>(env, (jclass)i.get(), str0, str1);
-                if(id) {
-                    return id;
+        if(cur && cur->baseclasses) {
+            for(auto&& i : cur->baseclasses((ENV*)env->functions->reserved0)) {
+                if(i) {
+                    auto id = GetMethodID<isStatic, true>(env, (jclass)i.get(), str0, str1);
+                    if(id) {
+                        return id;
+                    }
                 }
-            }
-        }
-        auto cl2 = env->GetSuperclass(cl);
-        if(cl2 && cl2 != cl) {
-            auto id = GetMethodID<isStatic, true>(env, cl2, str0, str1);
-            if(id) {
-                return id;
             }
         }
         if (ReturnNull) {
@@ -104,7 +99,7 @@ template<> jobject jnivm::defaultVal(ENV* env, std::string signature) {
             auto c = env->GetClass(signature.substr(off + 2, signature.size() - (off + 3)).data());
             if(c->Instantiate) {
                 LOG("JNIVM", "Constructed object=`%s`", &signature.data()[off + 1]);
-                return JNITypes<std::shared_ptr<Object>>::ToJNIReturnType(env, c->Instantiate());
+                return JNITypes<std::shared_ptr<Object>>::ToJNIReturnType(env, c->Instantiate(env));
             }
         }
         LOG("JNIVM", "Failed to construct return value of signature=`%s`", signature.data());

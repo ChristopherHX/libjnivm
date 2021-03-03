@@ -19,7 +19,7 @@ TEST(JNIVM, BooleanFields) {
     auto env = vm.GetJNIEnv();
     auto obj = std::make_shared<Class1>();
     auto ncl = env->FindClass("Class1");
-    auto field = env->GetFieldID((jclass)ncl, "b", "Z");
+    auto field = env->GetFieldID(ncl, "b", "Z");
     env->SetBooleanField((jobject)obj.get(), field, true);
     ASSERT_TRUE(obj->b);
     ASSERT_TRUE(env->GetBooleanField((jobject)obj.get(), field));
@@ -27,7 +27,7 @@ TEST(JNIVM, BooleanFields) {
     ASSERT_FALSE(obj->b);
     ASSERT_FALSE(env->GetBooleanField((jobject)obj.get(), field));
 
-    auto field2 = env->GetStaticFieldID((jclass)ncl, "b2", "Z");
+    auto field2 = env->GetStaticFieldID(ncl, "b2", "Z");
     env->SetStaticBooleanField(ncl, field2, true);
     ASSERT_TRUE(obj->b2);
     ASSERT_TRUE(env->GetStaticBooleanField(ncl, field2));
@@ -44,18 +44,18 @@ TEST(JNIVM, StringFields) {
     auto env = vm.GetJNIEnv();
     auto obj = std::make_shared<Class1>();
     auto ncl = env->FindClass("Class1");
-    auto field = env->GetFieldID((jclass)ncl, "s", "Ljava/lang/String;");
+    auto field = env->GetFieldID(ncl, "s", "Ljava/lang/String;");
     static_assert(sizeof(jchar) == sizeof(char16_t), "jchar is not as large as char16_t");
     auto str1 = env->NewString((jchar*) u"Hello World", 11);
     auto str2 = env->NewStringUTF("Hello World");
-    env->SetObjectField((jobject)obj.get(), field, str1);
+    env->SetObjectField((jobject)(jnivm::Object*)obj.get(), field, str1);
     ASSERT_EQ((jstring)obj->s.get(), str1);
     ASSERT_EQ(env->GetObjectField((jobject)obj.get(), field), str1);
     env->SetObjectField((jobject)obj.get(), field, str2);
     ASSERT_EQ((jstring)obj->s.get(), str2);
     ASSERT_EQ(env->GetObjectField((jobject)obj.get(), field), str2);
 
-    auto field2 = env->GetStaticFieldID((jclass)ncl, "s2", "Ljava/lang/String;");
+    auto field2 = env->GetStaticFieldID(ncl, "s2", "Ljava/lang/String;");
     env->SetStaticObjectField(ncl, field2, str1);
     ASSERT_EQ((jstring)obj->s2.get(), str1);
     ASSERT_EQ(env->GetStaticObjectField(ncl, field2), str1);
@@ -262,7 +262,7 @@ TEST(JNIVM, Excepts) {
     });
     auto o = std::make_shared<Class2>();
     auto obj = jnivm::JNITypes<decltype(o)>::ToJNIReturnType(env.get(), o);
-    auto c = (jclass) jnivm::JNITypes<decltype(_Class2)>::ToJNIType(env.get(), _Class2);
+    auto c = jnivm::JNITypes<decltype(_Class2)>::ToJNIType(env.get(), _Class2);
     auto nenv = &*env;
     auto mid = nenv->GetMethodID(c, "test", "()V");
     nenv->CallVoidMethod(obj, mid);
@@ -284,7 +284,7 @@ TEST(JNIVM, Monitor) {
     });
     auto o = std::make_shared<Class2>();
     auto obj = jnivm::JNITypes<decltype(o)>::ToJNIReturnType(env.get(), o);
-    auto c = (jclass) jnivm::JNITypes<decltype(_Class2)>::ToJNIType(env.get(), _Class2);
+    auto c = jnivm::JNITypes<decltype(_Class2)>::ToJNIType(env.get(), _Class2);
     auto nenv = &*env;
     nenv->MonitorEnter(c);
     nenv->MonitorEnter(c);
@@ -293,7 +293,7 @@ TEST(JNIVM, Monitor) {
     nenv->MonitorExit(c);
 }
 
-class TestInterface {
+class TestInterface : public jnivm::Extends<jnivm::Object> {
 public:
     virtual void Test() = 0;
 };
@@ -308,8 +308,8 @@ TEST(JNIVM, BaseClass) {
     jnivm::VM vm;
     auto env = vm.GetEnv();
     
-    jnivm::Weak::GetBaseClass(env.get());
-    jnivm::Object::GetBaseClass(env.get());
+    jnivm::Weak::GetBaseClasses(env.get());
+    jnivm::Object::GetBaseClasses(env.get());
 }
 
 TEST(JNIVM, Interfaces) {
@@ -317,11 +317,10 @@ TEST(JNIVM, Interfaces) {
     auto env = vm.GetEnv();
     vm.GetEnv()->GetClass<TestClass>("TestClass");
     vm.GetEnv()->GetClass<TestInterface>("TestInterface");
-    auto bc = TestClass::GetBaseClass(env.get());
-    ASSERT_EQ(bc->name, "Object");
-    auto interfaces = TestClass::GetInterfaces(env.get());
-    ASSERT_EQ(interfaces.size(), 1);
-    ASSERT_EQ(interfaces[0]->name, "TestInterface");
+    auto bc = TestClass::GetBaseClasses(env.get());
+    ASSERT_EQ(bc.size(), 2);
+    ASSERT_EQ(bc[0]->name, "Object");
+    ASSERT_EQ(bc[1]->name, "TestInterface");
 }
 
 class TestClass2 : public jnivm::Extends<TestClass> {
@@ -341,7 +340,7 @@ class TestClass2 : public jnivm::Extends<TestClass> {
 //     ASSERT_EQ(interfaces[0]->name, "TestInterface");
 // }
 
-class TestInterface2 {
+class TestInterface2 : public jnivm::Extends<jnivm::Object>{
 public:
     virtual void Test2() = 0;
 };
@@ -377,23 +376,20 @@ class TestClass3 : public jnivm::Extends<TestClass2, TestInterface2> {
 
 #include <fake-jni/fake-jni.h>
 
-class Y {
-    virtual void test() = 0;
-};
-
-class FakeJniTest : public FakeJni::JObject, public Y {
+class FakeJniTest : public FakeJni::JObject {
     jint f = 1;
 public:
-    DEFINE_CLASS_NAME("FakeJniTest", FakeJni::JObject, Y)
-    virtual void test() override {
-
+    DEFINE_CLASS_NAME("FakeJniTest", FakeJni::JObject)
+    void test() {
+        throw TestClass3Ex();
     }
 };
 
 BEGIN_NATIVE_DESCRIPTOR(FakeJniTest)
 FakeJni::Constructor<FakeJniTest>{},
 #ifdef __cpp_nontype_template_parameter_auto
-{FakeJni::Field<&FakeJniTest::f>{}, "f"}
+{FakeJni::Field<&FakeJniTest::f>{}, "f"},
+{FakeJni::Function<&FakeJniTest::test>{}, "test"}
 #endif
 END_NATIVE_DESCRIPTOR
 
@@ -465,11 +461,11 @@ TEST(JNIVM, Inherience) {
     ASSERT_EQ(obji, obji2);
 
     ASSERT_FALSE((&*env)->ExceptionCheck());
-    (&*env)->CallVoidMethod((jobject)(TestClass3*)obje.get(), test);
+    (&*env)->CallVoidMethod((jobject)(jnivm::Object*)obje.get(), test);
     ASSERT_TRUE((&*env)->ExceptionCheck());
     (&*env)->ExceptionClear();
     ASSERT_FALSE((&*env)->ExceptionCheck());
-    (&*env)->CallVoidMethod((jobject)(TestClass3*)obje.get(), test2);
+    (&*env)->CallVoidMethod((jobject)(jnivm::Object*)obje.get(), test2);
     ASSERT_FALSE((&*env)->ExceptionCheck());
     // decltype(TemplateStringConverter<void>::ToTemplateString("Test")) y;
     // static constexpr const char test2[] = __FUNCTION__;
@@ -526,11 +522,249 @@ TEST(JNIVM, Inherience2) {
     auto v2 = jnivm::JNITypes<std::shared_ptr<TestInterface>>::ToJNIReturnType(env.get(), (std::shared_ptr<TestInterface>)i);
     auto v3 = jnivm::JNITypes<std::shared_ptr<TestInterface2>>::JNICast(env.get(), v2);
     auto v4 = jnivm::JNITypes<std::shared_ptr<TestClass4>>::JNICast(env.get(), v2);
-    ASSERT_EQ(v1, (jobject)i.get());
+    ASSERT_EQ(v1, (jobject)(jnivm::Object*)i.get());
     ASSERT_EQ(v4, i);
     (&*env)->CallVoidMethod(v1, test2);
     (&*env)->CallVoidMethod(v2, test2);
+    size_t olduse = i.use_count();
     auto weak = (&*env)->NewWeakGlobalRef(v2);
+    ASSERT_EQ(olduse, i.use_count()) << "Weak pointer is no strong reference";
     auto v5 = jnivm::JNITypes<std::shared_ptr<TestClass4>>::JNICast(env.get(), weak);
+    ASSERT_NE(v5, nullptr) << "Weak pointer isn't expired!";
+    ASSERT_EQ(olduse + 1, i.use_count());
+    (&*env)->DeleteWeakGlobalRef(weak);
+    ASSERT_EQ(olduse + 1, i.use_count());
+}
 
+TEST(JNIVM, ExternalFuncs) {
+    jnivm::VM vm;
+    auto env = vm.GetEnv();
+    env->GetClass<TestInterface>("TestInterface");
+    auto c = env->GetClass<TestClass>("TestClass");
+    bool succeded = false;
+    auto x = (env->env).FindClass("TestClass");
+    auto m = (env->env).GetStaticMethodID(x, "factory", "()LTestClass;");
+    auto o = (env->env).CallStaticObjectMethod(x, m);
+    c->HookInstanceFunction(env.get(), "test", [&succeded, src = jnivm::JNITypes<std::shared_ptr<jnivm::Object>>::JNICast(env.get(), o)](jnivm::ENV*env, jnivm::Object*obj) {
+        ASSERT_EQ(src.get(), obj);
+        succeded = true;
+    });
+    auto m2 = (env->env).GetMethodID(x, "test", "()V");
+    (env->env).CallVoidMethod(o, m2);
+    ASSERT_TRUE(succeded);
+    c->HookInstanceFunction(env.get(), "test", [&succeded, src = jnivm::JNITypes<std::shared_ptr<jnivm::Object>>::JNICast(env.get(), o)](jnivm::Object*obj) {
+        ASSERT_EQ(src.get(), obj);
+        succeded = false;
+    });
+    (env->env).CallVoidMethod(o, m2);
+    ASSERT_FALSE(succeded);
+    c->HookInstanceFunction(env.get(), "test", [&succeded, src = jnivm::JNITypes<std::shared_ptr<jnivm::Object>>::JNICast(env.get(), o)]() {
+        succeded = true;
+    });
+    (env->env).CallVoidMethod(o, m2);
+    ASSERT_TRUE(succeded);
+
+    // static
+    succeded = false;
+    c->Hook(env.get(), "test", [&succeded, &c](jnivm::ENV*env, jnivm::Class*obj) {
+        ASSERT_EQ(c.get(), obj);
+        succeded = true;
+    });
+    m2 = (env->env).GetStaticMethodID(x, "test", "()V");
+    (env->env).CallStaticVoidMethod(x, m2);
+    ASSERT_TRUE(succeded);
+    c->Hook(env.get(), "test", [&succeded, &c](jnivm::Class*obj) {
+        ASSERT_EQ(c.get(), obj);
+        succeded = false;
+    });
+    (env->env).CallStaticVoidMethod(x, m2);
+    ASSERT_FALSE(succeded);
+    c->Hook(env.get(), "test", [&succeded, &c]() {
+        succeded = true;
+    });
+    (env->env).CallStaticVoidMethod(x, m2);
+    ASSERT_TRUE(succeded);
+}
+
+TEST(JNIVM, WeakAndIsSame) {
+    jnivm::VM vm;
+    auto env = vm.GetEnv();
+    env->GetClass<TestInterface>("TestInterface");
+    auto c = env->GetClass<TestClass>("TestClass");
+    bool succeded = false;
+    auto x = (env->env).FindClass("TestClass");
+    auto m = (env->env).GetStaticMethodID(x, "factory", "()LTestClass;");
+    env->env.PushLocalFrame(100);
+    auto o = (env->env).CallStaticObjectMethod(x, m);
+    auto w = env->env.NewWeakGlobalRef(o);
+    ASSERT_TRUE(env->env.IsSameObject(o, w));
+    env->env.PopLocalFrame(nullptr);
+    ASSERT_TRUE(env->env.IsSameObject(0, w));
+}
+
+TEST(JNIVM, WeakToGlobalReference) {
+    jnivm::VM vm;
+    auto env = vm.GetEnv();
+    env->GetClass<TestInterface>("TestInterface");
+    auto c = env->GetClass<TestClass>("TestClass");
+    bool succeded = false;
+    auto x = (env->env).FindClass("TestClass");
+    auto m = (env->env).GetStaticMethodID(x, "factory", "()LTestClass;");
+    env->env.PushLocalFrame(100);
+    auto o = (env->env).CallStaticObjectMethod(x, m);
+    auto w = env->env.NewWeakGlobalRef(o);
+    ASSERT_TRUE(env->env.IsSameObject(o, w));
+    ASSERT_EQ(env->env.GetObjectRefType(w), JNIWeakGlobalRefType);
+    auto g = env->env.NewGlobalRef(w);
+    ASSERT_TRUE(env->env.IsSameObject(g, w));
+    ASSERT_TRUE(env->env.IsSameObject(g, o));
+    ASSERT_EQ(env->env.GetObjectRefType(g), JNIGlobalRefType);
+    env->env.PopLocalFrame(nullptr);
+    ASSERT_FALSE(env->env.IsSameObject(0, w));
+    env->env.DeleteGlobalRef(g);
+    ASSERT_TRUE(env->env.IsSameObject(0, w));
+    ASSERT_EQ(env->env.NewGlobalRef(w), (jobject)0);
+}
+
+TEST(JNIVM, WeakToLocalReference) {
+    jnivm::VM vm;
+    auto env = vm.GetEnv();
+    env->GetClass<TestInterface>("TestInterface");
+    auto c = env->GetClass<TestClass>("TestClass");
+    bool succeded = false;
+    auto x = (env->env).FindClass("TestClass");
+    auto m = (env->env).GetStaticMethodID(x, "factory", "()LTestClass;");
+    env->env.PushLocalFrame(100);
+    auto o = (env->env).CallStaticObjectMethod(x, m);
+    auto w = env->env.NewWeakGlobalRef(o);
+    ASSERT_TRUE(env->env.IsSameObject(o, w));
+    ASSERT_EQ(env->env.GetObjectRefType(w), JNIWeakGlobalRefType);
+    auto g = env->env.NewLocalRef(w);
+    ASSERT_TRUE(env->env.IsSameObject(g, w));
+    ASSERT_TRUE(env->env.IsSameObject(g, o));
+    ASSERT_EQ(env->env.GetObjectRefType(g), JNILocalRefType);
+    env->env.DeleteLocalRef(o);
+    ASSERT_FALSE(env->env.IsSameObject(0, w));
+    env->env.PopLocalFrame(nullptr);
+    ASSERT_TRUE(env->env.IsSameObject(0, w));
+    ASSERT_EQ(env->env.NewLocalRef(w), (jobject)0);
+}
+
+#include <baron/baron.h>
+
+TEST(FakeJni, Master) {
+    Baron::Jvm b;
+    b.registerClass<FakeJniTest>();
+    FakeJni::LocalFrame f;
+    auto& p = f.getJniEnv();
+    ASSERT_EQ(&p, b.GetJNIEnv());
+    ASSERT_EQ(std::addressof(p), b.GetEnv().get());
+    auto c = f.getJniEnv().GetClass("FakeJniTest");
+    auto m = c->getMethod("()V", "test");
+    auto test = std::make_shared<FakeJniTest>();
+    EXPECT_THROW(m->invoke(p, test.get()), TestClass3Ex);
+}
+
+
+
+namespace Test2 {
+
+class TestClass : public jnivm::Extends<> {
+public:
+    bool Test(bool a) {
+        return !a;
+    }
+    jboolean Test2() {
+        return false;
+    }
+
+    static void Test3(std::shared_ptr<jnivm::Class> c, std::shared_ptr<TestClass> o) {
+        ASSERT_TRUE(c);
+        ASSERT_TRUE(o);
+        ASSERT_EQ(c, o->clazz);
+    }
+    static void NativeTest3(JNIEnv*env, jclass clazz, jobject o) {
+        auto m = env->GetStaticMethodID(clazz, "Test2", "(Ljava/lang/Class;LTestClass;)V");
+        env->CallStaticVoidMethod(clazz, m, clazz, o);
+    }
+    static void NativeTest4(JNIEnv*env, jobject o, jclass clazz) {
+        NativeTest3(env, clazz, o);
+    }
+    static jclass NativeTest5(JNIEnv*env, jobject o, jclass clazz) {
+        NativeTest3(env, clazz, o);
+        return clazz;
+    }
+    static void Test4(std::shared_ptr<jnivm::Array<jnivm::Class>> c, std::shared_ptr<jnivm::Array<jnivm::Array<TestClass>>> o) {
+
+    }
+};
+
+template<class T> struct TestArray;
+template<> struct TestArray<jnivm::Object> {
+    jnivm::Object* ptr;
+};
+template<class T> struct TestArray : TestArray<std::tuple_element_t<0, typename T::BaseClasseTuple>> {
+
+};
+
+
+class TestClass3 : public jnivm::Extends<TestClass2> {
+    std::shared_ptr<TestArray<TestClass3>> test() {
+        auto ret = std::make_shared<Test2::TestArray<Test2::TestClass3>>();
+        std::shared_ptr<Test2::TestArray<TestClass2>> test = ret;
+        return ret;
+    }
+};
+
+// std::shared_ptr<Test2::TestArray<Test2::TestClass3>> Test2::TestClass3::test() {
+//     auto ret = std::make_shared<Test2::TestArray<Test2::TestClass3>>();
+//     std::shared_ptr<Test2::TestArray<TestClass2>> test = ret;
+//     return ret;
+// }
+
+TEST(JNIVM, Hooking) {
+    jnivm::VM vm;
+    auto env = vm.GetEnv().get();
+    auto c = env->GetClass<TestClass>("TestClass");
+    c->Hook(env, "Test", &TestClass::Test);
+    c->Hook(env, "Test2", &TestClass::Test2);
+    c->Hook(env, "Test2", &TestClass::Test3);
+    c->Hook(env, "Test4", &TestClass::Test4);
+    auto mid = env->env.GetStaticMethodID((jclass)c.get(), "Instatiate", "()LTestClass;");
+    auto obj = env->env.CallStaticObjectMethod((jclass)c.get(), mid);
+    ASSERT_TRUE(c->getMethod("(Z)Z", "Test")->invoke(*env, (jnivm::Object*)obj, false).z);
+    ASSERT_FALSE(c->getMethod("(Z)Z", "Test")->invoke(*env, (jnivm::Object*)obj, true).z);
+    c->getMethod("()Z", "Test2")->invoke(*env, (jnivm::Object*)obj);
+    c->getMethod("(Ljava/lang/Class;LTestClass;)V", "Test2")->invoke(*env, c.get(), c, obj);
+    JNINativeMethod methods[] = {
+        { "NativeTest3", "(LTestClass;)V", &TestClass::NativeTest3 },
+        { "NativeTest4", "(Ljava/lang/Class;)V", &TestClass::NativeTest4 },
+        { "NativeTest5", "(Ljava/lang/Class;)Ljava/lang/Class;", &TestClass::NativeTest5 }
+    };
+    env->env.RegisterNatives((jclass)c.get(), methods, 3);
+    c->getMethod("(LTestClass;)V", "NativeTest3")->invoke(*env, c.get(), obj);
+    c->getMethod("(Ljava/lang/Class;)V", "NativeTest4")->invoke(*env, (jnivm::Object*)obj, c);
+    c->getMethod("(Ljava/lang/Class;)Ljava/lang/Class;", "NativeTest5")->invoke(*env, (jnivm::Object*)obj, c).l;
+    c->InstantiateArray = [](jnivm::ENV *env, jsize length) {
+        return std::make_shared<jnivm::Array<TestClass>>(length);
+    };
+    auto innerArray = env->env.NewObjectArray(12, (jclass)c.get(), obj);
+    auto c2 = jnivm::JNITypes<std::shared_ptr<jnivm::Class>>::JNICast(env, env->env.GetObjectClass(innerArray));
+    c2->InstantiateArray = [](jnivm::ENV *env, jsize length) {
+        return std::make_shared<jnivm::Array<jnivm::Array<TestClass>>>(length);
+    };
+    auto outerArray = env->env.NewObjectArray(20, env->env.GetObjectClass(innerArray), innerArray);
+    c->getMethod("([Ljava/lang/Class;[[LTestClass;)V", "Test4")->invoke(*env, c.get(), (jobject)nullptr, (jobject)outerArray);
+
+
+    std::shared_ptr<jnivm::Array<TestClass>> specArray;
+    class TestClass2 : public jnivm::Extends<TestClass> {};
+    std::shared_ptr<jnivm::Array<TestClass2>> specArray2;
+    // specArray = specArray2;
+    std::shared_ptr<jnivm::Array<jnivm::Object>> objArray = specArray2;
+    std::shared_ptr<jnivm::Array<jnivm::Object>> objArray2 = specArray;
+
+
+
+}
 }

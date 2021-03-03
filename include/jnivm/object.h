@@ -25,18 +25,16 @@ namespace jnivm {
     public:
         std::shared_ptr<Class> clazz;
         ObjectMutexWrapper lock;
-        Object(const std::shared_ptr<Class>& clazz) : clazz(clazz) {}
-        Object() : clazz(nullptr) {}
 
         virtual Class& getClass() {
+            // if(clazz == nullptr) {
+            //     throw std::runtime_error("Invalid Object");
+            // }
             return *clazz.get();
         }
 
-        static std::shared_ptr<Class> GetBaseClass(ENV* env);
-        
-        static std::vector<std::shared_ptr<Class>> GetInterfaces(ENV* env) {
-            return {};
-        }
+        static std::vector<std::shared_ptr<Class>> GetBaseClasses(ENV* env);
+
         // template<class DynamicBase>
         // static std::unordered_map<std::type_index, std::unordered_map<std::type_index, void*(*)(void*)>> DynCast() {
         //     return { {typeid(DynamicBase), std::unordered_map<std::type_index, void*(*)(void*)>{{typeid(Object), &impl:: DynCast<DynamicBase, Object>}}} , {typeid(Object), std::unordered_map<std::type_index, void*(*)(void*)>{{typeid(DynamicBase), &impl:: DynCast<Object, DynamicBase>}}}  };
@@ -57,7 +55,7 @@ namespace jnivm {
 template<class DynamicBase> std::unordered_map<std::type_index, std::pair<void *(*)(jnivm::ENV*, void *), void *(*)(jnivm::ENV* env, void *)>> jnivm::Object::DynCast(jnivm::ENV * env) {
     // return { {typeid(DynamicBase), { &impl:: DynCast<DynamicBase, Object>, &impl:: DynCast<Object, DynamicBase>}} };
     return { {typeid(DynamicBase), { +[](ENV* env, void*p) -> void* {
-        auto res = impl:: DynCast<Object, DynamicBase>(env, p);
+        auto res = impl::DynCast<Object, DynamicBase>(env, p);
         if(res != nullptr) {
             return res;
         }
@@ -66,7 +64,11 @@ template<class DynamicBase> std::unordered_map<std::type_index, std::pair<void *
         //     // ToDo
         //     auto obj = weak->wrapped.lock();
         //     if(obj) {
-        //         return env->createLocalReference(obj);
+        //         env->createLocalReference(obj);
+        //         auto res = impl::DynCast<Object, DynamicBase>(env, (Object*)obj.get());
+        //         if(res != nullptr) {
+        //             return res;
+        //         }
         //     } else {
         //         return nullptr;
         //     }
@@ -80,6 +82,6 @@ template<class DynamicBase> std::unordered_map<std::type_index, std::pair<void *
             }
         }
         return nullptr;
-    }, &impl::DynCast<Object, DynamicBase>}} };
+    }, &impl::DynCast<DynamicBase, Object>}} };
     
 }

@@ -8,7 +8,7 @@
 
 using namespace jnivm;
 
-template<bool isStatic>
+template<bool isStatic, bool ReturnNull>
 jfieldID jnivm::GetFieldID(JNIEnv *env, jclass cl, const char *name, const char *type) {
     std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);
     std::string &classname = ((Class *)cl)->name;
@@ -28,20 +28,18 @@ jfieldID jnivm::GetFieldID(JNIEnv *env, jclass cl, const char *name, const char 
         LOG("JNIVM", "Found symbol, Class: %s, %sField: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, isStatic ? "Static" : "", name, type);
 #endif
     } else {
-        auto cl2 = env->GetSuperclass(cl);
-        if(cl2 != cl) {
-            auto id = GetFieldID<isStatic>(env, cl2, name, type);
-            if(id) {
-                return id;
-            }
-        }
-        if(!isStatic && cur->interfaces) {
-            for(auto&& i : cur->interfaces((ENV*)env->functions->reserved0)) {
-                auto id = GetFieldID<false>(env, (jclass)i.get(), name, type);
-                if(id) {
-                    return id;
+        if(cur->baseclasses) {
+            for(auto&& i : cur->baseclasses((ENV*)env->functions->reserved0)) {
+                if(i) {
+                    auto id = GetFieldID<isStatic, true>(env, (jclass)i.get(), name, type);
+                    if(id) {
+                        return id;
+                    }
                 }
             }
+        }
+        if(ReturnNull) {
+            return nullptr;
         }
         next = std::make_shared<Field>();
         cur->fields.emplace_back(next);

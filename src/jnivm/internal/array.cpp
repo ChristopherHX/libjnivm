@@ -7,8 +7,9 @@ jsize jnivm::GetArrayLength(JNIEnv *, jarray a) {
     return a ? ((Array<void>*)a)->length : 0;
 }
 jobjectArray jnivm::NewObjectArray(JNIEnv * env, jsize length, jclass c, jobject init) {
-    auto arr = std::make_shared<Array<Object>>(new std::shared_ptr<Object>[length], length);
     auto cl = (Class*)FindClass(env, (std::string("[L") + ((Class*)c)->nativeprefix + ";").data());
+    // auto arr = std::make_shared<Array<Object>>(new std::shared_ptr<Object>[length], length);
+    auto arr = ((Class*)c)->InstantiateArray((ENV*)env->functions->reserved0, length);
     arr->clazz = std::shared_ptr<Class>(cl->shared_from_this(), cl);
     if(init) {
         for (jsize i = 0; i < length; i++) {

@@ -3,7 +3,7 @@
 
 namespace jnivm {
 
-    template<bool isStatic>
+    template<bool isStatic, bool ReturnNull=false>
     jfieldID GetFieldID(JNIEnv *env, jclass cl, const char *name, const char *type);
 
     template <class T> T GetField(JNIEnv *env, jobject obj, jfieldID id);

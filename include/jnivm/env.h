@@ -25,7 +25,8 @@ namespace jnivm {
         std::forward_list<std::vector<std::shared_ptr<Object>>> freeframes;
 #endif
         std::shared_ptr<Throwable> current_exception;
-
+        ENV(const ENV&) = delete;
+        ENV(ENV&&) = delete;
         ENV(VM * vm, const JNINativeInterface & defaultinterface) : vm(vm), ninterface(defaultinterface), env{&ninterface}, localframe({{}}) {
             ninterface.reserved0 = this;
         }
@@ -75,15 +76,20 @@ namespace jnivm {
 
 namespace jnivm {
     template<class T, bool isDefaultConstructable = std::is_default_constructible<T>::value> struct Factory {
-        static std::function<std::shared_ptr<jnivm::Object>()> CreateLambda() {
+        static std::function<std::shared_ptr<jnivm::Object>(ENV* env)> CreateLambda() {
             return nullptr;
         }
     };
 
     template<class T> struct Factory<T, true> {
-        static std::function<std::shared_ptr<jnivm::Object>()> CreateLambda() {
-            return []() -> std::shared_ptr<jnivm::Object> {
-                return std::make_shared<T>();
+        static std::function<std::shared_ptr<jnivm::Object>(ENV* env)> CreateLambda() {
+            return [](ENV* env) -> std::shared_ptr<jnivm::Object> {
+                auto res = std::make_shared<T>();
+                auto f = env->vm->typecheck.find(typeid(T));
+                if(f != env->vm->typecheck.end()) {
+                    res->clazz = f->second;
+                }
+                return res;
             };
         }
     };
@@ -94,10 +100,9 @@ namespace jnivm {
         }
     };
 
-    template<class T> struct IsClass<T, std::void_t<decltype(T::GetBaseClass(std::declval<ENV*>())), decltype(T::GetInterfaces(std::declval<ENV*>()))>> {
+    template<class T> struct IsClass<T, std::void_t<decltype(T::GetBaseClasses(std::declval<ENV*>()))>> {
         static void AddInherience(std::shared_ptr<jnivm::Class> &c, ENV*env) {
-            c->superclass = &T::GetBaseClass;
-            c->interfaces = &T::GetInterfaces;
+            c->baseclasses = &T::GetBaseClasses;
             c->dynCast = T::template DynCast<T>(env);
         }
     };

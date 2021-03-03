@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <vector>
 #include <functional>
+#include "array.h"
 
 namespace jnivm {
     class ENV;
@@ -24,9 +25,9 @@ namespace jnivm {
 #endif
         std::vector<std::shared_ptr<Field>> fields;
         std::vector<std::shared_ptr<Method>> methods;
-        std::function<std::shared_ptr<Object>()> Instantiate;
-        std::function<std::shared_ptr<Class>(ENV*)> superclass;
-        std::function<std::vector<std::shared_ptr<Class>>(ENV*)> interfaces;
+        std::function<std::shared_ptr<Object>(ENV* env)> Instantiate;
+        std::function<std::shared_ptr<Array<Object>>(ENV* env, jsize length)> InstantiateArray;
+        std::function<std::vector<std::shared_ptr<Class>>(ENV*)> baseclasses;
         std::unordered_map<std::type_index, std::pair<void*(*)(ENV*, void*), void*(*)(ENV*, void*)>> dynCast;
 
         Class() {

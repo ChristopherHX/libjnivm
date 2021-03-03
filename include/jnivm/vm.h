@@ -59,6 +59,8 @@ namespace jnivm {
         std::vector<std::shared_ptr<Object>> globals;
         // Stores all classes by c++ typeid
         std::unordered_map<std::type_index, std::shared_ptr<Class>> typecheck;
+        VM(const VM&) = delete;
+        VM(VM&&) = delete;
         // Initialize the native VM instance
         VM();
         // Returns the jni JavaVM

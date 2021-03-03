@@ -26,11 +26,11 @@ namespace jnivm {
         using T = Funk;
         using Function = jnivm::Function<Funk>;
         using IntSeq = std::make_index_sequence<Function::plength>;
-        template<class I> class __StaticFuncWrapper;
-        template<size_t E, size_t C, size_t...I> class __StaticFuncWrapper<std::index_sequence<E, C, I...>> {
+        template<FunctionType type, bool isVoid, bool hasENV, bool hasClassOrObject, class I> class BaseWrapper;
+        template<size_t E, size_t C, size_t...I> class BaseWrapper<FunctionType::None, false, true, true, std::index_sequence<E, C, I...>> {
             Funk handle;
         public:
-            __StaticFuncWrapper(Funk handle) : handle(handle) {}
+            BaseWrapper(Funk handle) : handle(handle) {}
 
             constexpr auto StaticInvoke(ENV * env, Class* clazz, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIReturnType(env, handle(env, clazz, (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-2]))...));
@@ -60,11 +60,10 @@ namespace jnivm {
                 return JNITypes<typename Function::Return>::GetJNISignature(env);
             }
         };
-        template<class I> class __StaticFuncWrapper2;
-        template<size_t...I> class __StaticFuncWrapper2<std::index_sequence<I...>> {
+        template<size_t...I> class BaseWrapper<FunctionType::None, false, false, false, std::index_sequence<I...>> {
             Funk handle;
         public:
-            __StaticFuncWrapper2(Funk handle) : handle(handle) {}
+            BaseWrapper(Funk handle) : handle(handle) {}
 
             constexpr auto StaticInvoke(ENV * env, Class* clazz, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIReturnType(env, handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I]))...));
@@ -85,11 +84,10 @@ namespace jnivm {
                 return JNITypes<typename Function::Return>::GetJNISignature(env);
             }
         };
-        template<class I> class __InstanceFuncWrapper;
-        template<size_t O, size_t E, size_t...I> class __InstanceFuncWrapper<std::index_sequence<O, E, I...>> {
+        template<size_t O, size_t E, size_t...I> class BaseWrapper<FunctionType::Instance, false, true, false, std::index_sequence<O, E, I...>> {
             Funk handle;
         public:
-            __InstanceFuncWrapper(Funk handle) : handle(handle) {}
+            BaseWrapper(Funk handle) : handle(handle) {}
 
             constexpr auto InstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIReturnType(env, (JNITypes<std::shared_ptr<std::remove_pointer_t<typename Function::template Parameter<O>>>>::JNICast(env, obj).get()->*handle)(env, (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-2]))...));
@@ -110,11 +108,10 @@ namespace jnivm {
                 return JNITypes<typename Function::Return>::GetJNISignature(env);
             }
         };
-        template<class I> class __InstanceFuncWrapper2;
-        template<size_t O, size_t...I> class __InstanceFuncWrapper2<std::index_sequence<O, I...>> {
+        template<size_t O, size_t...I> class BaseWrapper<FunctionType::Instance, false, false, false, std::index_sequence<O, I...>> {
             Funk handle;
         public:
-            __InstanceFuncWrapper2(Funk handle) : handle(handle) {}
+            BaseWrapper(Funk handle) : handle(handle) {}
 
             constexpr auto InstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIReturnType(env, (JNITypes<std::shared_ptr<std::remove_pointer_t<typename Function::template Parameter<O>>>>::JNICast(env, obj).get()->*handle)((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-1]))...));
@@ -135,11 +132,10 @@ namespace jnivm {
                 return JNITypes<typename Function::Return>::GetJNISignature(env);
             }
         };
-        template<class I> class __InstancePropWrapper;
-        template<size_t Z, size_t...I> class __InstancePropWrapper<std::index_sequence<Z, I...>> {
+        template<size_t Z, size_t...I> class BaseWrapper<FunctionType::InstanceProperty, false, false, false, std::index_sequence<Z, I...>> {
             Funk handle;
         public:
-            __InstancePropWrapper(Funk handle) : handle(handle) {}
+            BaseWrapper(Funk handle) : handle(handle) {}
 
             constexpr void InstanceSet(ENV * env, jobject obj, const jvalue* values) {
                 ((typename Function::template Parameter<Z>)(obj))->*handle = (JNITypes<typename Function::template Parameter<1>>::JNICast(env, values[0]));
@@ -154,11 +150,10 @@ namespace jnivm {
                 return JNITypes<typename Function::Return>::GetJNISignature(env);
             }
         };
-        template<class I> class __StaticPropWrapper;
-        template<size_t...I> class __StaticPropWrapper<std::index_sequence<I...>> {
+        template<size_t...I> class BaseWrapper<FunctionType::Property, false, false, false, std::index_sequence<I...>> {
             Funk handle;
         public:
-            __StaticPropWrapper(Funk handle) : handle(handle) {}
+            BaseWrapper(Funk handle) : handle(handle) {}
 
             constexpr void StaticSet(ENV * env, Class* clazz, const jvalue* values) {
                 *handle = (JNITypes<typename Function::Return>::JNICast(env, values[0]));
@@ -173,11 +168,10 @@ namespace jnivm {
                 return JNITypes<typename Function::Return>::GetJNISignature(env);
             }
         };
-        template<class I> class __ExternalInstanceFuncWrapper;
-        template<size_t X, size_t O, size_t E, size_t...I> class __ExternalInstanceFuncWrapper<std::index_sequence<X, O, E, I...>> {
+        template<size_t X, size_t O, size_t E, size_t...I> class BaseWrapper<FunctionType::Functional, false, true, true, std::index_sequence<X, O, E, I...>> {
             Funk handle;
         public:
-            __ExternalInstanceFuncWrapper(Funk handle) : handle(handle) {}
+            BaseWrapper(Funk handle) : handle(handle) {}
             constexpr auto StaticInvoke(ENV * env, Class* clazz, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIReturnType(env, handle(env, clazz, (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-3]))...));
             }
@@ -206,11 +200,10 @@ namespace jnivm {
                 return JNITypes<typename Function::Return>::GetJNISignature(env);
             }
         };
-        template<class I> class __StaticFuncWrapperV;
-        template<size_t E, size_t C, size_t...I> class __StaticFuncWrapperV<std::index_sequence<E, C, I...>> {
+        template<size_t E, size_t C, size_t...I> class BaseWrapper<FunctionType::None, true, true, false, std::index_sequence<E, C, I...>> {
             Funk handle;
         public:
-            __StaticFuncWrapperV(Funk handle) : handle(handle) {}
+            BaseWrapper(Funk handle) : handle(handle) {}
 
             constexpr void StaticInvoke(ENV * env, Class* clazz, const jvalue* values) {
                 handle(env, clazz, (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-2]))...);
@@ -231,11 +224,10 @@ namespace jnivm {
                 return JNITypes<typename Function::template Parameter<2>>::GetJNISignature(env);
             }
         };
-        template<class I> class __StaticFuncWrapperV2;
-        template<size_t...I> class __StaticFuncWrapperV2<std::index_sequence<I...>> {
+        template<size_t...I> class BaseWrapper<FunctionType::None, true, false, false, std::index_sequence<I...>> {
             Funk handle;
         public:
-            __StaticFuncWrapperV2(Funk handle) : handle(handle) {}
+            BaseWrapper(Funk handle) : handle(handle) {}
 
             constexpr void StaticInvoke(ENV * env, Class* clazz, const jvalue* values) {
                 handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I]))...);
@@ -250,11 +242,10 @@ namespace jnivm {
                 return JNITypes<typename Function::template Parameter<2>>::GetJNISignature(env);
             }
         };
-        template<class I> class __InstanceFuncWrapperV;
-        template<size_t O, size_t E, size_t...I> class __InstanceFuncWrapperV<std::index_sequence<O, E, I...>> {
+        template<size_t O, size_t E, size_t...I> class BaseWrapper<FunctionType::Instance, true, true, false, std::index_sequence<O, E, I...>> {
             Funk handle;
         public:
-            __InstanceFuncWrapperV(Funk handle) : handle(handle) {}
+            BaseWrapper(Funk handle) : handle(handle) {}
 
             constexpr void InstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
                 (JNITypes<std::shared_ptr<std::remove_pointer_t<typename Function::template Parameter<O>>>>::JNICast(env, obj).get()->*handle)(env, (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-2]))...);
@@ -269,11 +260,10 @@ namespace jnivm {
                 return JNITypes<typename Function::template Parameter<2>>::GetJNISignature(env);
             }
         };
-        template<class I> class __InstanceFuncWrapperV2;
-        template<size_t O, size_t...I> class __InstanceFuncWrapperV2<std::index_sequence<O, I...>> {
+        template<size_t O, size_t...I> class BaseWrapper<FunctionType::Instance, true, false, false, std::index_sequence<O, I...>> {
             Funk handle;
         public:
-            __InstanceFuncWrapperV2(Funk handle) : handle(handle) {}
+            BaseWrapper(Funk handle) : handle(handle) {}
 
             constexpr void InstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
                 (JNITypes<std::shared_ptr<std::remove_pointer_t<typename Function::template Parameter<O>>>>::JNICast(env, obj).get()->*handle)((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-1]))...);
@@ -288,11 +278,10 @@ namespace jnivm {
                 return JNITypes<typename Function::template Parameter<2>>::GetJNISignature(env);
             }
         };
-        template<class I> class __ExternalInstanceFuncWrapperV;
-        template<size_t X, size_t O, size_t E, size_t...I> class __ExternalInstanceFuncWrapperV<std::index_sequence<X, O, E, I...>> {
+        template<size_t X, size_t O, size_t E, size_t...I> class BaseWrapper<FunctionType::Functional, true, true, true, std::index_sequence<X, O, E, I...>> {
             Funk handle;
         public:
-            __ExternalInstanceFuncWrapperV(Funk handle) : handle(handle) {}
+            BaseWrapper(Funk handle) : handle(handle) {}
             constexpr void StaticInvoke(ENV * env, Class* clazz, const jvalue* values) {
                 handle(env, clazz, (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-3]))...);
             }
@@ -312,7 +301,60 @@ namespace jnivm {
                 return JNITypes<typename Function::template Parameter<3>>::GetJNISignature(env);
             }
         };
+
+        template<size_t X, size_t E, size_t...I> class BaseWrapper<FunctionType::Functional, true, false, true, std::index_sequence<X, E, I...>> {
+            Funk handle;
+        public:
+            BaseWrapper(Funk handle) : handle(handle) {}
+            constexpr void StaticInvoke(ENV * env, Class* clazz, const jvalue* values) {
+                handle(clazz, (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-2]))...);
+            }
+            constexpr void StaticSet(ENV * env, Class* clazz, const jvalue* values) {
+                handle(clazz, (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-2]))...);
+            }
+            constexpr void InstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
+                handle(JNITypes<std::shared_ptr<Object>>::JNICast(env, obj).get(), (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-3]))...);
+            }
+            constexpr void InstanceSet(ENV * env, jobject obj, const jvalue* values) {
+                handle(JNITypes<std::shared_ptr<Object>>::JNICast(env, obj).get(), (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-3]))...);
+            }
+            static std::string GetJNIInvokeSignature(ENV * env) {
+                return "(" + UnfoldJNISignature<typename Function::template Parameter<I>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
+            }
+            static std::string GetJNISetterSignature(ENV * env) {
+                return JNITypes<typename Function::template Parameter<3>>::GetJNISignature(env);
+            }
+        };
+
+        template<size_t X, size_t...I> class BaseWrapper<FunctionType::Functional, true, false, false, std::index_sequence<X, I...>> {
+            Funk handle;
+        public:
+            BaseWrapper(Funk handle) : handle(handle) {}
+            constexpr void StaticInvoke(ENV * env, Class* clazz, const jvalue* values) {
+                handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-2]))...);
+            }
+            constexpr void StaticSet(ENV * env, Class* clazz, const jvalue* values) {
+                handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-2]))...);
+            }
+            constexpr void InstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
+                handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-3]))...);
+            }
+            constexpr void InstanceSet(ENV * env, jobject obj, const jvalue* values) {
+                handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-3]))...);
+            }
+            static std::string GetJNIInvokeSignature(ENV * env) {
+                return "(" + UnfoldJNISignature<typename Function::template Parameter<I>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
+            }
+            static std::string GetJNISetterSignature(ENV * env) {
+                return JNITypes<typename Function::template Parameter<3>>::GetJNISignature(env);
+            }
+        };
         
-        using Wrapper = std::conditional_t<(Function::type == FunctionType::Functional), std::conditional_t<std::is_same<void, typename Function::Return>::value, __ExternalInstanceFuncWrapperV<IntSeq>, __ExternalInstanceFuncWrapper<IntSeq>>, std::conditional_t<((int)Function::type & (int)FunctionType::Instance) != 0, std::conditional_t<((int)Function::type & (int)FunctionType::Property) != 0, __InstancePropWrapper<IntSeq>, std::conditional_t<std::is_same<void, typename Function::Return>::value, std::conditional_t<std::is_same<typename Function::template Parameter<1>, ENV*>::value, __InstanceFuncWrapperV<IntSeq>, __InstanceFuncWrapperV2<IntSeq>>, std::conditional_t<(std::is_same<typename Function::template Parameter<1>, ENV*>::value), __InstanceFuncWrapper<IntSeq>, __InstanceFuncWrapper2<IntSeq>>>>, std::conditional_t<((int)Function::type & (int)FunctionType::Property) != 0, __StaticPropWrapper<IntSeq>, std::conditional_t<std::is_same<void, typename Function::Return>::value, std::conditional_t<std::is_same<typename Function::template Parameter<0>, ENV*>::value, __StaticFuncWrapperV<IntSeq>, __StaticFuncWrapperV2<IntSeq>>, std::conditional_t<std::is_same<typename Function::template Parameter<0>, ENV*>::value, __StaticFuncWrapper<IntSeq>, __StaticFuncWrapper2<IntSeq>>>>>>;
+        using Wrapper = BaseWrapper<Function::type, 
+                                    std::is_same<void, typename Function::Return>::value,
+                                    std::is_same<typename Function::template Parameter<0>, ENV*>::value || std::is_same<typename Function::template Parameter<1>, ENV*>::value,
+                                    (std::is_same<typename Function::template Parameter<1>, Class*>::value || std::is_same<typename Function::template Parameter<1>, Object*>::value ||
+                                    std::is_same<typename Function::template Parameter<2>, Class*>::value || std::is_same<typename Function::template Parameter<2>, Object*>::value),
+                                    IntSeq>;
     };
 }

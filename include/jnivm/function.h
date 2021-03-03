@@ -18,7 +18,7 @@ namespace jnivm {
     template<class=void()> struct Function;
     template<class R, class ...P> struct Function<R(P...)> {
         using Return = R;
-        template<size_t I=0> using Parameter = typename std::tuple_element_t<I, std::tuple<P...,void,void>>;
+        template<size_t I=0> using Parameter = typename std::tuple_element_t<I, std::tuple<P...,void,void,void>>;
         static constexpr size_t plength = sizeof...(P);
         static constexpr FunctionType type = FunctionType::None;
     };

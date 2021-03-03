@@ -14,8 +14,9 @@ namespace jnivm {
 
         template<> class Array<void> : public Object {
         protected:
-            Array(void* data, jsize length) : data(data), length(length), Object(nullptr) {}
+            Array(void* data, jsize length) : data(data), length(length) {}
         public:
+            using Type = void;
             jsize length = 0;
             void* data = nullptr;
             inline void* getArray() {
@@ -35,6 +36,7 @@ namespace jnivm {
         template<class T, bool primitive>
         class Array : public Array<void> {
         public:
+            using Type = T;
             Array(jsize length) : Array<void>(new T[length], length) {}
             Array() : Array<void>(nullptr, 0) {}
             Array(const std::vector<T> & vec) : Array<void>(new T[vec.size()], vec.size()) {
@@ -75,13 +77,14 @@ namespace jnivm {
         class Array<Y, false> : public Array<Object> {
         public:
             using T = std::shared_ptr<Y>;
+            using Type = T;
             Array(jsize length) : Array<Object>((std::shared_ptr<Object>*)new T[length], length) {}
             Array() : Array<Object>(nullptr, 0) {}
             Array(const std::vector<T> & vec) : Array<Object>((std::shared_ptr<Object>*)new T[vec.size()], vec.size()) {
                 memcpy(data, vec.data(), sizeof(T) * length);
             }
             
-            Array(T* data, jsize length) : Array<void>(data, length) {}
+            Array(T* data, jsize length) : Array<Object>((std::shared_ptr<Object>*)data, length) {}
 
             inline T* getArray() {
                 return (T*)data;

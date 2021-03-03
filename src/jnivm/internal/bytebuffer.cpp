@@ -7,9 +7,9 @@ using namespace jnivm;
 jobject jnivm::NewDirectByteBuffer(JNIEnv *env, void *buffer, jlong capacity) {
     return JNITypes<std::shared_ptr<ByteBuffer>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<ByteBuffer>(buffer, capacity));
 }
-void *jnivm::GetDirectBufferAddress(JNIEnv *, jobject bytebuffer) {
-    return ((ByteBuffer*)bytebuffer)->buffer;
+void *jnivm::GetDirectBufferAddress(JNIEnv *env, jobject bytebuffer) {
+    return JNITypes<std::shared_ptr<ByteBuffer>>::JNICast((ENV*)env->functions->reserved0, bytebuffer)->buffer;
 }
-jlong jnivm::GetDirectBufferCapacity(JNIEnv *, jobject bytebuffer) {
-    return ((ByteBuffer*)bytebuffer)->capacity;
+jlong jnivm::GetDirectBufferCapacity(JNIEnv *env, jobject bytebuffer) {
+    return JNITypes<std::shared_ptr<ByteBuffer>>::JNICast((ENV*)env->functions->reserved0, bytebuffer)->capacity;
 }
