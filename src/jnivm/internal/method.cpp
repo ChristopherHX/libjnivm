@@ -1,7 +1,6 @@
 #include "method.h"
 #include "log.h"
 #include <jnivm/internal/jValuesfromValist.h>
-#include <jnivm/internal/scopedVaList.h>
 
 using namespace jnivm;
 
@@ -164,9 +163,19 @@ T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
 
 template <class T>
 T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, ...) {
-    ScopedVaList param;
-    va_start(param.list, id);
-    return CallMethod<T>(env, obj, id, param.list);
+    va_list l;
+    va_start(l, id);
+    T ret = CallMethod<T>(env, obj, id, l);
+    va_end(l);
+    return ret;
+};
+
+template <>
+void jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, ...) {
+    va_list l;
+    va_start(l, id);
+    CallMethod<void>(env, obj, id, l);
+    va_end(l);
 };
 
 template <class T>
@@ -210,9 +219,19 @@ T jnivm::CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id
 
 template <class T>
 T jnivm::CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, ...) {
-        ScopedVaList param;
-        va_start(param.list, id);
-        return CallNonvirtualMethod<T>(env, obj, cl, id, param.list);
+    va_list l;
+    va_start(l, id);
+    T ret = CallNonvirtualMethod<T>(env, obj, cl, id, l);
+    va_end(l);
+    return ret;
+};
+
+template <>
+void jnivm::CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, ...) {
+    va_list l;
+    va_start(l, id);
+    CallNonvirtualMethod<void>(env, obj, cl, id, l);
+    va_end(l);
 };
 
 template <class T>
@@ -254,9 +273,19 @@ T jnivm::CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, va_list param) 
 
 template <class T>
 T jnivm::CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, ...) {
-    ScopedVaList param;
-    va_start(param.list, id);
-    return CallStaticMethod<T>(env, cl, id, param.list);
+    va_list l;
+    va_start(l, id);
+    T ret = CallStaticMethod<T>(env, cl, id, l);
+    va_end(l);
+    return ret;
+};
+
+template <>
+void jnivm::CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, ...) {
+    va_list l;
+    va_start(l, id);
+    CallStaticMethod<void>(env, cl, id, l);
+    va_end(l);
 };
 
 template jmethodID jnivm::GetMethodID<true>(JNIEnv *env, jclass cl, const char *str0, const char *str1);

@@ -19,8 +19,6 @@ Method * Class::getMethod(const char *sig, const char *name) {
     return nullptr;
 }
 
-#include <jnivm/internal/scopedVaList.h>
-
 template<class T> jvalue toJValue(T val) {
 	jvalue ret;
 	static_assert(sizeof(T) <= sizeof(jvalue), "jvalue cannot hold the specified type!");
@@ -33,64 +31,90 @@ jvalue Method::jinvoke(const jnivm::ENV &env, jclass cl, ...) {
 	if(signature.empty()) {
 		throw std::runtime_error("jni signature is empty");
 	}
-	ScopedVaList list;
-	va_start(list.list, cl);
+	va_list l;
+	va_start(l, cl);
+	jvalue ret;
 	auto type = signature[signature.find_last_of(')') + 1];
 	switch (type) {
 	case 'V':
-		env.env.functions->CallStaticVoidMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, list.list);
-		return {};
+		env.env.functions->CallStaticVoidMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, l);
+		ret = {};
+		break;
 	case 'Z':
-		return toJValue(env.env.functions->CallStaticBooleanMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, list.list));
+		ret = toJValue(env.env.functions->CallStaticBooleanMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, l));
+		break;
 	case 'B':
-		return toJValue(env.env.functions->CallStaticByteMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, list.list));
+		ret = toJValue(env.env.functions->CallStaticByteMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, l));
+		break;
 	case 'S':
-		return toJValue(env.env.functions->CallStaticShortMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, list.list));
+		ret = toJValue(env.env.functions->CallStaticShortMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, l));
+		break;
 	case 'I':
-		return toJValue(env.env.functions->CallStaticIntMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, list.list));
+		ret = toJValue(env.env.functions->CallStaticIntMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, l));
+		break;
 	case 'J':
-		return toJValue(env.env.functions->CallStaticLongMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, list.list));
+		ret = toJValue(env.env.functions->CallStaticLongMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, l));
+		break;
 	case 'F':
-		return toJValue(env.env.functions->CallStaticFloatMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, list.list));
+		ret = toJValue(env.env.functions->CallStaticFloatMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, l));
+		break;
 	case 'D':
-		return toJValue(env.env.functions->CallStaticDoubleMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, list.list));
+		ret = toJValue(env.env.functions->CallStaticDoubleMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, l));
+		break;
 	case '[':
 	case 'L':
-		return toJValue(env.env.functions->CallStaticObjectMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, list.list));
+		ret = toJValue(env.env.functions->CallStaticObjectMethodV((JNIEnv*)&env.env, cl, (jmethodID)this, l));
+		break;
 	default:
+		va_end(l);
 		throw std::runtime_error("Unsupported signature");
 	}
+	va_end(l);
+	return ret;
 }
 
 jvalue Method::jinvoke(const jnivm::ENV &env, jobject obj, ...) {
 	if(signature.empty()) {
 		throw std::runtime_error("jni signature is empty");
 	}
-	ScopedVaList list;
-	va_start(list.list, obj);
+	va_list l;
+	va_start(l, obj);
+	jvalue ret;
 	auto type = signature[signature.find_last_of(')') + 1];
 	switch (type) {
 	case 'V':
-		env.env.functions->CallVoidMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, list.list);
-		return {};
+		env.env.functions->CallVoidMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, l);
+		ret = {};
+		break;
 	case 'Z':
-		return toJValue(env.env.functions->CallBooleanMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, list.list));
+		ret = toJValue(env.env.functions->CallBooleanMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, l));
+		break;
 	case 'B':
-		return toJValue(env.env.functions->CallByteMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, list.list));
+		ret = toJValue(env.env.functions->CallByteMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, l));
+		break;
 	case 'S':
-		return toJValue(env.env.functions->CallShortMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, list.list));
+		ret = toJValue(env.env.functions->CallShortMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, l));
+		break;
 	case 'I':
-		return toJValue(env.env.functions->CallIntMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, list.list));
+		ret = toJValue(env.env.functions->CallIntMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, l));
+		break;
 	case 'J':
-		return toJValue(env.env.functions->CallLongMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, list.list));
+		ret = toJValue(env.env.functions->CallLongMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, l));
+		break;
 	case 'F':
-		return toJValue(env.env.functions->CallFloatMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, list.list));
+		ret = toJValue(env.env.functions->CallFloatMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, l));
+		break;
 	case 'D':
-		return toJValue(env.env.functions->CallDoubleMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, list.list));
+		ret = toJValue(env.env.functions->CallDoubleMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, l));
+		break;
 	case '[':
 	case 'L':
-		return toJValue(env.env.functions->CallObjectMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, list.list));
+		ret = toJValue(env.env.functions->CallObjectMethodV((JNIEnv*)&env.env, obj, (jmethodID)this, l));
+		break;
 	default:
+		va_end(l);
 		throw std::runtime_error("Unsupported signature");
 	}
+	va_end(l);
+	return ret;
 }

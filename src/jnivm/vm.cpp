@@ -2,7 +2,6 @@
 #ifdef _WIN32
 #define pthread_self() GetCurrentThreadId()
 #endif
-#include <jnivm/internal/scopedVaList.h>
 #include <jnivm/internal/skipJNIType.h>
 #include <jnivm/internal/findclass.h>
 #include <jnivm/internal/jValuesfromValist.h>
