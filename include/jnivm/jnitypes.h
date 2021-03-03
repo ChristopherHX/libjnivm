@@ -6,6 +6,7 @@
 #include <jni.h>
 #include "array.h"
 #include <type_traits>
+#include "internal/findclass.h"
 
 namespace jnivm {
     class Class;
@@ -171,7 +172,16 @@ namespace jnivm {
     template <class T> struct JNITypes<Array<T>> {
         using Array = jobjectArray;
         static std::string GetJNISignature(ENV * env) {
-            return "[" + JNITypes<T>::GetJNISignature(env);
+            auto res = "[" + JNITypes<T>::GetJNISignature(env);
+            auto c = InternalFindClass(env, res.data());
+            if(!c->InstantiateArray) {
+                c->InstantiateArray = [wref = std::weak_ptr<Class>(c)](ENV* env, jsize s) {
+                    auto a = std::make_shared<jnivm::Array<T>>(s);
+                    a->clazz = wref.lock();
+                    return a;
+                };
+            }
+            return res;
         }
     };
 
@@ -302,7 +312,7 @@ template<class T, class B> template<class Y> B jnivm::JNITypesObjectBase<T, B>::
 
 template<class T> typename jnivm::JNITypes<T>::Array jnivm::JNITypes<std::shared_ptr<jnivm::Array<T>>>::ToJNIType(jnivm::ENV *env, std::shared_ptr<jnivm::Array<T>> v) {
     env->localframe.front().push_back(v);
-    return (typename JNITypes<T>::Array)v.get();
+    return (typename JNITypes<T>::Array)(Object*)v.get();
 }
 #include "class.h"
 #include "weak.h"

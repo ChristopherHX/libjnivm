@@ -6,7 +6,7 @@
 using namespace jnivm;
 
 std::shared_ptr<Class> ENV::GetClass(const char * name) {
-	return InternalFindClass2(&env, name);
+	return InternalFindClass(this, name);
 }
 
 std::shared_ptr<Object> ENV::resolveReference(jobject obj) {

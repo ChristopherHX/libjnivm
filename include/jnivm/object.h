@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include <typeindex>
+#include "arrayBase.h"
 
 namespace jnivm {
     class Class;
@@ -23,6 +24,7 @@ namespace jnivm {
 
     class Object : public std::enable_shared_from_this<Object> {
     public:
+        using ArrayBaseType = impl::ArrayBase<Object>;
         std::shared_ptr<Class> clazz;
         ObjectMutexWrapper lock;
 

@@ -4,12 +4,14 @@
 using namespace jnivm;
 
 jsize jnivm::GetArrayLength(JNIEnv *, jarray a) {
-    return a ? ((Array<void>*)a)->length : 0;
+    return a ? ((Array<void>*)a)->getSize() : 0;
 }
 jobjectArray jnivm::NewObjectArray(JNIEnv * env, jsize length, jclass c, jobject init) {
-    auto cl = (Class*)FindClass(env, (std::string("[L") + ((Class*)c)->nativeprefix + ";").data());
+    auto cl0 = (Class*)c;
+    auto classname = cl0->nativeprefix[0] == '[' ? "[" + cl0->nativeprefix : "[L" + cl0->nativeprefix + ";";
+    auto cl = (Class*)FindClass(env, classname.data());
     // auto arr = std::make_shared<Array<Object>>(new std::shared_ptr<Object>[length], length);
-    auto arr = ((Class*)c)->InstantiateArray((ENV*)env->functions->reserved0, length);
+    auto arr = cl->InstantiateArray ? cl->InstantiateArray((ENV*)env->functions->reserved0, length) : std::make_shared<Array<Object>>(length);
     arr->clazz = std::shared_ptr<Class>(cl->shared_from_this(), cl);
     if(init) {
         for (jsize i = 0; i < length; i++) {

@@ -13,12 +13,13 @@ namespace jnivm {
         class Array;
 
         template<> class Array<void> : public Object {
+        private:
+            jsize length = 0;
+            void* data = nullptr;
         protected:
             Array(void* data, jsize length) : data(data), length(length) {}
         public:
             using Type = void;
-            jsize length = 0;
-            void* data = nullptr;
             inline void* getArray() {
                 return data;
             }
@@ -47,23 +48,20 @@ namespace jnivm {
             
             Array(T* data, jsize length) : Array<void>(data, length) {}
             virtual ~Array() {
-                delete[] (T*)data;
+                delete[] getArray();
             }
 
             inline T* getArray() {
-                return (T*)data;
+                return (T*)Array<void>::getArray();
             }
             inline const T* getArray() const {
-                return (const T*)data;
-            }
-            inline const jsize getSize() const {
-                return length;
+                return (const T*)Array<void>::getArray();
             }
             inline T& operator[](jint i) {
-                return ((T*)data)[i];
+                return getArray()[i];
             }
             inline const T& operator[](jint i) const {
-                return ((const T*)data)[i];
+                return getArray()[i];
             }
         };
 
@@ -74,33 +72,44 @@ namespace jnivm {
         };
 
         template<class Y>
-        class Array<Y, false> : public Array<Object> {
+        class Array<Y, false> : public Y::ArrayBaseType {
         public:
             using T = std::shared_ptr<Y>;
             using Type = T;
-            Array(jsize length) : Array<Object>((std::shared_ptr<Object>*)new T[length], length) {}
+            Array(jsize length) : Array<Object>(length) {}
             Array() : Array<Object>(nullptr, 0) {}
-            Array(const std::vector<T> & vec) : Array<Object>((std::shared_ptr<Object>*)new T[vec.size()], vec.size()) {
-                memcpy(data, vec.data(), sizeof(T) * length);
-            }
-            
-            Array(T* data, jsize length) : Array<Object>((std::shared_ptr<Object>*)data, length) {}
 
-            inline T* getArray() {
-                return (T*)data;
+            struct guard {
+                std::shared_ptr<Object>& ref;
+                operator std::shared_ptr<Object>&() {
+                    return ref;
+                }
+                operator const std::shared_ptr<Object>&() const {
+                    return ref;
+                }
+                operator T() const {
+                    return T(ref, static_cast<T*>(ref.get()));
+                }
+                template<class Z>
+                guard &operator=(std::shared_ptr<Z> other) {
+                    static_assert(std::is_base_of<Y, Z>::value, "Invalid Assignment");
+                    ref = other;
+                    return *this;
+                }
+            };
+
+            inline guard operator[](jint i) {
+                return { Array<Object>::operator[](i) };
+                // return static_cast<T&>(Array<Object>::operator[](i));
             }
-            inline const T* getArray() const {
-                return (const T*)data;
+            inline const guard operator[](jint i) const {
+                return { Array<Object>::operator[](i) };
+                // return static_cast<T&>(Array<Object>::operator[](i));
             }
-            inline const jsize getSize() const {
-                return length;
-            }
-            inline T& operator[](jint i) {
-                return ((T*)data)[i];
-            }
-            inline const T& operator[](jint i) const {
-                return ((const T*)data)[i];
-            }
+        };
+
+        template<class...T> class ArrayBase : public virtual Array<T>... {
+
         };
     }
 

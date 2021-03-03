@@ -1,6 +1,7 @@
 #pragma once
 #include "object.h"
 #include "env.h"
+#include "array.h"
 #include <typeindex>
 
 namespace jnivm {
@@ -9,6 +10,7 @@ namespace jnivm {
         template<class, class... BaseClasses> class Extends : public virtual BaseClasses... {
         public:
             using BaseClasseTuple = std::tuple<BaseClasses...>;
+            using ArrayBaseType = ArrayBase<BaseClasses...>;
             static std::vector<std::shared_ptr<Class>> GetBaseClasses(ENV* env) {
                 std::vector<std::shared_ptr<Class>> ret = { env->vm->typecheck[typeid(BaseClasses)]... };
 #ifndef NDEBUG
