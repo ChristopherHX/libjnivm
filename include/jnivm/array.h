@@ -87,8 +87,16 @@ namespace jnivm {
                 operator const std::shared_ptr<Object>&() const {
                     return ref;
                 }
-                operator T() const {
-                    return T(ref, static_cast<T*>(ref.get()));
+                template<class Z>
+                operator std::shared_ptr<Z>() const {
+                    static_assert(std::is_base_of<Z, Y>::value, "Invalid conversion");
+                    return std::shared_ptr<Z>(ref, dynamic_cast<Y*>(ref.get()));
+                }
+                Y& operator*() {
+                    return *dynamic_cast<Y*>(ref.get());
+                }
+                Y* operator->() {
+                    return dynamic_cast<Y*>(ref.get());
                 }
                 template<class Z>
                 guard &operator=(std::shared_ptr<Z> other) {

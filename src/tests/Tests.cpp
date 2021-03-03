@@ -695,7 +695,9 @@ public:
         return clazz;
     }
     static void Test4(std::shared_ptr<jnivm::Array<jnivm::Class>> c, std::shared_ptr<jnivm::Array<jnivm::Array<TestClass>>> o) {
-
+        std::shared_ptr<jnivm::Array<TestClass>> test = (*o)[0];
+        std::shared_ptr<jnivm::Array<Object>> test2 = (*o)[0];
+        std::shared_ptr<TestClass> tc = (*test)[0], ty = (*(*o)[0])[0];
     }
 };
 
@@ -746,14 +748,14 @@ TEST(JNIVM, Hooking) {
     c->getMethod("(LTestClass;)V", "NativeTest3")->invoke(*env, c.get(), obj);
     c->getMethod("(Ljava/lang/Class;)V", "NativeTest4")->invoke(*env, (jnivm::Object*)obj, c);
     c->getMethod("(Ljava/lang/Class;)Ljava/lang/Class;", "NativeTest5")->invoke(*env, (jnivm::Object*)obj, c).l;
-    c->InstantiateArray = [](jnivm::ENV *env, jsize length) {
-        return std::make_shared<jnivm::Array<TestClass>>(length);
-    };
+    // c->InstantiateArray = [](jnivm::ENV *env, jsize length) {
+    //     return std::make_shared<jnivm::Array<TestClass>>(length);
+    // };
     auto innerArray = env->env.NewObjectArray(12, (jclass)c.get(), obj);
-    auto c2 = jnivm::JNITypes<std::shared_ptr<jnivm::Class>>::JNICast(env, env->env.GetObjectClass(innerArray));
-    c2->InstantiateArray = [](jnivm::ENV *env, jsize length) {
-        return std::make_shared<jnivm::Array<jnivm::Array<TestClass>>>(length);
-    };
+    // auto c2 = jnivm::JNITypes<std::shared_ptr<jnivm::Class>>::JNICast(env, env->env.GetObjectClass(innerArray));
+    // c2->InstantiateArray = [](jnivm::ENV *env, jsize length) {
+    //     return std::make_shared<jnivm::Array<jnivm::Array<TestClass>>>(length);
+    // };
     auto outerArray = env->env.NewObjectArray(20, env->env.GetObjectClass(innerArray), innerArray);
     c->getMethod("([Ljava/lang/Class;[[LTestClass;)V", "Test4")->invoke(*env, c.get(), (jobject)nullptr, (jobject)outerArray);
 
@@ -761,7 +763,7 @@ TEST(JNIVM, Hooking) {
     std::shared_ptr<jnivm::Array<TestClass>> specArray;
     class TestClass2 : public jnivm::Extends<TestClass> {};
     std::shared_ptr<jnivm::Array<TestClass2>> specArray2;
-    // specArray = specArray2;
+    specArray = specArray2;
     std::shared_ptr<jnivm::Array<jnivm::Object>> objArray = specArray2;
     std::shared_ptr<jnivm::Array<jnivm::Object>> objArray2 = specArray;
 
