@@ -801,11 +801,11 @@ TEST(JNIVM, VirtualFunction) {
     auto c2 = env->GetClass<TestClass2>("TestClass2");
     c->Hook(env, "Test", &TestClass::Test);
     c2->Hook(env, "Test", &TestClass2::Test);
-    c->HookInstanceFunction(env, "Test2", [](jnivm::ENV*, jnivm::Object*o) {
-        return (dynamic_cast<TestClass*>(o))->TestClass::Test2();
+    c->HookInstanceFunction(env, "Test2", [](jnivm::ENV*, TestClass2*o) {
+        return o->TestClass::Test2();
     });
-    c2->HookInstanceFunction(env, "Test2",[](jnivm::ENV*, jnivm::Object*o) {
-        return (dynamic_cast<TestClass2*>(o))->TestClass2::Test2();
+    c2->HookInstanceFunction(env, "Test2",[](jnivm::ENV*, TestClass2*o) {
+        return o->TestClass2::Test2();
     });
     auto val = std::make_shared<TestClass2>();
     auto ptr = jnivm::JNITypes<decltype(val)>::ToJNIReturnType(env, val);
