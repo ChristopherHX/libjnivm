@@ -771,4 +771,40 @@ TEST(JNIVM, Hooking) {
     obj6->test();
 
 }
+
+TEST(JNIVM, VirtualFunction) {
+    jnivm::VM vm;
+    enum class TestEnum {
+        A,
+        B
+    };
+    class TestClass : public jnivm::Extends<> {
+    public:
+        int Test() {
+            return (int)TestEnum::A;
+        }
+    };
+    class TestClass2 : public jnivm::Extends<TestClass> {
+    public:
+        int Test() {
+            return (int)TestEnum::B;
+        }
+    };
+    auto env = vm.GetEnv().get();
+    auto c = env->GetClass<TestClass>("TestClass");
+    auto c2 = env->GetClass<TestClass2>("TestClass2");
+    c->Hook(env, "Test", &TestClass::Test);
+    c2->Hook(env, "Test", &TestClass2::Test);
+    auto val = std::make_shared<TestClass2>();
+    auto ptr = jnivm::JNITypes<decltype(val)>::ToJNIReturnType(env, val);
+    auto _c2 = jnivm::JNITypes<decltype(c2)>::ToJNIType(env, c2);
+    auto _c = jnivm::JNITypes<decltype(c)>::ToJNIType(env, c);
+    ASSERT_EQ(env->env.CallIntMethod(ptr, env->env.GetMethodID(_c, "Test", "()I")), (int)TestEnum::B);
+    ASSERT_EQ(env->env.CallIntMethod(ptr, env->env.GetMethodID(_c2, "Test", "()I")), (int)TestEnum::B);
+    ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c2, env->env.GetMethodID(_c, "Test", "()I")), (int)TestEnum::B);
+    ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c2, env->env.GetMethodID(_c2, "Test", "()I")), (int)TestEnum::B);
+    ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c, env->env.GetMethodID(_c, "Test", "()I")), (int)TestEnum::A);
+    ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c, env->env.GetMethodID(_c2, "Test", "()I")), (int)TestEnum::A);
+}
+
 }

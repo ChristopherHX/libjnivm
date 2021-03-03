@@ -110,6 +110,29 @@ template<> jobject jnivm::defaultVal(ENV* env, std::string signature) {
     return nullptr;
 }
 
+static Method* findNonVirtualOverload(Class*cl, Method*mid) {
+    if(!cl) {
+        return mid;
+    }
+    auto res = std::find_if(cl->methods.begin(), cl->methods.end(), [mid](auto&& m) {
+        return !m->_static && mid->name == m->name && mid->signature == m->signature && m->nativehandle;
+    });
+    if(res != cl->methods.end()) {
+        return res->get();
+    } else {
+        return nullptr;
+    }
+}
+
+static Method* findVirtualOverload(jnivm::ENV *env, Class*cl, Method*mid) {
+    auto r = findNonVirtualOverload(cl, mid);
+    if(r != nullptr) {
+        return r;
+    } else {
+        return findVirtualOverload(env, mid->GetBaseClasses(env)[0].get(), mid);
+    }
+}
+
 template <class T>
 T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
     auto mid = ((Method *)id);
@@ -120,8 +143,9 @@ T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
         LOG("JNIVM", "CallMethod field is null");
 #endif
     if (mid && mid->nativehandle) {
-#ifdef JNI_TRACE
         Class* cl = obj ? (Class*)env->GetObjectClass(obj) : nullptr;
+        mid = findVirtualOverload((ENV*)env->functions->reserved0, cl, mid);
+#ifdef JNI_TRACE
         LOG("JNIVM", "Call Function Class=`%s` Method=`%s` Signature=`%s`", cl ? cl->nativeprefix.data() : "???", mid->name.data(), mid->signature.data());
 #endif
         try {
@@ -184,10 +208,11 @@ T jnivm::CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id
     if(!id)
         LOG("JNIVM", "CallNonvirtualMethod field is null");
 #endif
-    if (mid->nativehandle) {
+    if (mid && mid->nativehandle) {
 #ifdef JNI_TRACE
         LOG("JNIVM", "Call Function Class=`%s` Method=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid->name.data());
 #endif
+        mid = findNonVirtualOverload((Class*)cl, mid);
         try {
             return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
         } catch (...) {
