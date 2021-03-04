@@ -45,43 +45,13 @@ namespace jnivm {
         static std::unordered_map<std::type_index, std::pair<void*(*)(ENV*, void*), void*(*)(ENV*, void*)>> DynCast(ENV * env);
     };
 
-    class InterfaceProxy : public Object {
-    public:
-        InterfaceProxy(std::type_index orgtype, std::shared_ptr<void> rawptr): orgtype(orgtype), rawptr(rawptr) {}
-        std::type_index orgtype;
-        std::shared_ptr<void> rawptr;
-    };
-
 }
-// #include <jnivm/weak.h>
+
 template<class DynamicBase> std::unordered_map<std::type_index, std::pair<void *(*)(jnivm::ENV*, void *), void *(*)(jnivm::ENV* env, void *)>> jnivm::Object::DynCast(jnivm::ENV * env) {
-    // return { {typeid(DynamicBase), { &impl:: DynCast<DynamicBase, Object>, &impl:: DynCast<Object, DynamicBase>}} };
     return { {typeid(DynamicBase), { +[](ENV* env, void*p) -> void* {
         auto res = impl::DynCast<Object, DynamicBase>(env, p);
         if(res != nullptr) {
             return res;
-        }
-        // auto weak = dynamic_cast<Weak*>(static_cast<Object*>(p));
-        // if(weak != nullptr) {
-        //     // ToDo
-        //     auto obj = weak->wrapped.lock();
-        //     if(obj) {
-        //         env->createLocalReference(obj);
-        //         auto res = impl::DynCast<Object, DynamicBase>(env, (Object*)obj.get());
-        //         if(res != nullptr) {
-        //             return res;
-        //         }
-        //     } else {
-        //         return nullptr;
-        //     }
-        // }
-        auto proxy = dynamic_cast<InterfaceProxy*>(static_cast<Object*>(p));
-        if(proxy != nullptr) {
-            auto res = DynamicBase::template DynCast<DynamicBase>(env);
-            auto converter = res.find(proxy->orgtype);
-            if(converter != res.end()) {
-                return converter->second.second(env, proxy->rawptr.get());
-            }
         }
         return nullptr;
     }, &impl::DynCast<DynamicBase, Object>}} };

@@ -42,21 +42,6 @@ namespace jnivm {
                     return std::shared_ptr<T>(obj, static_cast<T*>(res));
                 }
             }
-            auto proxy = dynamic_cast<InterfaceProxy*>(obj.get());
-            if(proxy != nullptr) {
-                if(proxy->orgtype == typeid(T)) {
-                    return std::shared_ptr<T>(proxy->rawptr, static_cast<T*>(proxy->rawptr.get()));
-                } else {
-                    converter = dynCast.find(proxy->orgtype);
-                    if(converter != dynCast.end()) {
-                        void * res = converter->second.first(env, proxy/* ->rawptr.get() */);
-                        if(res != nullptr) {
-                            return std::shared_ptr<T>(proxy->rawptr, static_cast<T*>(res));
-                        }
-                    }
-                }
-            }
-            // LOG("JNIVM", "Failed to convert from Object");
             return nullptr;
         }
         template<class T> Object* SafeCast(ENV* env, T* obj) {
