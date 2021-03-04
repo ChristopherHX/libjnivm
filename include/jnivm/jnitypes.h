@@ -303,9 +303,7 @@ template<class T, class B> template<class Y> B jnivm::JNITypesObjectBase<T, B>::
         // Return jni Reference
         return (B)obj.get();
     } else {
-        auto proxy = std::make_shared<InterfaceProxy>(typeid(Y), std::shared_ptr<void>(p, (void*)p.get()));
-        env->localframe.front().push_back(proxy);
-        return (B)proxy.get();
+        throw std::runtime_error("Failed Convert Object to JNI");
     }
 }
 
@@ -347,7 +345,7 @@ template<class T, class B> std::shared_ptr<T> jnivm::JNITypesObjectBase<T, B>::J
     if(!obj) {
         return nullptr;
     }
-    auto c = &obj->getClass();
+    auto c = obj->getClassInternal();
     if(c) {
         auto ret = c->template SafeCast<T>(env, obj);
         if(ret) {

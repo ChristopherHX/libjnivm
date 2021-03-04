@@ -149,7 +149,7 @@ T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
         LOG("JNIVM", "Call Function Class=`%s` Method=`%s` Signature=`%s`", cl ? cl->nativeprefix.data() : "???", mid->name.data(), mid->signature.data());
 #endif
         try {
-            return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
+            return (*(std::function<T(ENV*, jobject, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, obj, param);
         } catch (...) {
             auto cur = std::make_shared<Throwable>();
             cur->except = std::current_exception();
@@ -214,7 +214,7 @@ T jnivm::CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id
 #endif
         mid = findNonVirtualOverload((Class*)cl, mid);
         try {
-            return (*(std::function<T(ENV*, Object*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, param);
+            return (*(std::function<T(ENV*, jobject, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, obj, param);
         } catch (...) {
             auto cur = std::make_shared<Throwable>();
             cur->except = std::current_exception();
@@ -320,7 +320,6 @@ DeclareTemplate(jlong);
 DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
-DeclareTemplate(void);
 DeclareTemplate(jobject);
 #undef DeclareTemplate
 
@@ -333,7 +332,6 @@ DeclareTemplate(jlong);
 DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
-DeclareTemplate(void);
 DeclareTemplate(jobject);
 #undef DeclareTemplate
 
@@ -346,7 +344,6 @@ DeclareTemplate(jlong);
 DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
-DeclareTemplate(void);
 DeclareTemplate(jobject);
 #undef DeclareTemplate
 
@@ -359,7 +356,6 @@ DeclareTemplate(jlong);
 DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
-DeclareTemplate(void);
 DeclareTemplate(jobject);
 #undef DeclareTemplate
 
@@ -372,7 +368,6 @@ DeclareTemplate(jlong);
 DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
-DeclareTemplate(void);
 DeclareTemplate(jobject);
 #undef DeclareTemplate
 
@@ -385,7 +380,6 @@ DeclareTemplate(jlong);
 DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
-DeclareTemplate(void);
 DeclareTemplate(jobject);
 #undef DeclareTemplate
 
@@ -398,7 +392,6 @@ DeclareTemplate(jlong);
 DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
-DeclareTemplate(void);
 DeclareTemplate(jobject);
 #undef DeclareTemplate
 
@@ -411,7 +404,6 @@ DeclareTemplate(jlong);
 DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
-DeclareTemplate(void);
 DeclareTemplate(jobject);
 #undef DeclareTemplate
 
@@ -424,6 +416,5 @@ DeclareTemplate(jlong);
 DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
-DeclareTemplate(void);
 DeclareTemplate(jobject);
 #undef DeclareTemplate

@@ -69,7 +69,7 @@ template <class T> T jnivm::GetField(JNIEnv *env, jobject obj, jfieldID id) {
         Class* cl = obj ? (Class*)env->GetObjectClass(obj) : nullptr;
         LOG("JNIVM", "Call Field Getter Class=`%s` Field=`%s`", cl ? cl->nativeprefix.data() : "???", fid->name.data());
 #endif
-        return (*(std::function<T(ENV*, Object*, const jvalue*)>*)fid->getnativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, nullptr);
+        return (*(std::function<T(ENV*, jobject, const jvalue*)>*)fid->getnativehandle.get())((ENV*)env->functions->reserved0, obj, nullptr);
     } else {
 #ifdef JNI_TRACE
         LOG("JNIVM", "Unknown Field Getter %s", fid->name.data());
@@ -90,7 +90,7 @@ template <class T> void jnivm::SetField(JNIEnv *env, jobject obj, jfieldID id, T
         jvalue val;
         memset(&val, 0, sizeof(val));
         memcpy(&val, &value, sizeof(T));
-        (*(std::function<void(ENV*, Object*, const jvalue*)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, (Object*)obj, &val);
+        (*(std::function<void(ENV*, jobject, const jvalue*)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, obj, &val);
     } else {
 #ifdef JNI_TRACE
         LOG("JNIVM", "Unknown Field Setter %s", fid->name.data());

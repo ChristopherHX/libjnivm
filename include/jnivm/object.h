@@ -28,11 +28,16 @@ namespace jnivm {
         std::shared_ptr<Class> clazz;
         ObjectMutexWrapper lock;
 
-        virtual Class& getClass() {
-            // if(clazz == nullptr) {
-            //     throw std::runtime_error("Invalid Object");
-            // }
-            return *clazz.get();
+        virtual std::shared_ptr<Class> getClassInternal() {
+            return clazz;
+        }
+
+        Class& getClass() {
+            auto ret = getClassInternal();
+            if(clazz == nullptr) {
+                throw std::runtime_error("Invalid Object");
+            }
+            return *ret.get();
         }
 
         static std::vector<std::shared_ptr<Class>> GetBaseClasses(ENV* env);

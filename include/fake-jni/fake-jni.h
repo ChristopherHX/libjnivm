@@ -104,8 +104,8 @@ namespace jnivm {
                                         }\
                                         static std::shared_ptr<jnivm::Class> registerClass();\
                                         static std::shared_ptr<jnivm::Class> getDescriptor();\
-                                        virtual jnivm::Class& getClass() override {\
-                                            return *getDescriptor();\
+                                        virtual std::shared_ptr<jnivm::Class> getClassInternal() override {\
+                                            return getDescriptor();\
                                         }
 #define BEGIN_NATIVE_DESCRIPTOR(name, ...)  std::shared_ptr<jnivm::Class> name ::getDescriptor() {\
                                                 auto cl = FakeJni::LocalFrame().getJniEnv().GetClass< name >( name ::getClassName().data());\

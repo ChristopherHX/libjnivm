@@ -410,6 +410,13 @@ TEST(JNIVM, FakeJniTest) {
 #else
     ASSERT_EQ(obj, nullptr);
 #endif
+    auto s = std::make_shared<FakeJni::JString>();
+    std::string t1 = "Test";
+    auto s2 = std::make_shared<FakeJni::JString>(t1);
+    ASSERT_EQ(s2->asStdString(), t1);
+    auto s3 = std::make_shared<FakeJni::JString>(std::move(t1));
+    ASSERT_EQ(t1, "");
+    ASSERT_EQ(s3->asStdString(), "Test");
 }
 
 template<char...ch> struct TemplateString {
@@ -687,11 +694,11 @@ public:
         auto m = env->GetStaticMethodID(clazz, "Test2", "(Ljava/lang/Class;LTestClass;)V");
         env->CallStaticVoidMethod(clazz, m, clazz, o);
     }
-    static void NativeTest4(JNIEnv*env, jobject o, jclass clazz) {
-        NativeTest3(env, clazz, o);
+    static void NativeTest4(JNIEnv*env, jobject o, jobject clazz) {
+        NativeTest3(env, (jclass)clazz, o);
     }
-    static jclass NativeTest5(JNIEnv*env, jobject o, jclass clazz) {
-        NativeTest3(env, clazz, o);
+    static jobject NativeTest5(JNIEnv*env, jobject o, jobject clazz) {
+        NativeTest3(env, (jclass)clazz, o);
         return clazz;
     }
     static void Test4(std::shared_ptr<jnivm::Array<jnivm::Class>> c, std::shared_ptr<jnivm::Array<jnivm::Array<TestClass>>> o) {
@@ -747,7 +754,7 @@ TEST(JNIVM, Hooking) {
     env->env.RegisterNatives((jclass)c.get(), methods, 3);
     c->getMethod("(LTestClass;)V", "NativeTest3")->invoke(*env, c.get(), obj);
     c->getMethod("(Ljava/lang/Class;)V", "NativeTest4")->invoke(*env, (jnivm::Object*)obj, c);
-    c->getMethod("(Ljava/lang/Class;)Ljava/lang/Class;", "NativeTest5")->invoke(*env, (jnivm::Object*)obj, c).l;
+    c->getMethod("(Ljava/lang/Class;)Ljava/lang/Class;", "NativeTest5")->invoke(*env, (jnivm::Object*)obj, c);
     // c->InstantiateArray = [](jnivm::ENV *env, jsize length) {
     //     return std::make_shared<jnivm::Array<TestClass>>(length);
     // };
@@ -826,4 +833,20 @@ TEST(JNIVM, VirtualFunction) {
     ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c, env->env.GetMethodID(_c2, "Test2", "()I")), (int)TestEnum::A);
 }
 
+}
+#include <thread>
+TEST(JNIVM, VM) {
+    jnivm::VM vm;
+    jweak glob;
+    std::thread([&glob, jni = vm.GetJavaVM()]() {
+        ASSERT_THROW(FakeJni::JniEnvContext().getJniEnv(), std::runtime_error);
+        JNIEnv * env;
+        auto res = jni->AttachCurrentThread(&env, nullptr);
+        ASSERT_TRUE(env);
+        auto a = env->NewCharArray(1000);
+        glob = env->NewWeakGlobalRef(a);
+        ASSERT_TRUE(env->NewLocalRef(glob));
+        res = jni->DetachCurrentThread();
+    }).join();
+    ASSERT_FALSE(vm.GetJNIEnv()->NewLocalRef(glob));
 }

@@ -21,12 +21,12 @@ namespace jnivm {
         std::string GenerateStubs(std::string scope, const std::string &cname);
         std::string GenerateJNIBinding(std::string scope, const std::string &cname);
 #endif
-        jvalue jinvoke(const ENV& env, jclass cl, ...);
-        jvalue jinvoke(const ENV& env, jobject obj, ...);
+        jvalue jinvoke(ENV& env, jclass cl, ...);
+        jvalue jinvoke(ENV& env, jobject obj, ...);
         template<class... param>
-        jvalue invoke(const ENV& env, jnivm::Class* cl, param... params);
+        jvalue invoke(ENV& env, jnivm::Class* cl, param... params);
         template<class... param>
-        jvalue invoke(const ENV& env, jnivm::Object* obj, param... params);
+        jvalue invoke(ENV& env, jnivm::Object* obj, param... params);
     };
 }
 #endif
@@ -38,45 +38,45 @@ namespace jnivm {
 
 template<class T> jvalue toJValue(T val);
 
-template<class... param> jvalue jnivm::Method::invoke(const jnivm::ENV &env, jnivm::Class* cl, param ...params) {
+template<class... param> jvalue jnivm::Method::invoke(jnivm::ENV &env, jnivm::Class* cl, param ...params) {
     jvalue ret;
     if(native) {
         auto type = signature[signature.find_last_of(')') + 1];
         switch (type) {
         case 'V':
-            ((void(*)(const JNIEnv*, jnivm::Class*, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...);
+            ((void(*)(JNIEnv*, jclass, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jclass)(Object*)cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...);
             ret = {};
 break;
         case 'Z':
-            ret = toJValue(((jboolean(*)(const JNIEnv*, jnivm::Class*, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
+            ret = toJValue(((jboolean(*)(JNIEnv*, jclass, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jclass)(Object*)cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
 break;
         case 'B':
-            ret = toJValue(((jbyte(*)(const JNIEnv*, jnivm::Class*, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
+            ret = toJValue(((jbyte(*)(JNIEnv*, jclass, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jclass)(Object*)cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
 break;
         case 'S':
-            ret = toJValue(((jshort(*)(const JNIEnv*, jnivm::Class*, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
+            ret = toJValue(((jshort(*)(JNIEnv*, jclass, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jclass)(Object*)cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
 break;
         case 'I':
-            ret = toJValue(((jint(*)(const JNIEnv*, jnivm::Class*, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
+            ret = toJValue(((jint(*)(JNIEnv*, jclass, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jclass)(Object*)cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
 break;
         case 'J':
-            ret = toJValue(((jlong(*)(const JNIEnv*, jnivm::Class*, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
+            ret = toJValue(((jlong(*)(JNIEnv*, jclass, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jclass)(Object*)cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
 break;
         case 'F':
-            ret = toJValue(((jfloat(*)(const JNIEnv*, jnivm::Class*, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
+            ret = toJValue(((jfloat(*)(JNIEnv*, jclass, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jclass)(Object*)cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
 break;
         case 'D':
-            ret = toJValue(((jdouble(*)(const JNIEnv*, jnivm::Class*, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
+            ret = toJValue(((jdouble(*)(JNIEnv*, jclass, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jclass)(Object*)cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
 break;
         case '[':
         case 'L':
-            ret = toJValue(((jobject(*)(const JNIEnv*, jnivm::Class*, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
+            ret = toJValue(((jobject(*)(JNIEnv*, jclass, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jclass)(Object*)cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
 break;
         default:
             throw std::runtime_error("Unsupported signature");
         }
     } else {
-        ret = jinvoke(env, (jclass)cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...);
+        ret = jinvoke(env, (jclass)(Object*)cl, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...);
     }
     if(env.current_exception) {
         std::rethrow_exception(env.current_exception->except);
@@ -84,39 +84,39 @@ break;
     return ret;
 }
 
-template<class... param> jvalue jnivm::Method::invoke(const jnivm::ENV &env, jnivm::Object* obj, param ...params) {
+template<class... param> jvalue jnivm::Method::invoke(jnivm::ENV &env, jnivm::Object* obj, param ...params) {
     jvalue ret;
     if(native) {
         auto type = signature[signature.find_last_of(')') + 1];
         switch (type) {
         case 'V':
-            ((void(*)(const JNIEnv*, jobject, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jobject)obj, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...);
+            ((void(*)(JNIEnv*, jobject, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jobject)obj, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...);
             ret = {};
 break;
         case 'Z':
-            ret = toJValue(((jboolean(*)(const JNIEnv*, jobject, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jobject)obj, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
+            ret = toJValue(((jboolean(*)(JNIEnv*, jobject, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jobject)obj, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
 break;
         case 'B':
-            ret = toJValue(((jbyte(*)(const JNIEnv*, jobject, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jobject)obj, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
+            ret = toJValue(((jbyte(*)(JNIEnv*, jobject, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jobject)obj, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
 break;
         case 'S':
-            ret = toJValue(((jshort(*)(const JNIEnv*, jobject, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jobject)obj, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
+            ret = toJValue(((jshort(*)(JNIEnv*, jobject, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jobject)obj, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
 break;
         case 'I':
-            ret = toJValue(((jint(*)(const JNIEnv*, jobject, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jobject)obj, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
+            ret = toJValue(((jint(*)(JNIEnv*, jobject, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jobject)obj, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
 break;
         case 'J':
-            ret = toJValue(((jlong(*)(const JNIEnv*, jobject, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jobject)obj, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
+            ret = toJValue(((jlong(*)(JNIEnv*, jobject, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jobject)obj, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
 break;
         case 'F':
-            ret = toJValue(((jfloat(*)(const JNIEnv*, jobject, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jobject)obj, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
+            ret = toJValue(((jfloat(*)(JNIEnv*, jobject, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jobject)obj, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
 break;
         case 'D':
-            ret = toJValue(((jdouble(*)(const JNIEnv*, jobject, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jobject)obj, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
+            ret = toJValue(((jdouble(*)(JNIEnv*, jobject, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jobject)obj, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
 break;
         case '[':
         case 'L':
-            ret = toJValue(((jobject(*)(const JNIEnv*, jobject, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jobject)obj, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
+            ret = toJValue(((jobject(*)(JNIEnv*, jobject, decltype(JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params))...))nativehandle.get())(&env.env, (jobject)obj, JNITypes<param>::ToJNIReturnType((ENV*)std::addressof(env), params)...));
 break;
         default:
             throw std::runtime_error("Unsupported signature");
