@@ -14,7 +14,7 @@ jstring jnivm::NewString(JNIEnv *env, const jchar * str, jsize size) {
 };
 jsize jnivm::GetStringLength(JNIEnv *env, jstring str) {
     if(str) {
-        std::string * cstr = (String*)str;
+        std::shared_ptr<std::string> cstr = JNITypes<std::shared_ptr<String>>::JNICast((ENV*)env->functions->reserved0, str);
         size_t count = 0;
         jsize length = 0;
         auto cur = cstr->data(), end = cur + cstr->length();
@@ -30,16 +30,16 @@ jsize jnivm::GetStringLength(JNIEnv *env, jstring str) {
 };
 const jchar *jnivm::GetStringChars(JNIEnv * env, jstring str, jboolean * copy) {
     if(str) {
-    if(copy) {
-        *copy = true;
-    }
-    jsize length = GetStringLength(env, str);
-    // Allocate explicitly allocates string region
-    jchar * jstr = new jchar[length];
-    env->GetStringRegion(str, 0, length, jstr);
-    return jstr;
-    }else {
-    return new jchar[1] { (jchar)'\0' };
+        if(copy) {
+            *copy = true;
+        }
+        jsize length = GetStringLength(env, str);
+        // Allocate explicitly allocates string region
+        jchar * jstr = new jchar[length];
+        env->GetStringRegion(str, 0, length, jstr);
+        return jstr;
+    } else {
+        return new jchar[1] { (jchar)'\0' };
     }
 };
 void jnivm::ReleaseStringChars(JNIEnv * env, jstring str, const jchar * cstr) {
@@ -49,20 +49,20 @@ void jnivm::ReleaseStringChars(JNIEnv * env, jstring str, const jchar * cstr) {
 jstring jnivm::NewStringUTF(JNIEnv * env, const char *str) {
     return JNITypes<std::shared_ptr<String>>::ToJNIType((ENV*)env->functions->reserved0, std::make_shared<String>(str ? str : ""));
 };
-jsize jnivm::GetStringUTFLength(JNIEnv *, jstring str) {
-    return str ? ((String*)str)->length() : 0;
+jsize jnivm::GetStringUTFLength(JNIEnv *env, jstring str) {
+    return str ? JNITypes<std::shared_ptr<String>>::JNICast((ENV*)env->functions->reserved0, str)->length() : 0;
 };
 const char *jnivm::GetStringUTFChars(JNIEnv * env, jstring str, jboolean *copy) {
     if (copy)
         *copy = false;
-    return str ? ((String*)str)->data() : "";
+    return str ? JNITypes<std::shared_ptr<String>>::JNICast((ENV*)env->functions->reserved0, str)->data() : "";
 };
 void jnivm::ReleaseStringUTFChars(JNIEnv * env, jstring str, const char * cstr) {
     // Never copied, never free
 };
 
-void jnivm::GetStringRegion(JNIEnv *, jstring str, jsize start, jsize length, jchar * buf) {
-    std::string * cstr = (String*)str;
+void jnivm::GetStringRegion(JNIEnv *env, jstring str, jsize start, jsize length, jchar * buf) {
+    std::shared_ptr<std::string> cstr = JNITypes<std::shared_ptr<String>>::JNICast((ENV*)env->functions->reserved0, str);
     jchar* bend = buf + length;
     auto cur = cstr->data(), end = cur + cstr->length();
     while(start) {
@@ -77,8 +77,8 @@ void jnivm::GetStringRegion(JNIEnv *, jstring str, jsize start, jsize length, jc
     }
 };
 
-void jnivm::GetStringUTFRegion(JNIEnv *, jstring str, jsize start, jsize len, char * buf) {
-    std::string * cstr = (String*)str;
+void jnivm::GetStringUTFRegion(JNIEnv *env, jstring str, jsize start, jsize len, char * buf) {
+    std::shared_ptr<std::string> cstr = JNITypes<std::shared_ptr<String>>::JNICast((ENV*)env->functions->reserved0, str);
     char * bend = buf + len;
     auto cur = cstr->data(), end = cur + cstr->length();
     while(start) {
