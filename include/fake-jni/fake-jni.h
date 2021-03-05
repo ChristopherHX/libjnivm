@@ -89,17 +89,8 @@ namespace jnivm {
 
 }
 
-                                        // template<class DynamicBase>\
-                                        // static std::unordered_map<std::type_index, std::unordered_map<std::type_index, void*(*)(void*)>> DynCast() {\
-                                        //     return jnivm::Extends< __VA_ARGS__ >::template DynCast<DynamicBase>();\
-                                        // }\
-
 #define DEFINE_CLASS_NAME(cname, ...)   static std::vector<std::shared_ptr<jnivm::Class>> GetBaseClasses(jnivm::ENV *env) {\
                                             return jnivm::Extends< __VA_ARGS__ >::GetBaseClasses(env);\
-                                        }\
-                                        template<class DynamicBase>\
-                                        static auto DynCast(jnivm::ENV * env) {\
-                                            return jnivm::Extends< __VA_ARGS__ >::template DynCast<DynamicBase>(env);\
                                         }\
                                         static std::string getClassName() {\
                                             return cname;\
@@ -111,7 +102,7 @@ namespace jnivm {
                                         }
 #define BEGIN_NATIVE_DESCRIPTOR(name, ...)  std::shared_ptr<jnivm::Class> name ::getDescriptor() {\
                                                 auto cl = FakeJni::LocalFrame().getJniEnv().GetClass< name >( name ::getClassName().data());\
-                                                if(cl->methods.size() == 0 && cl->fields.size() == 0 && !cl->Instantiate && !cl->baseclasses && cl->dynCast.empty()) {\
+                                                if(cl->methods.size() == 0 && cl->fields.size() == 0 && !cl->Instantiate && !cl->baseclasses) {\
                                                     registerClass();\
                                                 }\
                                                 return cl;\

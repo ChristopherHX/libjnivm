@@ -23,19 +23,6 @@ namespace jnivm {
 #endif
                 return ret;
             }
-            using DynCastType = std::unordered_map<std::type_index, std::pair<void*(*)(ENV*, void*), void*(*)(ENV*, void*)>>;
-            template<class BaseClass> static int helper(DynCastType& dynCast, ENV * env/* , DynCastType  dynCast2*/) {
-                for(auto&& d : BaseClass::template DynCast<BaseClass>(env)) {
-                    dynCast.insert(d);
-                }
-                return 0;
-            }
-            template<class DynamicBase>
-            static DynCastType DynCast(ENV * env) {
-                DynCastType dynCast = Object::template DynCast<DynamicBase>(env);
-                int _unused_[] = { helper<BaseClasses>(dynCast, env)...};
-                return dynCast;
-            }
         };
     }
     template<class Base = Object, class... Interfaces>

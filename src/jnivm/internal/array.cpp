@@ -4,8 +4,8 @@
 
 using namespace jnivm;
 
-jsize jnivm::GetArrayLength(JNIEnv *, jarray a) {
-    return a ? ((Array<void>*)a)->getSize() : 0;
+jsize jnivm::GetArrayLength(JNIEnv *env, jarray a) {
+    return a ? JNITypes<std::shared_ptr<Array<void>>>::JNICast((ENV*)env->functions->reserved0, a)->getSize() : 0;
 }
 jobjectArray jnivm::NewObjectArray(JNIEnv * env, jsize length, jclass c, jobject init) {
     auto cl0 = JNITypes<std::shared_ptr<Class>>::JNICast((ENV*)env->functions->reserved0, c);
@@ -22,10 +22,10 @@ jobjectArray jnivm::NewObjectArray(JNIEnv * env, jsize length, jclass c, jobject
     return JNITypes<std::shared_ptr<Array<Object>>>::ToJNIType((ENV*)env->functions->reserved0, arr);
 }
 jobject jnivm::GetObjectArrayElement(JNIEnv *env, jobjectArray a, jsize i ) {
-    return JNITypes<std::shared_ptr<Object>>::ToJNIType((ENV*)env->functions->reserved0, (*(Array<Object>*)a)[i]);
+    return JNITypes<std::shared_ptr<Object>>::ToJNIType((ENV*)env->functions->reserved0, (*JNITypes<std::shared_ptr<Array<Object>>>::JNICast((ENV*)env->functions->reserved0, a))[i]);
 }
-void jnivm::SetObjectArrayElement(JNIEnv *, jobjectArray a, jsize i, jobject v) {
-    (*(Array<Object>*)a)[i] = v ? (*(Object*)v).shared_from_this() : nullptr;
+void jnivm::SetObjectArrayElement(JNIEnv *env, jobjectArray a, jsize i, jobject v) {
+    (*JNITypes<std::shared_ptr<Array<Object>>>::JNICast((ENV*)env->functions->reserved0, a))[i] = v ? JNITypes<std::shared_ptr<Object>>::JNICast((ENV*)env->functions->reserved0, v) : nullptr;
 }
 
 template <class T> typename JNITypes<T>::Array jnivm::NewArray(JNIEnv * env, jsize length) {
@@ -36,11 +36,11 @@ template <class T> typename JNITypes<T>::Array jnivm::NewArray(JNIEnv * env, jsi
 }
 
 template <class T>
-T *jnivm::GetArrayElements(JNIEnv *, typename JNITypes<T>::Array a, jboolean *iscopy) {
+T *jnivm::GetArrayElements(JNIEnv *env, typename JNITypes<T>::Array a, jboolean *iscopy) {
     if (iscopy) {
         *iscopy = false;
     }
-    return a ? ((Array<T>*)a)->getArray() : nullptr;
+    return a ? JNITypes<std::shared_ptr<Array<T>>>::JNICast((ENV*)env->functions->reserved0, a)->getArray() : nullptr;
 }
 
 template <class T>
@@ -49,15 +49,14 @@ void jnivm::ReleaseArrayElements(JNIEnv *, typename JNITypes<T>::Array a, T *car
 }
 
 template <class T>
-void jnivm::GetArrayRegion(JNIEnv *, typename JNITypes<T>::Array a, jsize start, jsize len, T * buf) {
-    auto ja = (Array<T> *)a;
+void jnivm::GetArrayRegion(JNIEnv *env, typename JNITypes<T>::Array a, jsize start, jsize len, T * buf) {
+    auto ja = JNITypes<std::shared_ptr<Array<T>>>::JNICast((ENV*)env->functions->reserved0, a);
     memcpy(buf, ja->getArray() + start, sizeof(T)* len);
 }
 
-/* spec shows these without const; some jni.h do, some don't */
 template <class T>
-void jnivm::SetArrayRegion(JNIEnv *, typename JNITypes<T>::Array a, jsize start, jsize len, const T * buf) {
-    auto ja = (Array<T> *)a;
+void jnivm::SetArrayRegion(JNIEnv *env, typename JNITypes<T>::Array a, jsize start, jsize len, const T * buf) {
+    auto ja = JNITypes<std::shared_ptr<Array<T>>>::JNICast((ENV*)env->functions->reserved0, a);
     memcpy(ja->getArray() + start, buf, sizeof(T)* len);
 }
 

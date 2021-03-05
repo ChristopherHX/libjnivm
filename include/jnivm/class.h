@@ -28,36 +28,9 @@ namespace jnivm {
         std::function<std::shared_ptr<Object>(ENV* env)> Instantiate;
         std::function<std::shared_ptr<Array<Object>>(ENV* env, jsize length)> InstantiateArray;
         std::function<std::vector<std::shared_ptr<Class>>(ENV*)> baseclasses;
-        std::unordered_map<std::type_index, std::pair<void*(*)(ENV*, void*), void*(*)(ENV*, void*)>> dynCast;
 
         Class() {
 
-        }
-
-        // virtual std::shared_ptr<Class> getClassInternal(ENV* env) override {
-        //     return InternalFindClass(env, "java/lang/Class");
-        // }
-
-        template<class T> std::shared_ptr<T> SafeCast(ENV* env,const std::shared_ptr<Object> & obj) {
-            auto converter = dynCast.find(typeid(T));
-            if(converter != dynCast.end()) {
-                void * res = converter->second.first(env, obj.get());
-                if(res != nullptr) {
-                    return std::shared_ptr<T>(obj, static_cast<T*>(res));
-                }
-            }
-            return nullptr;
-        }
-        template<class T> Object* SafeCast(ENV* env, T* obj) {
-            auto converter = dynCast.find(typeid(T));
-            if(converter != dynCast.end()) {
-                void * res = converter->second.second(env, obj);
-                if(res != nullptr) {
-                    return (Object*)res;
-                }
-            }
-            // LOG("JNIVM", "Failed to convert to Object");
-            return nullptr;
         }
 
         Method* getMethod(const char* sig, const char* name);

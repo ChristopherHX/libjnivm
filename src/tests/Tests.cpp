@@ -421,7 +421,6 @@ TEST(JNIVM, FakeJniTest) {
     jvm.registerClass<FakeJniTest>();
     FakeJni::LocalFrame frame(jvm);
     jclass c = (&frame.getJniEnv())->FindClass("FakeJniTest");
-    // auto r = FakeJniTest::template DynCast<FakeJniTest>();
     jmethodID ctor = (&frame.getJniEnv())->GetMethodID(c, "<init>", "()V");
     jobject o = (&frame.getJniEnv())->NewObject(c, ctor);
     auto ret = std::make_shared<FakeJniTest>(FakeJniTest());
@@ -459,7 +458,6 @@ TEST(JNIVM, Inherience) {
     vm.GetEnv()->GetClass<TestClass>("TestClass");
     vm.GetEnv()->GetClass<TestClass2>("TestClass2");
     vm.GetEnv()->GetClass<TestClass3>("TestClass3");
-    // auto safecast = TestClass3::template DynCast<TestClass3>();
     jclass testClass = (&*env)->FindClass("TestClass");
     jclass testClass2 = (&*env)->FindClass("TestClass2");
     jclass testClass3 = (&*env)->FindClass("TestClass3");
@@ -531,7 +529,6 @@ TEST(JNIVM, Inherience2) {
     vm.GetEnv()->GetClass<TestClass2>("TestClass2");
     vm.GetEnv()->GetClass<TestClass3>("TestClass3");
     vm.GetEnv()->GetClass<TestClass4>("TestClass4");
-    // auto safecast = TestClass3::template DynCast<TestClass3>();
     jclass testClass = (&*env)->FindClass("TestClass");
     jclass testClass2 = (&*env)->FindClass("TestClass2");
     jclass testClass3 = (&*env)->FindClass("TestClass3");

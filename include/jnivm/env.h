@@ -103,7 +103,6 @@ namespace jnivm {
     template<class T> struct IsClass<T, std::void_t<decltype(T::GetBaseClasses(std::declval<ENV*>()))>> {
         static void AddInherience(std::shared_ptr<jnivm::Class> &c, ENV*env) {
             c->baseclasses = &T::GetBaseClasses;
-            c->dynCast = T::template DynCast<T>(env);
         }
     };
 }
