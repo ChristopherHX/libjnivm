@@ -1,4 +1,7 @@
 #pragma once
+namespace jnivm {
+    class Weak;
+}
 #include <jnivm/object.h>
 #include <jnivm/extends.h>
 namespace jnivm {

@@ -294,11 +294,13 @@ template<class T, class B> template<class Y> B jnivm::JNITypesObjectBase<T, B>::
     std::shared_ptr<Object> obj(p, /* (Object*)(guessoffset) */c->SafeCast(env, (T*)p.get()));
     if(obj) {
         env->localframe.front().push_back(obj);
-        if(!obj->clazz) {
+        auto clazz = obj->clazz.lock();
+        if(!clazz) {
             // if((void*)obj.get() != (void*)(T*)p.get()) {
             //     throw std::runtime_error("Cannot fix missing class if type is an interface");
             // }
-            obj->clazz = c;
+            // if(obj != clazz)
+                obj->clazz = c;
         }
         // Return jni Reference
         return (B)obj.get();
@@ -345,7 +347,7 @@ template<class T, class B> std::shared_ptr<T> jnivm::JNITypesObjectBase<T, B>::J
     if(!obj) {
         return nullptr;
     }
-    auto c = obj->getClassInternal();
+    auto c = obj->getClassInternal(env);
     if(c) {
         auto ret = c->template SafeCast<T>(env, obj);
         if(ret) {

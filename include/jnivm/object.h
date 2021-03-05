@@ -24,28 +24,16 @@ namespace jnivm {
 
     class Object : public std::enable_shared_from_this<Object> {
     public:
+        std::weak_ptr<Class> clazz;
         using ArrayBaseType = impl::ArrayBase<Object>;
-        std::shared_ptr<Class> clazz;
         ObjectMutexWrapper lock;
 
-        virtual std::shared_ptr<Class> getClassInternal() {
-            return clazz;
-        }
+        virtual std::shared_ptr<Class> getClassInternal(ENV* env);
 
-        Class& getClass() {
-            auto ret = getClassInternal();
-            if(clazz == nullptr) {
-                throw std::runtime_error("Invalid Object");
-            }
-            return *ret.get();
-        }
+        Class& getClass();
 
         static std::vector<std::shared_ptr<Class>> GetBaseClasses(ENV* env);
 
-        // template<class DynamicBase>
-        // static std::unordered_map<std::type_index, std::unordered_map<std::type_index, void*(*)(void*)>> DynCast() {
-        //     return { {typeid(DynamicBase), std::unordered_map<std::type_index, void*(*)(void*)>{{typeid(Object), &impl:: DynCast<DynamicBase, Object>}}} , {typeid(Object), std::unordered_map<std::type_index, void*(*)(void*)>{{typeid(DynamicBase), &impl:: DynCast<Object, DynamicBase>}}}  };
-        // }
         template<class DynamicBase>
         static std::unordered_map<std::type_index, std::pair<void*(*)(ENV*, void*), void*(*)(ENV*, void*)>> DynCast(ENV * env);
     };

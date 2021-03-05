@@ -1,7 +1,9 @@
 #pragma once
 #include "../jnivm.h"
 #include <functional>
-
+#include "../jnivm/object.h"
+#include "../jnivm/string.h"
+#include "../jnivm/class.h"
 namespace FakeJni {
     using Jvm = jnivm::VM;
     using Env =  jnivm::ENV;
@@ -104,7 +106,7 @@ namespace jnivm {
                                         }\
                                         static std::shared_ptr<jnivm::Class> registerClass();\
                                         static std::shared_ptr<jnivm::Class> getDescriptor();\
-                                        virtual std::shared_ptr<jnivm::Class> getClassInternal() override {\
+                                        virtual std::shared_ptr<jnivm::Class> getClassInternal(jnivm::ENV* env) override {\
                                             return getDescriptor();\
                                         }
 #define BEGIN_NATIVE_DESCRIPTOR(name, ...)  std::shared_ptr<jnivm::Class> name ::getDescriptor() {\

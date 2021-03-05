@@ -5,7 +5,7 @@
 #include <vector>
 #include <functional>
 #include "array.h"
-
+#include "internal/findclass.h"
 namespace jnivm {
     class ENV;
     template<class Funk> struct Wrap;
@@ -33,6 +33,10 @@ namespace jnivm {
         Class() {
 
         }
+
+        // virtual std::shared_ptr<Class> getClassInternal(ENV* env) override {
+        //     return InternalFindClass(env, "java/lang/Class");
+        // }
 
         template<class T> std::shared_ptr<T> SafeCast(ENV* env,const std::shared_ptr<Object> & obj) {
             auto converter = dynCast.find(typeid(T));

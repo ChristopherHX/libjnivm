@@ -4,12 +4,12 @@
 #include <vector>
 #include <forward_list>
 #include <jni.h>
-#include "throwable.h"
 
 namespace jnivm {
     class VM;
     class Object;
     class Class;
+    class Throwable;
     class ENV : public std::enable_shared_from_this<ENV> {
     public:
         // Reference to parent VM

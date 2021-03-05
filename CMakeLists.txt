@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 2.6)
 
 project(jnivm LANGUAGES CXX)
 
-add_library(jnivm src/fake-jni/fake-jni.cpp src/jnivm/internal/array.cpp src/jnivm/internal/bytebuffer.cpp src/jnivm/internal/field.cpp src/jnivm/internal/method.cpp src/jnivm/internal/string.cpp src/jnivm/internal/stringUtil.cpp src/jnivm/internal/findclass.cpp src/jnivm/internal/jValuesfromValist.cpp src/jnivm/internal/skipJNIType.cpp src/jnivm/env.cpp src/jnivm/method.cpp src/jnivm/vm.cpp include/jni.h include/jnivm.h)
+add_library(jnivm src/fake-jni/fake-jni.cpp src/jnivm/internal/array.cpp src/jnivm/internal/bytebuffer.cpp src/jnivm/internal/field.cpp src/jnivm/internal/method.cpp src/jnivm/internal/string.cpp src/jnivm/internal/stringUtil.cpp src/jnivm/internal/findclass.cpp src/jnivm/internal/jValuesfromValist.cpp src/jnivm/internal/skipJNIType.cpp src/jnivm/env.cpp src/jnivm/method.cpp src/jnivm/vm.cpp src/jnivm/object.cpp include/jni.h include/jnivm.h)
 target_include_directories(jnivm PUBLIC include/)
 target_link_libraries(jnivm ${CMAKE_DL_LIBS})
 if(TARGET logger)

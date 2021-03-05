@@ -35,6 +35,7 @@ namespace jnivm {
 #define JNIVM_METHOD_H_2
 #include "env.h"
 #include "jnitypes.h"
+#include "throwable.h"
 
 template<class T> jvalue toJValue(T val);
 
