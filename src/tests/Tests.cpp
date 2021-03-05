@@ -1,3 +1,4 @@
+#include <jnivm/class.h>
 #include <jnivm/wrap.h>
 #include <gtest/gtest.h>
 #include <jnivm.h>
