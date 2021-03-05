@@ -239,7 +239,29 @@ TEST(JNIVM, classofclassobject) {
     jnivm::VM vm;
     auto env = vm.GetJNIEnv();
     jclass c = env->FindClass("Class2");
+    // auto __c2 = dynamic_cast<jnivm::Class*>((jnivm::Object*)c);
+    // auto count = __c2->clazz.use_count();
+    // jclass c2 = env->FindClass("java/lang/Class");
+    // count = __c2->clazz.use_count();
+    // env->DeleteLocalRef(c2);
+    // count = __c2->clazz.use_count();
+    // // ((jnivm::Object*)c)->shared_from_this();
+    // auto ref = jnivm::JNITypes<std::shared_ptr<jnivm::Class>>::JNICast(vm.GetEnv().get(), c);
+    // std::weak_ptr<jnivm::Class> w (ref);
+    // ref = nullptr;
+    // auto c0 = w.use_count();
+    // jclass jc = env->GetObjectClass(c);
+    // auto c1 = w.use_count();
+    // ref = jnivm::JNITypes<std::shared_ptr<jnivm::Class>>::JNICast(vm.GetEnv().get(), jc);
+    // std::weak_ptr<jnivm::Class> w2 (ref);
+    // ref = nullptr;
+    // auto c2 = w.use_count();
+    // auto c3 = w2.use_count();
+
+
     ASSERT_EQ(env->GetObjectClass(c), env->FindClass("java/lang/Class"));
+    // auto c4 = w.use_count();
+    // auto c5 = w2.use_count();
 }
 
 TEST(JNIVM, DONOTReturnSpecializedStubs) {
@@ -688,7 +710,7 @@ public:
     static void Test3(std::shared_ptr<jnivm::Class> c, std::shared_ptr<TestClass> o) {
         ASSERT_TRUE(c);
         ASSERT_TRUE(o);
-        ASSERT_EQ(c, o->clazz);
+        ASSERT_EQ(c, o->clazz.lock());
     }
     static void NativeTest3(JNIEnv*env, jclass clazz, jobject o) {
         auto m = env->GetStaticMethodID(clazz, "Test2", "(Ljava/lang/Class;LTestClass;)V");
