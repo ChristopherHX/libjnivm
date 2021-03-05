@@ -1,3 +1,4 @@
+#include <jnivm/class.h>
 #include "string.hpp"
 #include "stringUtil.h"
 

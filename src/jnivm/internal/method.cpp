@@ -9,12 +9,12 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
     std::shared_ptr<Method> next;
     std::string sname = str0 ? str0 : "";
     std::string ssig = str1 ? str1 : "";
-    auto cur = (Class *)cl;
-    if(cl) {
+    auto cur = JNITypes<std::shared_ptr<Class>>::JNICast((ENV*)env->functions->reserved0, cl);
+    if(cur) {
         // Rewrite init to Static external function
         if(!isStatic && sname == "<init>") {
             {
-                std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);
+                std::lock_guard<std::mutex> lock(cur->mtx);
                 auto acbrack = ssig.find(')') + 1;
                 ssig.erase(acbrack, std::string::npos);
                 ssig.append("L");
@@ -24,8 +24,8 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
             return GetMethodID<true>(env, cl, str0, ssig.data());
         }
         else {
-            std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);
-            std::string &classname = ((Class *)cl)->name;
+            std::lock_guard<std::mutex> lock(cur->mtx);
+            std::string &classname = cur->name;
             auto ccl =
                     std::find_if(cur->methods.begin(), cur->methods.end(),
                                             [&sname, &ssig](std::shared_ptr<Method> &namesp) {
@@ -68,11 +68,11 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
         Declare(env, next->signature.data());
 #endif
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Unresolved symbol, Class: %s, %sMethod: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, isStatic ? "Static" : "", str0, str1);
+        LOG("JNIVM", "Unresolved symbol, Class: %s, %sMethod: %s, Signature: %s", cur ? cur->nativeprefix.data() : nullptr, isStatic ? "Static" : "", str0, str1);
 #endif
     } else {
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Found symbol, Class: %s, %sMethod: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, isStatic ? "Static" : "", str0, str1);
+        LOG("JNIVM", "Found symbol, Class: %s, %sMethod: %s, Signature: %s", cur ? cur->nativeprefix.data() : nullptr, isStatic ? "Static" : "", str0, str1);
 #endif
     }
     return (jmethodID)next.get();
@@ -255,7 +255,8 @@ void jnivm::CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID
 };
 
 template <class T>
-T jnivm::CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param) {
+T jnivm::CallStaticMethod(JNIEnv * env, jclass _cl, jmethodID id, jvalue * param) {
+    auto cl = JNITypes<std::shared_ptr<Class>>::JNICast((ENV*)env->functions->reserved0, _cl);
     auto mid = ((Method *)id);
 #ifdef JNI_DEBUG
     if(!cl)
@@ -265,10 +266,10 @@ T jnivm::CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param)
 #endif
     if (mid && mid->nativehandle) {
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Call Function Class=`%s` Method=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid->name.data());
+        LOG("JNIVM", "Call Function Class=`%s` Method=`%s`", cl ? cl->nativeprefix.data() : "???", mid->name.data());
 #endif
         try {
-            return (*(std::function<T(ENV*, Class*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, param);
+            return (*(std::function<T(ENV*, Class*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, cl.get(), param);
         } catch (...) {
             auto cur = std::make_shared<Throwable>();
             cur->except = std::current_exception();
@@ -280,7 +281,7 @@ T jnivm::CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param)
         }
     } else {
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Unknown Function Class=`%s` Method=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid ? mid->name.data() : "???");
+        LOG("JNIVM", "Unknown Function Class=`%s` Method=`%s`", cl ? cl->nativeprefix.data() : "???", mid ? mid->name.data() : "???");
 #endif
         return defaultVal<T>((ENV*)env->functions->reserved0, mid ? mid->signature : "");
     }

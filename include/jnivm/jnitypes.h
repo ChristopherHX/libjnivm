@@ -169,18 +169,29 @@ namespace jnivm {
         }
     };
 
-    template <class T> struct JNITypes<Array<T>> {
-        using Array = jobjectArray;
-        static std::string GetJNISignature(ENV * env) {
-            auto res = "[" + JNITypes<T>::GetJNISignature(env);
+    template<class T, bool> struct utility_ {
+        static void utility(ENV*env, const std::string& res) {
             auto c = InternalFindClass(env, res.data());
             if(!c->InstantiateArray) {
-                c->InstantiateArray = [wref = std::weak_ptr<Class>(c)](ENV* env, jsize s) {
+                c->InstantiateArray = [wref = std::weak_ptr<Class>(c)](ENV* env, jsize s) -> std::shared_ptr<jnivm::Array<Object>>{
                     auto a = std::make_shared<jnivm::Array<T>>(s);
                     a->clazz = wref.lock();
                     return a;
                 };
             }
+        }
+    };
+    template<class T> struct utility_<T, false> {
+        static void utility(ENV*env, const std::string& res) {
+        }
+    };
+
+
+    template <class T> struct JNITypes<Array<T>> {
+        using Array = jobjectArray;
+        static std::string GetJNISignature(ENV * env) {
+            auto res = "[" + JNITypes<T>::GetJNISignature(env);
+            utility_<T, std::is_class<T>::value>::utility(env, res);
             return res;
         }
     };

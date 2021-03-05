@@ -1,3 +1,4 @@
+#include <jnivm/class.h>
 #include "array.hpp"
 #include "vm.hpp"
 
@@ -7,7 +8,7 @@ jsize jnivm::GetArrayLength(JNIEnv *, jarray a) {
     return a ? ((Array<void>*)a)->getSize() : 0;
 }
 jobjectArray jnivm::NewObjectArray(JNIEnv * env, jsize length, jclass c, jobject init) {
-    auto cl0 = (Class*)c;
+    auto cl0 = JNITypes<std::shared_ptr<Class>>::JNICast((ENV*)env->functions->reserved0, c);
     auto classname = cl0->nativeprefix[0] == '[' ? "[" + cl0->nativeprefix : "[L" + cl0->nativeprefix + ";";
     auto cl = (Class*)FindClass(env, classname.data());
     // auto arr = std::make_shared<Array<Object>>(new std::shared_ptr<Object>[length], length);

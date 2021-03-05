@@ -237,7 +237,7 @@ jobject AllocObject(JNIEnv *env, jclass cl) {
 };
 
 jclass GetObjectClass(JNIEnv *env, jobject jo) {
-	return jo ? (jclass)&((Object*)jo)->getClass() : env->FindClass("Invalid");
+	return jo ? (jclass)&(JNITypes<std::shared_ptr<Object>>::JNICast((ENV*)env->functions->reserved0, jo)->getClass()) : env->FindClass("Invalid");
 };
 jboolean IsInstanceOf(JNIEnv *env, jobject jo, jclass cl) {
 	return jo && IsAssignableFrom(env, GetObjectClass(env, jo), cl);
