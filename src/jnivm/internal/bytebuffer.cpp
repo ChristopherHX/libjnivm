@@ -1,3 +1,4 @@
+#include <jnivm/class.h>
 #include "bytebuffer.hpp"
 #include <jnivm/bytebuffer.h>
 #include <jnivm/jnitypes.h>

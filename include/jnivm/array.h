@@ -42,7 +42,7 @@ namespace jnivm {
             Array() : Array<void>(nullptr, 0) {}
             Array(const std::vector<T> & vec) : Array<void>(new T[vec.size()], vec.size()) {
                 if(vec.size() > 0) {
-                    memcpy(data, vec.data(), sizeof(T) * length);
+                    memcpy(getArray(), vec.data(), sizeof(T) * vec.size());
                 }
             }
             

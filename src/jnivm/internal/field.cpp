@@ -9,11 +9,12 @@
 using namespace jnivm;
 
 template<bool isStatic, bool ReturnNull>
-jfieldID jnivm::GetFieldID(JNIEnv *env, jclass cl, const char *name, const char *type) {
-    std::lock_guard<std::mutex> lock(((Class *)cl)->mtx);
-    std::string &classname = ((Class *)cl)->name;
+jfieldID jnivm::GetFieldID(JNIEnv *env, jclass cl_, const char *name, const char *type) {
+    auto cl = JNITypes<std::shared_ptr<Class>>::JNICast((ENV*)env->functions->reserved0, cl_);
+    std::lock_guard<std::mutex> lock(cl->mtx);
+    std::string &classname = cl->name;
 
-    auto cur = (Class *)cl;
+    auto cur = cl;
     auto sname = name;
     auto ssig = type;
     auto ccl =
@@ -25,7 +26,7 @@ jfieldID jnivm::GetFieldID(JNIEnv *env, jclass cl, const char *name, const char 
     if (ccl != cur->fields.end()) {
         next = *ccl;
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Found symbol, Class: %s, %sField: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, isStatic ? "Static" : "", name, type);
+        LOG("JNIVM", "Found symbol, Class: %s, %sField: %s, Signature: %s", cl ? cl->nativeprefix.data() : nullptr, isStatic ? "Static" : "", name, type);
 #endif
     } else {
         if(cur->baseclasses) {
@@ -50,7 +51,7 @@ jfieldID jnivm::GetFieldID(JNIEnv *env, jclass cl, const char *name, const char 
         Declare(env, next->type.data());
 #endif
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Unresolved symbol, Class: %s, %sField: %s, Signature: %s", cl ? ((Class *)cl)->nativeprefix.data() : nullptr, isStatic ? "Static" : "", name, type);
+        LOG("JNIVM", "Unresolved symbol, Class: %s, %sField: %s, Signature: %s", cl ? cl->nativeprefix.data() : nullptr, isStatic ? "Static" : "", name, type);
 #endif
     }
     return (jfieldID)next.get();
