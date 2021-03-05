@@ -164,8 +164,7 @@ jobject NewGlobalRef(JNIEnv * env, jobject obj) {
 	}
 	auto global = std::make_shared<Global>();
 	global->wrapped = std::move(strong);
-	auto cl = (Class*) FindClass(env, "jnivm/lang/Global");
-	global->clazz = std::shared_ptr<Class>(cl->shared_from_this(), cl);
+	global->clazz = InternalFindClass((ENV*)env->functions->reserved0, "jnivm/lang/Global");
 	return NewGlobalRef(env, global);
 };
 void DeleteGlobalRef(JNIEnv * env, std::shared_ptr<Object> obj) {
@@ -306,8 +305,8 @@ jweak NewWeakGlobalRef(JNIEnv *env, jobject obj) {
 	}
 	auto weak = std::make_shared<Weak>();
 	weak->wrapped = strong->weak_from_this();
-	auto cl = (Class*) FindClass(env, "java/lang/Weak");
-	weak->clazz = std::shared_ptr<Class>(cl->shared_from_this(), cl);
+	weak->clazz = InternalFindClass((ENV*)env->functions->reserved0, "java/lang/Weak");
+
 	return (jweak) NewGlobalRef(env, weak);
 }
 void DeleteWeakGlobalRef(JNIEnv *env, jweak w) {
