@@ -29,7 +29,7 @@ void jnivm::SetObjectArrayElement(JNIEnv *env, jobjectArray a, jsize i, jobject 
 }
 
 template <class T> typename JNITypes<T>::Array jnivm::NewArray(JNIEnv * env, jsize length) {
-    auto arr = std::make_shared<Array<T>>(new T[length] {0}, length);
+    auto arr = length ? std::make_shared<Array<T>>(new T[length] {0}, length) : std::make_shared<Array<T>>(0);
     auto cl = (Class*)FindClass(env, (std::string("[") + JNITypes<T>::GetJNISignature((ENV*)env->functions->reserved0)).data());
     arr->clazz = std::shared_ptr<Class>(cl->shared_from_this(), cl);
     return JNITypes<std::shared_ptr<Array<T>>>::ToJNIType((ENV*)env->functions->reserved0, arr);
