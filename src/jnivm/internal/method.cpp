@@ -90,9 +90,32 @@ template<> jobject jnivm::defaultVal(ENV* env, std::string signature) {
         size_t off = signature.find_last_of(")");
         if(signature[off + 1] == '[' ){
 #ifdef JNI_TRACE
-            LOG("JNIVM", "Construct array=`%s` via NewObjectArray", &signature.data()[off + 1]);
+            LOG("JNIVM", "Construct array=`%s` via New*Array", &signature.data()[off + 1]);
 #endif
-            return env->env.NewObjectArray(0, env->env.FindClass(signature[off + 2] == 'L' && signature[signature.size() - 1] == ';' ? signature.substr(off + 3, signature.size() - (off + 4)).data() : &signature.data()[off + 1]), nullptr);
+            switch (signature[off + 2])
+            {
+            case 'B':
+                return env->env.NewByteArray(0);
+            case 'S':
+                return env->env.NewShortArray(0);
+            case 'I':
+                return env->env.NewIntArray(0);
+            case 'J':
+                return env->env.NewLongArray(0);
+            case 'F':
+                return env->env.NewFloatArray(0);
+            case 'D':
+                return env->env.NewDoubleArray(0);
+            case 'L':
+            case '[':
+                return env->env.NewObjectArray(0, env->env.FindClass(signature[off + 2] == 'L' && signature[signature.size() - 1] == ';' ? signature.substr(off + 3, signature.size() - (off + 4)).data() : &signature.data()[off + 1]), nullptr);
+            default:
+#ifdef JNI_TRACE
+            LOG("JNIVM", "Constructing array=`%s` failed unknown type", &signature.data()[off + 1]);
+#endif
+                break;
+            }
+            
         } else if (signature[off + 1] == 'L' && signature[signature.size() - 1] == ';'){
             auto c = env->GetClass(signature.substr(off + 2, signature.size() - (off + 3)).data());
             if(c->Instantiate) {
