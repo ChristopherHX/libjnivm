@@ -1063,7 +1063,7 @@ TEST(JNIVM, StringUtil) {
     ASSERT_EQ(jnivm::UTFToJChar(buf, size), (jchar)u_4[1]);
 }
 
-TEST(JNIVM, ContructObjectArray) {
+TEST(JNIVM, ContructArray) {
     jnivm::VM vm;
     auto env = vm.GetJNIEnv();
     auto Test = env->FindClass("Test");
@@ -1076,4 +1076,7 @@ TEST(JNIVM, ContructObjectArray) {
     auto a2 = env->CallStaticObjectMethod(Test, mTest2);
     len = env->GetArrayLength((jarray)a2);
 
+    auto a_2 = jnivm::JNITypes<std::shared_ptr<jnivm::Array<jint>>>::JNICast(vm.GetEnv().get(), a2);
+    ASSERT_TRUE(a_2);
+    ASSERT_EQ(a_2->getSize(), len);
 }
