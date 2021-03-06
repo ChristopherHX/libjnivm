@@ -170,8 +170,8 @@ T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
         LOG("JNIVM", "CallMethod field is null");
 #endif
     if (mid && mid->nativehandle) {
-        Class* cl = obj ? (Class*)env->GetObjectClass(obj) : nullptr;
-        mid = findVirtualOverload((ENV*)env->functions->reserved0, cl, mid);
+        auto cl = JNITypes<std::shared_ptr<Class>>::JNICast((ENV*)env->functions->reserved0, env->GetObjectClass(obj));
+        mid = findVirtualOverload((ENV*)env->functions->reserved0, cl.get(), mid);
 #ifdef JNI_TRACE
         LOG("JNIVM", "Call Function Class=`%s` Method=`%s` Signature=`%s`", cl ? cl->nativeprefix.data() : "???", mid->name.data(), mid->signature.data());
 #endif
@@ -236,10 +236,11 @@ T jnivm::CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id
         LOG("JNIVM", "CallNonvirtualMethod field is null");
 #endif
     if (mid && mid->nativehandle) {
+        auto clz = JNITypes<std::shared_ptr<Class>>::JNICast((ENV*)env->functions->reserved0, cl); 
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Call Function Class=`%s` Method=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid->name.data());
+        LOG("JNIVM", "Call Function Class=`%s` Method=`%s`", clz ? clz->nativeprefix.data() : "???", mid->name.data());
 #endif
-        mid = findNonVirtualOverload((Class*)cl, mid);
+        mid = findNonVirtualOverload(clz.get(), mid);
         try {
             return (*(std::function<T(ENV*, jobject, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, obj, param);
         } catch (...) {
