@@ -272,8 +272,8 @@ TEST(JNIVM, DONOTReturnSpecializedStubs) {
     static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<Class2>>>::ToJNIType(env.get(), a)), jobjectArray>::value, "Invalid Return Type");
     static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<Class2>>>::ToJNIReturnType(env.get(), a)), jobject>::value, "Invalid Return Type");
 
-    static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<jbyte>>>::ToJNIType(env.get(), nullptr)), jbyteArray>::value, "Invalid Return Type");
-    static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<jbyte>>>::ToJNIReturnType(env.get(), nullptr)), jobject>::value, "Invalid Return Type");
+    static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<jbyte>>>::ToJNIType(env.get(), std::shared_ptr<jnivm::Array<jbyte>>{})), jbyteArray>::value, "Invalid Return Type");
+    static_assert(std::is_same<decltype(jnivm::JNITypes<std::shared_ptr<jnivm::Array<jbyte>>>::ToJNIReturnType(env.get(), std::shared_ptr<jnivm::Array<jbyte>>{})), jobject>::value, "Invalid Return Type");
 }
 
 TEST(JNIVM, Excepts) {
