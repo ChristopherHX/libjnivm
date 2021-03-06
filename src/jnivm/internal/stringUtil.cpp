@@ -72,8 +72,8 @@ int jnivm::JCharToUTF(jchar c, char* cur, int len) {
         cur[1] = (char) 0b10000000 | (c & 0x3F);
         break;
     case 3:
-        cur[0] = (char) 0b11100000 | ((c >> 6) & 0x0F);
-        cur[1] = (char) 0b10000000 | ((c >> 12) & 0x3F);
+        cur[0] = (char) 0b11100000 | ((c >> 12) & 0x0F);
+        cur[1] = (char) 0b10000000 | ((c >> 6) & 0x3F);
         cur[2] = (char) 0b10000000 | (c & 0x3F);
         break;
     }
