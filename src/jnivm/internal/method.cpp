@@ -88,23 +88,27 @@ template<> jobject jnivm::defaultVal(ENV* env, std::string signature) {
 #ifdef JNI_RETURN_NON_ZERO
     if(!signature.empty()) {
         size_t off = signature.find_last_of(")");
-        if(!strcmp(signature.data() + off + 1, "Ljava/lang/String;")) {
-            LOG("JNIVM", "Constructed empty string=`%s`", &signature.data()[off + 1]);
-            return env->env.NewStringUTF("");
-        }
-        else if(signature[off + 1] == '[' ){
-            LOG("JNIVM", "Constructed array=`%s`", &signature.data()[off + 1]);
+        if(signature[off + 1] == '[' ){
+#ifdef JNI_TRACE
+            LOG("JNIVM", "Construct array=`%s` via NewObjectArray", &signature.data()[off + 1]);
+#endif
             return env->env.NewObjectArray(0, env->env.FindClass(signature[off + 2] == 'L' && signature[signature.size() - 1] == ';' ? signature.substr(off + 3, signature.size() - (off + 4)).data() : &signature.data()[off + 1]), nullptr);
         } else if (signature[off + 1] == 'L' && signature[signature.size() - 1] == ';'){
             auto c = env->GetClass(signature.substr(off + 2, signature.size() - (off + 3)).data());
             if(c->Instantiate) {
-                LOG("JNIVM", "Constructed object=`%s`", &signature.data()[off + 1]);
+#ifdef JNI_TRACE
+                LOG("JNIVM", "Construct object=`%s` via default constructor", &signature.data()[off + 1]);
+#endif
                 return JNITypes<std::shared_ptr<Object>>::ToJNIReturnType(env, c->Instantiate(env));
             }
         }
+#ifdef JNI_TRACE
         LOG("JNIVM", "Failed to construct return value of signature=`%s`", signature.data());
+#endif
     } else {
+#ifdef JNI_TRACE
         LOG("JNIVM", "Failed to guess return value of empty signature");
+#endif
     }
 #endif
     return nullptr;
