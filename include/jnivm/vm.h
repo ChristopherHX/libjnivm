@@ -41,28 +41,13 @@ namespace jnivm {
         // Map of all jni threads and local stuff by thread id
         std::unordered_map<pthread_t, std::shared_ptr<ENV>> jnienvs;
 
-        struct libinst {
+        class libinst {
             void* handle;
             LibraryOptions loptions;
             JavaVM* javaVM;
-            libinst(const std::string& rpath, JavaVM* javaVM, LibraryOptions loptions) : loptions(loptions), javaVM(javaVM) {
-                handle = loptions.dlopen(rpath.c_str(), 0);
-                if(handle) {
-                    auto JNI_OnLoad = (jint (*)(JavaVM* vm, void* reserved))loptions.dlsym(handle, "JNI_OnLoad");
-                    if (JNI_OnLoad) {
-                        JNI_OnLoad(javaVM, nullptr);
-                    }
-                }
-            }
-            ~libinst() {
-                if(handle) {
-                    auto JNI_OnUnload = (jint (*)(JavaVM* vm, void* reserved))loptions.dlsym(handle, "JNI_OnUnload");
-                    if (JNI_OnUnload) {
-                        JNI_OnUnload(javaVM, nullptr);
-                    }
-                    loptions.dlclose(handle);
-                }
-            }
+        public:
+            libinst(const std::string& rpath, JavaVM* javaVM, LibraryOptions loptions);
+            ~libinst();
         };
         std::unordered_map<std::string, libinst> libraries;
     public:
@@ -73,12 +58,9 @@ namespace jnivm {
         // Map of all classes hooked or implicitly declared
         std::unordered_map<std::string, std::shared_ptr<Class>> classes;
         
-        void attachLibrary(const std::string &rpath, const std::string &options, LibraryOptions loptions) {
-            libraries.insert({ rpath, { rpath, &javaVM, loptions } });
-        }
-        void detachLibrary(const std::string &rpath) {
-            libraries.erase(rpath);
-        }
+        void attachLibrary(const std::string &rpath, const std::string &options, LibraryOptions loptions);
+        void detachLibrary(const std::string &rpath);
+
         std::mutex mtx;
         // Stores all global references
         std::vector<std::shared_ptr<Object>> globals;

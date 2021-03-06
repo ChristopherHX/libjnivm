@@ -6,7 +6,6 @@
 #include <jnivm/internal/findclass.h>
 #include <jnivm/internal/jValuesfromValist.h>
 #include <jnivm/internal/codegen/namespace.h>
-#include "internal/vm.hpp"
 #include <locale>
 #include <sstream>
 #include <climits>
@@ -28,7 +27,7 @@ jclass DefineClass(JNIEnv *, const char *, jobject, const jbyte *, jsize) {
 	return 0;
 };
 
-jclass jnivm::FindClass(JNIEnv *env, const char *name) {
+jclass FindClass(JNIEnv *env, const char *name) {
 	// std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
 	auto&& nenv = *(ENV*)env->functions->reserved0;
 	std::lock_guard<std::mutex> lock(nenv.vm->mtx);
@@ -559,4 +558,33 @@ jobject jnivm::VM::createGlobalReference(std::shared_ptr<jnivm::Object> obj) {
 
 std::vector<std::shared_ptr<jnivm::Class>> jnivm::Object::GetBaseClasses(jnivm::ENV *env) {
 	return { nullptr };
+}
+
+
+jnivm::VM::libinst::libinst(const std::string &rpath, JavaVM *javaVM, jnivm::LibraryOptions loptions) : loptions(loptions), javaVM(javaVM) {
+	handle = loptions.dlopen(rpath.c_str(), 0);
+	if(handle) {
+		auto JNI_OnLoad = (jint (*)(JavaVM* vm, void* reserved))loptions.dlsym(handle, "JNI_OnLoad");
+		if (JNI_OnLoad) {
+			JNI_OnLoad(javaVM, nullptr);
+		}
+	}
+}
+
+jnivm::VM::libinst::~libinst() {
+	if(handle) {
+		auto JNI_OnUnload = (jint (*)(JavaVM* vm, void* reserved))loptions.dlsym(handle, "JNI_OnUnload");
+		if (JNI_OnUnload) {
+			JNI_OnUnload(javaVM, nullptr);
+		}
+		loptions.dlclose(handle);
+	}
+}
+
+void jnivm::VM::attachLibrary(const std::string &rpath, const std::string &options, jnivm::LibraryOptions loptions) {
+	libraries.insert({ rpath, { rpath, &javaVM, loptions } });
+}
+
+void jnivm::VM::detachLibrary(const std::string &rpath) {
+	libraries.erase(rpath);
 }

@@ -27,17 +27,13 @@ namespace jnivm {
         std::shared_ptr<Throwable> current_exception;
         ENV(const ENV&) = delete;
         ENV(ENV&&) = delete;
-        ENV(VM * vm, const JNINativeInterface & defaultinterface) : vm(vm), ninterface(defaultinterface), env{&ninterface}, localframe({{}}) {
-            ninterface.reserved0 = this;
-        }
+        ENV(VM * vm, const JNINativeInterface & defaultinterface);
         std::shared_ptr<Class> GetClass(const char * name);
         
         template<class T>
         std::shared_ptr<Class> GetClass(const char * name);
 
-        VM& getVM() {
-            return *vm;
-        }
+        VM& getVM();
 
 // fake-jni api compat layer
 

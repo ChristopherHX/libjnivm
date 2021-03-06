@@ -1,6 +1,5 @@
 #include <jnivm/class.h>
 #include "array.hpp"
-#include "vm.hpp"
 
 using namespace jnivm;
 
@@ -10,10 +9,10 @@ jsize jnivm::GetArrayLength(JNIEnv *env, jarray a) {
 jobjectArray jnivm::NewObjectArray(JNIEnv * env, jsize length, jclass c, jobject init) {
     auto cl0 = JNITypes<std::shared_ptr<Class>>::JNICast((ENV*)env->functions->reserved0, c);
     auto classname = cl0->nativeprefix[0] == '[' ? "[" + cl0->nativeprefix : "[L" + cl0->nativeprefix + ";";
-    auto cl = (Class*)FindClass(env, classname.data());
+    auto cl = InternalFindClass((ENV*)env->functions->reserved0, classname.data());
     // auto arr = std::make_shared<Array<Object>>(new std::shared_ptr<Object>[length], length);
     auto arr = cl->InstantiateArray ? cl->InstantiateArray((ENV*)env->functions->reserved0, length) : std::make_shared<Array<Object>>(length);
-    arr->clazz = std::shared_ptr<Class>(cl->shared_from_this(), cl);
+    arr->clazz = std::move(cl);
     if(init) {
         for (jsize i = 0; i < length; i++) {
             (*arr)[i] = (*(Object*)init).shared_from_this();
@@ -30,8 +29,7 @@ void jnivm::SetObjectArrayElement(JNIEnv *env, jobjectArray a, jsize i, jobject 
 
 template <class T> typename JNITypes<T>::Array jnivm::NewArray(JNIEnv * env, jsize length) {
     auto arr = length ? std::make_shared<Array<T>>(new T[length] {0}, length) : std::make_shared<Array<T>>(0);
-    auto cl = (Class*)FindClass(env, (std::string("[") + JNITypes<T>::GetJNISignature((ENV*)env->functions->reserved0)).data());
-    arr->clazz = std::shared_ptr<Class>(cl->shared_from_this(), cl);
+    arr->clazz = InternalFindClass((ENV*)env->functions->reserved0, (std::string("[") + JNITypes<T>::GetJNISignature((ENV*)env->functions->reserved0)).data());
     return JNITypes<std::shared_ptr<Array<T>>>::ToJNIType((ENV*)env->functions->reserved0, arr);
 }
 
