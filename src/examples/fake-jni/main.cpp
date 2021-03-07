@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
     jmethodID method = frame.getJniEnv().GetMethodID(frame.getJniEnv().GetObjectClass(ref), "JustAMemberFunction", "([I)D");
     auto a = frame.getJniEnv().NewIntArray(23);
     jint* carray = frame.getJniEnv().GetIntArrayElements(a, nullptr);
-    for (size_t i = 0; i < frame.getJniEnv().GetArrayLength(a); i++) {
+    for (jsize i = 0; i < frame.getJniEnv().GetArrayLength(a); i++) {
         carray[i] = 1 << i;
     }
     frame.getJniEnv().ReleaseIntArrayElements(a, carray, 0);
