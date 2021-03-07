@@ -161,6 +161,12 @@ namespace jnivm {
             constexpr auto StaticGet(ENV * env, Class* clazz, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIReturnType(env, *handle);
             }
+            constexpr void InstanceSet(ENV * env, jobject obj, const jvalue* values) {
+                *handle = (JNITypes<typename Function::Return>::JNICast(env, values[0]));
+            }
+            constexpr auto InstanceGet(ENV * env, jobject obj, const jvalue* values) {
+                return JNITypes<typename Function::Return>::ToJNIReturnType(env, *handle);
+            }
             static std::string GetJNISetterSignature(ENV * env) {
                 return JNITypes<typename Function::Return>::GetJNISignature(env);
             }

@@ -30,10 +30,21 @@ namespace FakeJni {
 
     class JMethodID {
     public:
-        enum Type {
-            DEFAULT,
-            STATIC_FUNC,
-            MEMBER_FUNC,
+        enum Modifiers : uint32_t {
+            PUBLIC = 1,
+            PRIVATE = 2,
+            PROTECTED = 4,
+            STATIC = 8,
+        };
+    };
+
+    class JFieldID {
+    public:
+        enum Modifiers : uint32_t {
+            PUBLIC = 1,
+            PRIVATE = 2,
+            PROTECTED = 4,
+            STATIC = 8,
         };
     };
 
@@ -144,20 +155,40 @@ namespace FakeJni {
                 };
             }
         };
+        template<bool, class U> struct Helper2 {
+            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name) {
+                throw std::runtime_error("Invalid modifier for this field");
+            }
+        };
+        template<class U> struct Helper2<true, U> {
+            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name) {
+                return [name](jnivm::ENV*env, jnivm::Class* cl) {
+                    cl->HookInstanceProperty(env, name, U::handle);
+                };
+            }
+        };
         std::function<void(jnivm::ENV*env, jnivm::Class* cl)> registre;
         template<class U> Descriptor(U && d, const char* name) {
             registre = Helper<U::isFunction, U>::Get(name);
         }
-        template<class U> Descriptor(U && d, const char* name, JMethodID::Type ty) {
+        template<class U> Descriptor(U && d, const char* name, JMethodID::Modifiers ty) {
             static_assert(U::isFunction, "JMethodID::Type requires that this is a Function registration");
-            if(ty == JMethodID::Type::MEMBER_FUNC) {
+            if(((int)ty & (int)JMethodID::Modifiers::STATIC) == 0) {
                 registre = Helper<U::isFunction, U>::Get(name);
-            } else if(ty == JMethodID::Type::STATIC_FUNC) {
+            } else {
                 registre = [name](jnivm::ENV*env, jnivm::Class* cl) {
                     cl->Hook(env, name, U::handle);
                 };
+            }
+        }
+        template<class U> Descriptor(U && d, const char* name, JFieldID::Modifiers ty) {
+            static_assert(!U::isFunction, "JMethodID::Type requires that this is a field registration");
+            if(((int)ty & (int)JFieldID::Modifiers::STATIC) == 0) {
+                registre = Helper2<(jnivm::Function<typename U::Type>::type == jnivm::FunctionType::Property), U>::Get(name);
             } else {
-                throw std::runtime_error("Not Implemented JMethodID::Type!");
+                registre = [name](jnivm::ENV*env, jnivm::Class* cl) {
+                    cl->Hook(env, name, U::handle);
+                };
             }
         }
 #endif
