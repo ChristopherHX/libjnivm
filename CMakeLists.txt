@@ -4,7 +4,7 @@ project(jnivm LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED 14)
 
-add_library(jnivm src/fake-jni/fake-jni.cpp src/jnivm/internal/array.cpp src/jnivm/internal/bytebuffer.cpp src/jnivm/internal/field.cpp src/jnivm/internal/method.cpp src/jnivm/internal/string.cpp src/jnivm/internal/stringUtil.cpp src/jnivm/internal/findclass.cpp src/jnivm/internal/jValuesfromValist.cpp src/jnivm/internal/skipJNIType.cpp src/jnivm/env.cpp src/jnivm/method.cpp src/jnivm/vm.cpp src/jnivm/object.cpp include/jni.h include/jnivm.h)
+add_library(jnivm src/fake-jni/fake-jni.cpp src/baron/baron.cpp src/baron/jvm.cpp src/jnivm/internal/array.cpp src/jnivm/internal/bytebuffer.cpp src/jnivm/internal/field.cpp src/jnivm/internal/method.cpp src/jnivm/internal/string.cpp src/jnivm/internal/stringUtil.cpp src/jnivm/internal/findclass.cpp src/jnivm/internal/jValuesfromValist.cpp src/jnivm/internal/skipJNIType.cpp src/jnivm/env.cpp src/jnivm/method.cpp src/jnivm/vm.cpp src/jnivm/object.cpp include/jni.h include/jnivm.h)
 target_include_directories(jnivm PUBLIC include/)
 target_link_libraries(jnivm ${CMAKE_DL_LIBS})
 if(TARGET logger)
@@ -36,6 +36,11 @@ if(JNIVM_ENABLE_RETURN_NON_ZERO)
     target_compile_definitions(jnivm PRIVATE JNI_RETURN_NON_ZERO)
 endif()
 
+option(JNIVM_FAKE_JNI_MINECRAFT_LINUX_COMPAT "Enable minecraft-linux fake-jni compat, this prevents implicit promoting of static functions to instance functions in FAKE_JNI Descriptors" OFF)
+if(JNIVM_FAKE_JNI_MINECRAFT_LINUX_COMPAT)
+    target_compile_definitions(jnivm JNIVM_FAKE_JNI_MINECRAFT_LINUX_COMPAT)
+endif()
+
 option(JNIVM_ENABLE_TESTS "Enable jnivm Tests via googletest" OFF)
 
 if(JNIVM_ENABLE_TESTS)
@@ -60,5 +65,5 @@ endif()
 
 option(JNIVM_BUILD_EXAMPLES "Enable jnivm / fake-jni (compat) examples" OFF)
 if(JNIVM_BUILD_EXAMPLES)
-add_subdirectory(src/examples)
+    add_subdirectory(src/examples)
 endif()

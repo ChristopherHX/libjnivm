@@ -49,7 +49,9 @@ namespace FakeJni {
     };
 
     class Jvm : public JavaVM {
+    protected:
         jnivm::VM vm;
+    private:
         class libinst {
             void* handle;
             LibraryOptions loptions;
@@ -71,8 +73,8 @@ namespace FakeJni {
         void start();
         void start(std::shared_ptr<JArray<JString>> args);
 
-        void attachLibrary(const std::string &rpath, const std::string &options, LibraryOptions loptions);
-        void detachLibrary(const std::string &rpath);
+        void attachLibrary(const std::string &rpath = "", const std::string &options = "", LibraryOptions loptions = {});
+        void detachLibrary(const std::string &rpath = "");
 
         jobject createGlobalReference(std::shared_ptr<JObject> obj);
 
@@ -141,6 +143,8 @@ namespace FakeJni {
     };
     struct Descriptor {
 #ifdef __cpp_nontype_template_parameter_auto
+        template<bool, class U> struct Helper;
+#ifdef JNIVM_FAKE_JNI_MINECRAFT_LINUX_COMPAT
         template<bool, class U> struct Helper {
             static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name) {
                 return [name](jnivm::ENV*env, jnivm::Class* cl) {
@@ -148,7 +152,14 @@ namespace FakeJni {
                 };
             }
         };
-#ifdef FIX_FAKE_JNI_BUG_ALL_FUNCTIONS_SHOULD_BE_MEMBERS_FUNCTIONS
+#else
+        template<class U> struct Helper<false, U> {
+            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name) {
+                return [name](jnivm::ENV*env, jnivm::Class* cl) {
+                    cl->HookInstanceProperty(env, name, U::handle);
+                };
+            }
+        };
         template<class U> struct Helper<true, U> {
             static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name) {
                 return [name](jnivm::ENV*env, jnivm::Class* cl) {

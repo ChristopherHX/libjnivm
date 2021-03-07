@@ -5,7 +5,7 @@ namespace FakeJni {
         void*(*dlopen)(const char*, int);
         void*(*dlsym)(void *handle, const char*);
         int(*dlclose)(void*);
-        LibraryOptions(void*(*dlopen)(const char*, int), void*(*dlsym)(void *handle, const char*), int(*dlclose)(void*)) : dlopen(dlopen), dlsym(dlsym), dlclose(dlclose) {
-        }
+        LibraryOptions(void*(*dlopen)(const char*, int), void*(*dlsym)(void *handle, const char*), int(*dlclose)(void*));
+        LibraryOptions();
     };
 }
