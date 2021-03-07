@@ -310,7 +310,7 @@ TEST(JNIVM, Excepts) {
     auto o = std::make_shared<Class2>();
     auto obj = jnivm::JNITypes<decltype(o)>::ToJNIReturnType(env.get(), o);
     auto c = jnivm::JNITypes<decltype(_Class2)>::ToJNIType(env.get(), _Class2);
-    auto nenv = &*env;
+    auto nenv = vm.GetJNIEnv();
     auto mid = nenv->GetMethodID(c, "test", "()V");
     nenv->CallVoidMethod(obj, mid);
     jthrowable th = nenv->ExceptionOccurred();
@@ -332,7 +332,7 @@ TEST(JNIVM, Monitor) {
     auto o = std::make_shared<Class2>();
     auto obj = jnivm::JNITypes<decltype(o)>::ToJNIReturnType(env.get(), o);
     auto c = jnivm::JNITypes<decltype(_Class2)>::ToJNIType(env.get(), _Class2);
-    auto nenv = &*env;
+    auto nenv = vm.GetJNIEnv();
     nenv->MonitorEnter(c);
     nenv->MonitorEnter(c);
     // Should work
@@ -484,25 +484,26 @@ TEST(JNIVM, Inherience) {
     vm.GetEnv()->GetClass<TestClass>("TestClass");
     vm.GetEnv()->GetClass<TestClass2>("TestClass2");
     vm.GetEnv()->GetClass<TestClass3>("TestClass3");
-    jclass testClass = (&*env)->FindClass("TestClass");
-    jclass testClass2 = (&*env)->FindClass("TestClass2");
-    jclass testClass3 = (&*env)->FindClass("TestClass3");
-    jclass testInterface = (&*env)->FindClass("TestInterface");
-    jclass testInterface2 = (&*env)->FindClass("TestInterface2");
-    jclass c = (&*env)->FindClass("java/lang/Class");
-    ASSERT_TRUE((&*env)->IsInstanceOf(testClass, c));
-    ASSERT_FALSE((&*env)->IsAssignableFrom(testClass, c));
-    ASSERT_TRUE((&*env)->IsAssignableFrom(testClass, testClass));
-    ASSERT_TRUE((&*env)->IsAssignableFrom(testClass2, testClass));
-    ASSERT_TRUE((&*env)->IsAssignableFrom(testClass, testInterface));
-    ASSERT_FALSE((&*env)->IsAssignableFrom(testClass, testInterface2));
-    ASSERT_TRUE((&*env)->IsAssignableFrom(testClass2, testInterface));
-    ASSERT_FALSE((&*env)->IsAssignableFrom(testClass2, testInterface2));
-    ASSERT_TRUE((&*env)->IsAssignableFrom(testClass3, testInterface));
-    ASSERT_TRUE((&*env)->IsAssignableFrom(testClass3, testInterface2));
-    ASSERT_FALSE((&*env)->IsAssignableFrom(testInterface2, testClass3));
-    auto test = (&*env)->GetMethodID(testInterface, "Test", "()V");
-    auto test2 = (&*env)->GetMethodID(testClass3, "Test2", "()V");
+    auto jenv = vm.GetJNIEnv();
+    jclass testClass = jenv->FindClass("TestClass");
+    jclass testClass2 = jenv->FindClass("TestClass2");
+    jclass testClass3 = jenv->FindClass("TestClass3");
+    jclass testInterface = jenv->FindClass("TestInterface");
+    jclass testInterface2 = jenv->FindClass("TestInterface2");
+    jclass c = jenv->FindClass("java/lang/Class");
+    ASSERT_TRUE(jenv->IsInstanceOf(testClass, c));
+    ASSERT_FALSE(jenv->IsAssignableFrom(testClass, c));
+    ASSERT_TRUE(jenv->IsAssignableFrom(testClass, testClass));
+    ASSERT_TRUE(jenv->IsAssignableFrom(testClass2, testClass));
+    ASSERT_TRUE(jenv->IsAssignableFrom(testClass, testInterface));
+    ASSERT_FALSE(jenv->IsAssignableFrom(testClass, testInterface2));
+    ASSERT_TRUE(jenv->IsAssignableFrom(testClass2, testInterface));
+    ASSERT_FALSE(jenv->IsAssignableFrom(testClass2, testInterface2));
+    ASSERT_TRUE(jenv->IsAssignableFrom(testClass3, testInterface));
+    ASSERT_TRUE(jenv->IsAssignableFrom(testClass3, testInterface2));
+    ASSERT_FALSE(jenv->IsAssignableFrom(testInterface2, testClass3));
+    auto test = jenv->GetMethodID(testInterface, "Test", "()V");
+    auto test2 = jenv->GetMethodID(testClass3, "Test2", "()V");
     auto obje = std::make_shared<TestClass3>();
     auto v1 = jnivm::JNITypes<decltype(obje)>::ToJNIReturnType(env.get(), obje);
     std::shared_ptr<TestInterface> obji = obje;
@@ -514,13 +515,13 @@ TEST(JNIVM, Inherience) {
     auto obji2 = jnivm::JNITypes<std::shared_ptr<TestInterface>>::JNICast(env.get(), v2);
     ASSERT_EQ(obji, obji2);
 
-    ASSERT_FALSE((&*env)->ExceptionCheck());
-    (&*env)->CallVoidMethod((jobject)(jnivm::Object*)obje.get(), test);
-    ASSERT_TRUE((&*env)->ExceptionCheck());
-    (&*env)->ExceptionClear();
-    ASSERT_FALSE((&*env)->ExceptionCheck());
-    (&*env)->CallVoidMethod((jobject)(jnivm::Object*)obje.get(), test2);
-    ASSERT_FALSE((&*env)->ExceptionCheck());
+    ASSERT_FALSE(jenv->ExceptionCheck());
+    jenv->CallVoidMethod((jobject)(jnivm::Object*)obje.get(), test);
+    ASSERT_TRUE(jenv->ExceptionCheck());
+    jenv->ExceptionClear();
+    ASSERT_FALSE(jenv->ExceptionCheck());
+    jenv->CallVoidMethod((jobject)(jnivm::Object*)obje.get(), test2);
+    ASSERT_FALSE(jenv->ExceptionCheck());
     // decltype(TemplateStringConverter<void>::ToTemplateString("Test")) y;
     // static constexpr const char test2[] = __FUNCTION__;
     // struct TemplateStringConverter {
@@ -559,21 +560,22 @@ TEST(JNIVM, Inherience2) {
     vm.GetEnv()->GetClass<TestClass2>("TestClass2");
     vm.GetEnv()->GetClass<TestClass3>("TestClass3");
     vm.GetEnv()->GetClass<TestClass4>("TestClass4");
-    jclass testClass = (&*env)->FindClass("TestClass");
-    jclass testClass2 = (&*env)->FindClass("TestClass2");
-    jclass testClass3 = (&*env)->FindClass("TestClass3");
-    jclass testClass4 = (&*env)->FindClass("TestClass4");
-    jclass testInterface = (&*env)->FindClass("TestInterface");
-    jclass testInterface2 = (&*env)->FindClass("TestInterface2");
-    jclass testInterface3 = (&*env)->FindClass("TestInterface3");
-    jclass c = (&*env)->FindClass("java/lang/Class");
-    ASSERT_TRUE((&*env)->IsInstanceOf(testClass, c));
-    ASSERT_FALSE((&*env)->IsAssignableFrom(testClass, c));
-    ASSERT_TRUE((&*env)->IsAssignableFrom(testClass4, testInterface3));
-    ASSERT_TRUE((&*env)->IsAssignableFrom(testClass4, testInterface2));
-    ASSERT_TRUE((&*env)->IsAssignableFrom(testClass4, testInterface));
-    auto test = (&*env)->GetMethodID(testInterface, "Test", "()V");
-    auto test2 = (&*env)->GetMethodID(testClass4, "Test2", "()V");
+    auto jenv = vm.GetJNIEnv();
+    jclass testClass = jenv->FindClass("TestClass");
+    jclass testClass2 = jenv->FindClass("TestClass2");
+    jclass testClass3 = jenv->FindClass("TestClass3");
+    jclass testClass4 = jenv->FindClass("TestClass4");
+    jclass testInterface = jenv->FindClass("TestInterface");
+    jclass testInterface2 = jenv->FindClass("TestInterface2");
+    jclass testInterface3 = jenv->FindClass("TestInterface3");
+    jclass c = jenv->FindClass("java/lang/Class");
+    ASSERT_TRUE(jenv->IsInstanceOf(testClass, c));
+    ASSERT_FALSE(jenv->IsAssignableFrom(testClass, c));
+    ASSERT_TRUE(jenv->IsAssignableFrom(testClass4, testInterface3));
+    ASSERT_TRUE(jenv->IsAssignableFrom(testClass4, testInterface2));
+    ASSERT_TRUE(jenv->IsAssignableFrom(testClass4, testInterface));
+    auto test = jenv->GetMethodID(testInterface, "Test", "()V");
+    auto test2 = jenv->GetMethodID(testClass4, "Test2", "()V");
     auto i = std::make_shared<TestClass4>();
     auto v1 = jnivm::JNITypes<std::shared_ptr<TestClass4>>::ToJNIReturnType(env.get(), i);
     auto v2 = jnivm::JNITypes<std::shared_ptr<TestInterface>>::ToJNIReturnType(env.get(), (std::shared_ptr<TestInterface>)i);
@@ -581,15 +583,15 @@ TEST(JNIVM, Inherience2) {
     auto v4 = jnivm::JNITypes<std::shared_ptr<TestClass4>>::JNICast(env.get(), v2);
     ASSERT_EQ(v1, (jobject)(jnivm::Object*)i.get());
     ASSERT_EQ(v4, i);
-    (&*env)->CallVoidMethod(v1, test2);
-    (&*env)->CallVoidMethod(v2, test2);
+    jenv->CallVoidMethod(v1, test2);
+    jenv->CallVoidMethod(v2, test2);
     size_t olduse = i.use_count();
-    auto weak = (&*env)->NewWeakGlobalRef(v2);
+    auto weak = jenv->NewWeakGlobalRef(v2);
     ASSERT_EQ(olduse, i.use_count()) << "Weak pointer is no strong reference";
     auto v5 = jnivm::JNITypes<std::shared_ptr<TestClass4>>::JNICast(env.get(), weak);
     ASSERT_NE(v5, nullptr) << "Weak pointer isn't expired!";
     ASSERT_EQ(olduse + 1, i.use_count());
-    (&*env)->DeleteWeakGlobalRef(weak);
+    jenv->DeleteWeakGlobalRef(weak);
     ASSERT_EQ(olduse + 1, i.use_count());
 }
 
@@ -717,15 +719,11 @@ TEST(FakeJni, Master) {
     b.registerClass<FakeJniTest>();
     FakeJni::LocalFrame f;
     auto& p = f.getJniEnv();
-    ASSERT_EQ(&p, b.GetJNIEnv());
-    ASSERT_EQ(std::addressof(p), b.GetEnv().get());
     auto c = b.findClass("FakeJniTest");
     auto m = c->getMethod("()V", "test");
     auto test = std::make_shared<FakeJniTest>();
     EXPECT_THROW(m->invoke(p, test.get()), TestClass3Ex);
 }
-
-
 
 namespace Test2 {
 
@@ -795,10 +793,11 @@ TEST(JNIVM, Hooking) {
     c->Hook(env, "Test4", &TestClass::Test4);
     auto mid = env->env.GetStaticMethodID((jclass)c.get(), "Instatiate", "()LTestClass;");
     auto obj = env->env.CallStaticObjectMethod((jclass)c.get(), mid);
-    ASSERT_TRUE(c->getMethod("(Z)Z", "Test")->invoke(*env, (jnivm::Object*)obj, false).z);
-    ASSERT_FALSE(c->getMethod("(Z)Z", "Test")->invoke(*env, (jnivm::Object*)obj, true).z);
-    c->getMethod("()Z", "Test2")->invoke(*env, (jnivm::Object*)obj);
-    c->getMethod("(Ljava/lang/Class;LTestClass;)V", "Test2")->invoke(*env, c.get(), c, obj);
+    auto jenv = vm.GetJNIEnv();
+    ASSERT_TRUE(c->getMethod("(Z)Z", "Test")->invoke(*jenv, (jnivm::Object*)obj, false).z);
+    ASSERT_FALSE(c->getMethod("(Z)Z", "Test")->invoke(*jenv, (jnivm::Object*)obj, true).z);
+    c->getMethod("()Z", "Test2")->invoke(*jenv, (jnivm::Object*)obj);
+    c->getMethod("(Ljava/lang/Class;LTestClass;)V", "Test2")->invoke(*jenv, c.get(), c, obj);
     JNINativeMethod methods[] = {
         { "NativeTest3", "(LTestClass;)V", (void*)&TestClass::NativeTest3 },
         { "NativeTest4", "(Ljava/lang/Class;)V", (void*)&TestClass::NativeTest4 },
@@ -806,19 +805,19 @@ TEST(JNIVM, Hooking) {
     };
     env->env.RegisterNatives((jclass)c.get(), methods, sizeof(methods) / sizeof(*methods));
     ASSERT_EQ(c->natives.size(), sizeof(methods) / sizeof(*methods));
-    c->getMethod("(LTestClass;)V", "NativeTest3")->invoke(*env, c.get(), obj);
-    c->getMethod("(Ljava/lang/Class;)V", "NativeTest4")->invoke(*env, (jnivm::Object*)obj, c);
-    c->getMethod("(Ljava/lang/Class;)Ljava/lang/Class;", "NativeTest5")->invoke(*env, (jnivm::Object*)obj, c);
-    // c->InstantiateArray = [](jnivm::ENV *env, jsize length) {
+    c->getMethod("(LTestClass;)V", "NativeTest3")->invoke(*jenv, c.get(), obj);
+    c->getMethod("(Ljava/lang/Class;)V", "NativeTest4")->invoke(*jenv, (jnivm::Object*)obj, c);
+    c->getMethod("(Ljava/lang/Class;)Ljava/lang/Class;", "NativeTest5")->invoke(*jenv, (jnivm::Object*)obj, c);
+    // c->InstantiateArray = [](jnivm::ENV *jenv, jsize length) {
     //     return std::make_shared<jnivm::Array<TestClass>>(length);
     // };
     auto innerArray = env->env.NewObjectArray(12, (jclass)c.get(), obj);
     // auto c2 = jnivm::JNITypes<std::shared_ptr<jnivm::Class>>::JNICast(env, env->env.GetObjectClass(innerArray));
-    // c2->InstantiateArray = [](jnivm::ENV *env, jsize length) {
+    // c2->InstantiateArray = [](jnivm::ENV *jenv, jsize length) {
     //     return std::make_shared<jnivm::Array<jnivm::Array<TestClass>>>(length);
     // };
     auto outerArray = env->env.NewObjectArray(20, env->env.GetObjectClass(innerArray), innerArray);
-    c->getMethod("([Ljava/lang/Class;[[LTestClass;)V", "Test4")->invoke(*env, c.get(), (jobject)nullptr, (jobject)outerArray);
+    c->getMethod("([Ljava/lang/Class;[[LTestClass;)V", "Test4")->invoke(*jenv, c.get(), (jobject)nullptr, (jobject)outerArray);
 
 
     std::shared_ptr<jnivm::Array<TestClass>> specArray;

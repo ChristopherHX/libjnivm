@@ -1,6 +1,6 @@
 #pragma once
 
-namespace jnivm {
+namespace FakeJni {
     struct LibraryOptions {
         void*(*dlopen)(const char*, int);
         void*(*dlsym)(void *handle, const char*);

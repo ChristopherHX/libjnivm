@@ -16,11 +16,3 @@ jnivm::ENV::ENV(jnivm::VM *vm, const JNINativeInterface &defaultinterface) : vm(
 std::shared_ptr<Class> ENV::GetClass(const char * name) {
 	return InternalFindClass(this, name);
 }
-
-std::shared_ptr<Object> ENV::resolveReference(jobject obj) {
-    return JNITypes<std::shared_ptr<Object>>::JNICast(this, obj);
-}
-
-jnivm::VM &jnivm::ENV::getVM() {
-    return *vm;
-}

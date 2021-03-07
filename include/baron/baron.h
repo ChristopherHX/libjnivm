@@ -1,6 +1,6 @@
 #pragma once
-#include "../jnivm.h"
+#include "../fake-jni/fake-jni.h"
 
 namespace Baron {
-    using Jvm = jnivm::VM;
+    using Jvm = FakeJni::Jvm;
 }

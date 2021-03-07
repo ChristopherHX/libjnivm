@@ -32,33 +32,6 @@ namespace jnivm {
         
         template<class T>
         std::shared_ptr<Class> GetClass(const char * name);
-
-        VM& getVM();
-
-// fake-jni api compat layer
-
-        std::shared_ptr<Object> resolveReference(jobject obj);
-
-        jobject createLocalReference(std::shared_ptr<Object> obj) {
-            return env.NewLocalRef((jobject)obj.get());
-        }
-
-        inline jint RegisterNatives(jclass clazz, const JNINativeMethod *methods, jint nMethods) {
-            return env.RegisterNatives(clazz, methods, nMethods);
-        }
-
-        jfieldID GetStaticFieldID(jclass clazz, const char *name,
-                              const char *sig) {
-            return ninterface.GetStaticFieldID(&env,clazz,name,sig);
-        }
-        jint GetStaticIntField(jclass clazz, jfieldID fieldID) {
-            return ninterface.GetStaticIntField(&env,clazz,fieldID);
-        }
-
-        JNIEnv* operator&() {
-            return &env;
-        }
-
     };
 }
 #endif

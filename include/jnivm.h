@@ -12,12 +12,13 @@ namespace jnivm {
     class ENV;
 }
 namespace FakeJni {
-    using Jvm = jnivm::VM;
+    class Jvm;
+    class Env;
     class JniEnvContext {
     public:
-        JniEnvContext(const Jvm& vm);
+        JniEnvContext(Jvm& vm);
         JniEnvContext() {}
-        static thread_local jnivm::ENV* env;
-        jnivm::ENV& getJniEnv();
+        static thread_local std::shared_ptr<Env> env;
+        Env& getJniEnv();
     };
 }

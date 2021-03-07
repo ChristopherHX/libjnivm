@@ -6,7 +6,6 @@
 #include <unordered_map>
 #include <typeindex>
 #include <jni.h>
-#include <jnivm/libraryoptions.h>
 #ifdef JNI_DEBUG
 #include <jnivm/internal/codegen/namespace.h>
 #endif
@@ -41,15 +40,6 @@ namespace jnivm {
         // Map of all jni threads and local stuff by thread id
         std::unordered_map<pthread_t, std::shared_ptr<ENV>> jnienvs;
 
-        class libinst {
-            void* handle;
-            LibraryOptions loptions;
-            JavaVM* javaVM;
-        public:
-            libinst(const std::string& rpath, JavaVM* javaVM, LibraryOptions loptions);
-            ~libinst();
-        };
-        std::unordered_map<std::string, libinst> libraries;
     public:
 #ifdef JNI_DEBUG
         // For Generating Stub header files out of captured jni usage
@@ -57,9 +47,6 @@ namespace jnivm {
 #endif
         // Map of all classes hooked or implicitly declared
         std::unordered_map<std::string, std::shared_ptr<Class>> classes;
-        
-        void attachLibrary(const std::string &rpath, const std::string &options, LibraryOptions loptions);
-        void detachLibrary(const std::string &rpath);
 
         std::mutex mtx;
         // Stores all global references
@@ -76,12 +63,6 @@ namespace jnivm {
         JNIEnv * GetJNIEnv();
         // Returns the Env of the current thread
         std::shared_ptr<ENV> GetEnv();
-
-        std::shared_ptr<Class> findClass(const char * name);
-
-        jobject createGlobalReference(std::shared_ptr<Object> obj);
-
-        template<class cl> inline void registerClass();
 
 #ifdef JNI_DEBUG
         // Dump all classes incl. function referenced or called from the (foreign) code

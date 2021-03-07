@@ -4,9 +4,8 @@
 #include "../jnivm/object.h"
 #include "../jnivm/string.h"
 #include "../jnivm/class.h"
+#include "libraryoptions.h"
 namespace FakeJni {
-    using Jvm = jnivm::VM;
-    using Env =  jnivm::ENV;
     using JObject = jnivm::Object;
     using JString = jnivm::String;
     using JClass = jnivm::Class;
@@ -29,11 +28,55 @@ namespace FakeJni {
     using JLongArray = jnivm::Array<JLong>;
     using JDoubleArray = jnivm::Array<JDouble>;
 
+    class Jvm : public JavaVM {
+        jnivm::VM vm;
+        class libinst {
+            void* handle;
+            LibraryOptions loptions;
+            JavaVM* javaVM;
+        public:
+            libinst(const std::string& rpath, JavaVM* javaVM, LibraryOptions loptions);
+            ~libinst();
+        };
+        std::unordered_map<std::string, std::unique_ptr<libinst>> libraries;
+    public:
+        Jvm() {
+            functions = vm.GetJavaVM()->functions;
+            ((JNIInvokeInterface *)functions)->reserved1 = this;
+        }
+
+        void attachLibrary(const std::string &rpath, const std::string &options, LibraryOptions loptions);
+        void detachLibrary(const std::string &rpath);
+
+        jobject createGlobalReference(std::shared_ptr<JObject> obj);
+
+        template<class cl> inline void registerClass();
+
+        std::shared_ptr<JClass> findClass(const char * name);
+    };
+
+    class Env : public JNIEnv {
+        std::shared_ptr<jnivm::ENV> env;
+        Jvm& jvm;
+    public:
+        Env(Jvm& jvm, const std::shared_ptr<jnivm::ENV>& env) : jvm(jvm) {
+            functions = env->env.functions;
+            this->env = env;
+        }
+
+        std::shared_ptr<JObject> resolveReference(jobject obj);
+
+        jobject createLocalReference(std::shared_ptr<JObject> obj) {
+            return jnivm::JNITypes<std::shared_ptr<JObject>>::ToJNIReturnType(env.get(), obj);
+        }
+        Jvm& getVM();
+    };
+
     struct LocalFrame : public JniEnvContext {
         LocalFrame(int size = 0) : JniEnvContext() {
             (&getJniEnv())->PushLocalFrame(size);
         }
-        LocalFrame(const Jvm& vm, int size = 0) : JniEnvContext(vm) {
+        LocalFrame(const Jvm& vm, int size = 0) : JniEnvContext((Jvm&)vm) {
             (&getJniEnv())->PushLocalFrame(size);
         }
         ~LocalFrame() {
@@ -81,9 +124,11 @@ namespace FakeJni {
     
 }
 
-namespace jnivm {
-    template<class cl> void jnivm::VM::registerClass() {
-        FakeJni::JniEnvContext::env = GetEnv().get();
+namespace FakeJni {
+    template<class cl> void Jvm::registerClass() {
+        if(FakeJni::JniEnvContext::env == nullptr) {
+            FakeJni::JniEnvContext::env = std::make_shared<Env>(*this, vm.GetEnv());
+        }
         cl::registerClass();
     }
 
@@ -101,7 +146,7 @@ namespace jnivm {
                                             return getDescriptor();\
                                         }
 #define BEGIN_NATIVE_DESCRIPTOR(name, ...)  std::shared_ptr<jnivm::Class> name ::getDescriptor() {\
-                                                auto cl = FakeJni::LocalFrame().getJniEnv().GetClass< name >( name ::getClassName().data());\
+                                                auto cl = ((jnivm::ENV*)FakeJni::JniEnvContext().getJniEnv().functions->reserved0)->GetClass< name >( name ::getClassName().data());\
                                                 if(cl->methods.size() == 0 && cl->fields.size() == 0 && !cl->Instantiate && !cl->baseclasses) {\
                                                     registerClass();\
                                                 }\
@@ -112,9 +157,9 @@ namespace jnivm {
                                                 static std::vector<FakeJni::Descriptor> desc({
 #define END_NATIVE_DESCRIPTOR                   });\
                                                 FakeJni::LocalFrame frame;\
-                                                std::shared_ptr<jnivm::Class> clazz = frame.getJniEnv().GetClass<ClassName>(ClassName::getClassName().data());\
+                                                std::shared_ptr<jnivm::Class> clazz = ((jnivm::ENV*)frame.getJniEnv().functions->reserved0)->GetClass<ClassName>(ClassName::getClassName().data());\
                                                 for(auto&& des : desc) {\
-                                                    des.registre(std::addressof(frame.getJniEnv()), clazz.get());\
+                                                    des.registre((jnivm::ENV*)frame.getJniEnv().functions->reserved0, clazz.get());\
                                                 }\
                                                 return clazz;\
                                             }

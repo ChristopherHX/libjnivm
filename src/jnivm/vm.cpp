@@ -455,6 +455,8 @@ template<class ...jnitypes> constexpr JNINativeInterface GetInterface() {
 	};
 }
 
+#include <fake-jni/fake-jni.h>
+
 VM::VM() : ninterface(GetInterface<jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble>()), iinterface({
 			this,
 			NULL,
@@ -474,7 +476,9 @@ VM::VM() : ninterface(GetInterface<jboolean, jbyte, jchar, jshort, jint, jlong, 
 				if(penv) {
 					*penv = &nenv->env;
 				}
-				FakeJni::JniEnvContext::env = nenv.get();
+				if(vm->functions->reserved1 && !FakeJni::JniEnvContext::env) {
+					FakeJni::JniEnvContext::env = std::make_shared<FakeJni::Env>(*(FakeJni::Jvm*)vm->functions->reserved1, nenv);
+				}
 #else
 				if(penv) {
 					std::lock_guard<std::mutex> lock(((VM *)(vm->functions->reserved0))->mtx);
@@ -546,45 +550,4 @@ std::shared_ptr<ENV> VM::GetEnv() {
 #else
 	return jnienvs.begin()->second;
 #endif
-}
-
-std::shared_ptr<jnivm::Class> jnivm::VM::findClass(const char *name) {
-    return GetEnv()->GetClass(name);
-}
-
-jobject jnivm::VM::createGlobalReference(std::shared_ptr<jnivm::Object> obj) {
-    return GetEnv()->env.NewGlobalRef((jobject)obj.get());
-}
-
-std::vector<std::shared_ptr<jnivm::Class>> jnivm::Object::GetBaseClasses(jnivm::ENV *env) {
-	return { nullptr };
-}
-
-
-jnivm::VM::libinst::libinst(const std::string &rpath, JavaVM *javaVM, jnivm::LibraryOptions loptions) : loptions(loptions), javaVM(javaVM) {
-	handle = loptions.dlopen(rpath.c_str(), 0);
-	if(handle) {
-		auto JNI_OnLoad = (jint (*)(JavaVM* vm, void* reserved))loptions.dlsym(handle, "JNI_OnLoad");
-		if (JNI_OnLoad) {
-			JNI_OnLoad(javaVM, nullptr);
-		}
-	}
-}
-
-jnivm::VM::libinst::~libinst() {
-	if(handle) {
-		auto JNI_OnUnload = (jint (*)(JavaVM* vm, void* reserved))loptions.dlsym(handle, "JNI_OnUnload");
-		if (JNI_OnUnload) {
-			JNI_OnUnload(javaVM, nullptr);
-		}
-		loptions.dlclose(handle);
-	}
-}
-
-void jnivm::VM::attachLibrary(const std::string &rpath, const std::string &options, jnivm::LibraryOptions loptions) {
-	libraries.insert({ rpath, { rpath, &javaVM, loptions } });
-}
-
-void jnivm::VM::detachLibrary(const std::string &rpath) {
-	libraries.erase(rpath);
 }
