@@ -38,17 +38,11 @@ namespace jnivm {
             constexpr auto StaticGet(ENV * env, Class* clazz, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIReturnType(env, handle(env, clazz, (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-2]))...));
             }
-            constexpr auto StaticSet(ENV * env, Class* clazz, const jvalue* values) {
-                return JNITypes<typename Function::Return>::ToJNIReturnType(env, handle(env, clazz, (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-2]))...));
-            }
             constexpr auto InstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIReturnType(env, handle(env, obj, (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-2]))...));
             }
             constexpr auto InstanceGet(ENV * env, jobject obj, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIReturnType(env, handle(env, obj, (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-2]))...));
-            }
-            constexpr void InstanceSet(ENV * env, jobject obj, const jvalue* values) {
-                handle(env, obj, (JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-2]))...);
             }
             static std::string GetJNIInvokeSignature(ENV * env) {
                 return "(" + UnfoldJNISignature<typename Function::template Parameter<I>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
@@ -71,7 +65,10 @@ namespace jnivm {
             constexpr auto StaticGet(ENV * env, Class* clazz, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIReturnType(env, handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I]))...));
             }
-            constexpr auto StaticSet(ENV * env, Class* clazz, const jvalue* values) {
+            constexpr auto InstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
+                return JNITypes<typename Function::Return>::ToJNIReturnType(env, handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I]))...));
+            }
+            constexpr auto InstanceGet(ENV * env, jobject obj, const jvalue* values) {
                 return JNITypes<typename Function::Return>::ToJNIReturnType(env, handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I]))...));
             }
             static std::string GetJNIInvokeSignature(ENV * env) {
