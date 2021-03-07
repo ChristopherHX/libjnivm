@@ -32,6 +32,10 @@ public:
         }
         return 3.6;
     }
+
+    inline static void exampleStaticFunction(JDouble d) {
+        std::cout << "From ExampleClass: " << d << std::endl;
+    }
 };
 
 BEGIN_NATIVE_DESCRIPTOR(SampleClass)
@@ -47,6 +51,8 @@ BEGIN_NATIVE_DESCRIPTOR(SampleClass)
 { Field<&SampleClass::intarrayfield>{}, "intarrayfield" },
 { Field<&SampleClass::longarrayfield>{}, "longarrayfield" },
 { Function<&SampleClass::JustAMemberFunction>{}, "JustAMemberFunction" },
+{ Function<&exampleStaticFunction>{}, "exampleStaticMemberFunction" },
+{ Function<&exampleStaticFunction>{}, "exampleStaticFunction", JMethodID::STATIC_FUNC },
 END_NATIVE_DESCRIPTOR
 
 int main(int argc, char** argv) {
@@ -72,5 +78,11 @@ int main(int argc, char** argv) {
     frame.getJniEnv().ReleaseIntArrayElements(a, carray, 0);
     jdouble ret = frame.getJniEnv().CallDoubleMethod(ref, method, a);
     std::cout << "JustAMemberFunction returned " << ret << "\n";
+
+    jmethodID exampleStaticMemberFunction = frame.getJniEnv().GetMethodID(frame.getJniEnv().GetObjectClass(ref), "exampleStaticMemberFunction", "(D)V");
+    frame.getJniEnv().CallVoidMethod(ref, exampleStaticMemberFunction, 7.9);
+
+    jmethodID exampleStaticFunction = frame.getJniEnv().GetMethodID(frame.getJniEnv().GetObjectClass(ref), "exampleStaticMemberFunction", "(D)V");
+    frame.getJniEnv().CallStaticVoidMethod(frame.getJniEnv().GetObjectClass(ref), exampleStaticFunction, 3.8);
     return 0;
 }

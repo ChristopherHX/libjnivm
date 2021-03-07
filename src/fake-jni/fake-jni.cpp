@@ -63,3 +63,20 @@ std::shared_ptr<FakeJni::JObject> FakeJni::Env::resolveReference(jobject obj) {
 FakeJni::Jvm &FakeJni::Env::getVM() {
     return jvm;
 }
+
+void FakeJni::Jvm::start() {
+	auto args = std::make_shared<JArray<JString>>(1);
+	(*args)[0] = std::make_shared<JString>("main");
+	start(args);
+}
+
+void FakeJni::Jvm::start(std::shared_ptr<FakeJni::JArray<FakeJni::JString>> args) {
+	for(auto&& c : vm.typecheck) {
+		LocalFrame frame(*this);
+		auto main = c.second->getMethod("([Ljava/lang/String;)V", "main");
+		if(main != nullptr) {
+			main->invoke(frame.getJniEnv(), c.second.get(), args);
+		}
+	}
+	throw std::runtime_error("main with [Ljava/lang/String;)V not found in any class!");
+}

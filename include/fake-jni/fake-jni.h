@@ -28,6 +28,15 @@ namespace FakeJni {
     using JLongArray = jnivm::Array<JLong>;
     using JDoubleArray = jnivm::Array<JDouble>;
 
+    class JMethodID {
+    public:
+        enum Type {
+            DEFAULT,
+            STATIC_FUNC,
+            MEMBER_FUNC,
+        };
+    };
+
     class Jvm : public JavaVM {
         jnivm::VM vm;
         class libinst {
@@ -45,6 +54,12 @@ namespace FakeJni {
             ((JNIInvokeInterface *)functions)->reserved1 = this;
         }
 
+        // compatibility stub
+        void registerDefaultSignalHandler() {}
+
+        void start();
+        void start(std::shared_ptr<JArray<JString>> args);
+
         void attachLibrary(const std::string &rpath, const std::string &options, LibraryOptions loptions);
         void detachLibrary(const std::string &rpath);
 
@@ -53,6 +68,9 @@ namespace FakeJni {
         template<class cl> inline void registerClass();
 
         std::shared_ptr<JClass> findClass(const char * name);
+
+        // compatibility stub
+        void destroy() {}
     };
 
     class Env : public JNIEnv {
@@ -95,10 +113,12 @@ namespace FakeJni {
     template<auto T> struct Field {
         using Type = decltype(T);
         static constexpr Type handle = T;
+        static constexpr bool isFunction = false;
     };
     template<auto T> struct Function {
         using Type = decltype(T);
         static constexpr Type handle = T;
+        static constexpr bool isFunction = true;
     };
 #endif
     template<class U, class... T> struct Constructor {
@@ -109,12 +129,38 @@ namespace FakeJni {
         }
     };
     struct Descriptor {
+#ifdef __cpp_nontype_template_parameter_auto
+        template<bool, class U> struct Helper {
+            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name) {
+                return [name](jnivm::ENV*env, jnivm::Class* cl) {
+                    cl->Hook(env, name, U::handle);
+                };
+            }
+        };
+        template<class U> struct Helper<true, U> {
+            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name) {
+                return [name](jnivm::ENV*env, jnivm::Class* cl) {
+                    cl->HookInstanceFunction(env, name, U::handle);
+                };
+            }
+        };
         std::function<void(jnivm::ENV*env, jnivm::Class* cl)> registre;
         template<class U> Descriptor(U && d, const char* name) {
-            registre = [name](jnivm::ENV*env, jnivm::Class* cl) {
-                cl->Hook(env, name, U::handle);
-            };
+            registre = Helper<U::isFunction, U>::Get(name);
         }
+        template<class U> Descriptor(U && d, const char* name, JMethodID::Type ty) {
+            static_assert(U::isFunction, "JMethodID::Type requires that this is a Function registration");
+            if(ty == JMethodID::Type::MEMBER_FUNC) {
+                registre = Helper<U::isFunction, U>::Get(name);
+            } else if(ty == JMethodID::Type::STATIC_FUNC) {
+                registre = [name](jnivm::ENV*env, jnivm::Class* cl) {
+                    cl->Hook(env, name, U::handle);
+                };
+            } else {
+                throw std::runtime_error("Not Implemented JMethodID::Type!");
+            }
+        }
+#endif
         template<class U> Descriptor(U && d) {
             registre = [](jnivm::ENV*env, jnivm::Class* cl) {
                 cl->Hook(env, "<init>", U::ctr);
