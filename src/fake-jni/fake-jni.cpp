@@ -71,7 +71,7 @@ void FakeJni::Jvm::start() {
 }
 
 void FakeJni::Jvm::start(std::shared_ptr<FakeJni::JArray<FakeJni::JString>> args) {
-	for(auto&& c : vm.typecheck) {
+	for(auto&& c : vm.classes) {
 		LocalFrame frame(*this);
 		auto main = c.second->getMethod("([Ljava/lang/String;)V", "main");
 		if(main != nullptr) {
