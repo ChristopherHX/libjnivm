@@ -148,6 +148,7 @@ namespace FakeJni {
                 };
             }
         };
+#ifdef FIX_FAKE_JNI_BUG_ALL_FUNCTIONS_SHOULD_BE_MEMBERS_FUNCTIONS
         template<class U> struct Helper<true, U> {
             static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name) {
                 return [name](jnivm::ENV*env, jnivm::Class* cl) {
@@ -155,6 +156,7 @@ namespace FakeJni {
                 };
             }
         };
+#endif
         template<bool, class U> struct Helper2 {
             static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name) {
                 throw std::runtime_error("Invalid modifier for this field");
@@ -174,7 +176,9 @@ namespace FakeJni {
         template<class U> Descriptor(U && d, const char* name, JMethodID::Modifiers ty) {
             static_assert(U::isFunction, "JMethodID::Type requires that this is a Function registration");
             if(((int)ty & (int)JMethodID::Modifiers::STATIC) == 0) {
-                registre = Helper<U::isFunction, U>::Get(name);
+                registre = [name](jnivm::ENV*env, jnivm::Class* cl) {
+                    cl->HookInstanceFunction(env, name, U::handle);
+                };
             } else {
                 registre = [name](jnivm::ENV*env, jnivm::Class* cl) {
                     cl->Hook(env, name, U::handle);
