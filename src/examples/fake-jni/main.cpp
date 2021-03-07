@@ -29,7 +29,7 @@ public:
     std::shared_ptr<JDoubleArray> doublearrayfield;
 
     JDouble JustAMemberFunction(std::shared_ptr<JIntArray> array) {
-        for (size_t i = 0; i < array->getSize(); i++) {
+        for (jsize i = 0; i < array->getSize(); i++) {
             std::cout << "Value of (*array)[" << i << "] = " << (*array)[i] << "\n"; 
         }
         return 3.6;
