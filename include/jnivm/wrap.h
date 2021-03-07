@@ -235,6 +235,13 @@ namespace jnivm {
             constexpr void StaticSet(ENV * env, Class* clazz, const jvalue* values) {
                 handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I]))...);
             }
+            constexpr void InstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
+                handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I]))...);
+            }
+            constexpr void InstanceSet(ENV * env, jobject obj, const jvalue* values) {
+                static_assert(sizeof...(I) == 1, "To use this function as instance setter, you need to have exactly one parameter");
+                handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I]))...);
+            }
             static std::string GetJNIInvokeSignature(ENV * env) {
                 return "(" + UnfoldJNISignature<typename Function::template Parameter<I>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
             }
