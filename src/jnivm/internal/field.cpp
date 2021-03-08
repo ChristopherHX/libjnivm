@@ -10,7 +10,7 @@ using namespace jnivm;
 
 template<bool isStatic, bool ReturnNull>
 jfieldID jnivm::GetFieldID(JNIEnv *env, jclass cl_, const char *name, const char *type) {
-    auto cl = JNITypes<std::shared_ptr<Class>>::JNICast((ENV*)env->functions->reserved0, cl_);
+    auto cl = JNITypes<std::shared_ptr<Class>>::JNICast(ENV::FromJNIEnv(env), cl_);
     std::lock_guard<std::mutex> lock(cl->mtx);
     std::string &classname = cl->name;
 
@@ -30,7 +30,7 @@ jfieldID jnivm::GetFieldID(JNIEnv *env, jclass cl_, const char *name, const char
 #endif
     } else {
         if(cur->baseclasses) {
-            for(auto&& i : cur->baseclasses((ENV*)env->functions->reserved0)) {
+            for(auto&& i : cur->baseclasses(ENV::FromJNIEnv(env))) {
                 if(i) {
                     auto id = GetFieldID<isStatic, true>(env, (jclass)i.get(), name, type);
                     if(id) {
@@ -70,12 +70,12 @@ template <class T> T jnivm::GetField(JNIEnv *env, jobject obj, jfieldID id) {
         Class* cl = obj ? (Class*)env->GetObjectClass(obj) : nullptr;
         LOG("JNIVM", "Call Field Getter Class=`%s` Field=`%s`", cl ? cl->nativeprefix.data() : "???", fid->name.data());
 #endif
-        return (*(std::function<T(ENV*, jobject, const jvalue*)>*)fid->getnativehandle.get())((ENV*)env->functions->reserved0, obj, nullptr);
+        return (*(std::function<T(ENV*, jobject, const jvalue*)>*)fid->getnativehandle.get())(ENV::FromJNIEnv(env), obj, nullptr);
     } else {
 #ifdef JNI_TRACE
         LOG("JNIVM", "Unknown Field Getter %s", fid->name.data());
 #endif
-        return defaultVal<T>((ENV*)env->functions->reserved0, fid ? fid->type : "");
+        return defaultVal<T>(ENV::FromJNIEnv(env), fid ? fid->type : "");
     }
 }
 
@@ -91,7 +91,7 @@ template <class T> void jnivm::SetField(JNIEnv *env, jobject obj, jfieldID id, T
         jvalue val;
         memset(&val, 0, sizeof(val));
         memcpy(&val, &value, sizeof(T));
-        (*(std::function<void(ENV*, jobject, const jvalue*)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, obj, &val);
+        (*(std::function<void(ENV*, jobject, const jvalue*)>*)fid->setnativehandle.get())(ENV::FromJNIEnv(env), obj, &val);
     } else {
 #ifdef JNI_TRACE
         LOG("JNIVM", "Unknown Field Setter %s", fid->name.data());
@@ -109,21 +109,21 @@ template <class T> T jnivm::GetStaticField(JNIEnv *env, jclass cl, jfieldID id) 
 #endif
     if (fid && fid->getnativehandle) {
         try {
-            return (*(std::function<T(ENV*, Class*, const jvalue *)>*)fid->getnativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, nullptr);
+            return (*(std::function<T(ENV*, Class*, const jvalue *)>*)fid->getnativehandle.get())(ENV::FromJNIEnv(env), (Class*)cl, nullptr);
         } catch (...) {
             auto cur = std::make_shared<Throwable>();
             cur->except = std::current_exception();
-            ((ENV*)env->functions->reserved0)->current_exception = cur;
+            (ENV::FromJNIEnv(env))->current_exception = cur;
     #ifdef JNI_TRACE
             env->ExceptionDescribe();
     #endif
-            return defaultVal<T>((ENV*)env->functions->reserved0, fid ? fid->type : "");
+            return defaultVal<T>(ENV::FromJNIEnv(env), fid ? fid->type : "");
         }
     } else {
 #ifdef JNI_TRACE
         LOG("JNIVM", "Unknown Field Getter %s", fid->name.data());
 #endif
-        return defaultVal<T>((ENV*)env->functions->reserved0, fid ? fid->type : "");
+        return defaultVal<T>(ENV::FromJNIEnv(env), fid ? fid->type : "");
     }
 }
 
@@ -141,11 +141,11 @@ void jnivm::SetStaticField(JNIEnv *env, jclass cl, jfieldID id, T value) {
             jvalue val;
             memset(&val, 0, sizeof(val));
             memcpy(&val, &value, sizeof(T));
-            (*(std::function<void(ENV*, Class*, const jvalue *)>*)fid->setnativehandle.get())((ENV*)env->functions->reserved0, (Class*)cl, &val);
+            (*(std::function<void(ENV*, Class*, const jvalue *)>*)fid->setnativehandle.get())(ENV::FromJNIEnv(env), (Class*)cl, &val);
         } catch (...) {
             auto cur = std::make_shared<Throwable>();
             cur->except = std::current_exception();
-            ((ENV*)env->functions->reserved0)->current_exception = cur;
+            (ENV::FromJNIEnv(env))->current_exception = cur;
     #ifdef JNI_TRACE
             env->ExceptionDescribe();
     #endif

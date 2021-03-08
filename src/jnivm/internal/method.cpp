@@ -9,7 +9,7 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
     std::shared_ptr<Method> next;
     std::string sname = str0 ? str0 : "";
     std::string ssig = str1 ? str1 : "";
-    auto cur = JNITypes<std::shared_ptr<Class>>::JNICast((ENV*)env->functions->reserved0, cl);
+    auto cur = JNITypes<std::shared_ptr<Class>>::JNICast(ENV::FromJNIEnv(env), cl);
     if(cur) {
         // Rewrite init to Static external function
         if(!isStatic && sname == "<init>") {
@@ -42,7 +42,7 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
     }
     if(!next) {
         if(cur && cur->baseclasses) {
-            for(auto&& i : cur->baseclasses((ENV*)env->functions->reserved0)) {
+            for(auto&& i : cur->baseclasses(ENV::FromJNIEnv(env))) {
                 if(i) {
                     auto id = GetMethodID<isStatic, true>(env, (jclass)i.get(), str0, str1);
                     if(id) {
@@ -59,7 +59,7 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
             cur->methods.push_back(next);
         } else {
             // For Debugging purposes without valid parent class
-            JNITypes<std::shared_ptr<Method>>::ToJNIType((ENV*)env->functions->reserved0, next);
+            JNITypes<std::shared_ptr<Method>>::ToJNIType(ENV::FromJNIEnv(env), next);
         }
         next->name = std::move(sname);
         next->signature = std::move(ssig);
@@ -95,20 +95,20 @@ template<> jobject jnivm::defaultVal(ENV* env, std::string signature) {
             switch (signature[off + 2])
             {
             case 'B':
-                return env->env.NewByteArray(0);
+                return env->GetJNIEnv()->NewByteArray(0);
             case 'S':
-                return env->env.NewShortArray(0);
+                return env->GetJNIEnv()->NewShortArray(0);
             case 'I':
-                return env->env.NewIntArray(0);
+                return env->GetJNIEnv()->NewIntArray(0);
             case 'J':
-                return env->env.NewLongArray(0);
+                return env->GetJNIEnv()->NewLongArray(0);
             case 'F':
-                return env->env.NewFloatArray(0);
+                return env->GetJNIEnv()->NewFloatArray(0);
             case 'D':
-                return env->env.NewDoubleArray(0);
+                return env->GetJNIEnv()->NewDoubleArray(0);
             case 'L':
             case '[':
-                return env->env.NewObjectArray(0, env->env.FindClass(signature[off + 2] == 'L' && signature[signature.size() - 1] == ';' ? signature.substr(off + 3, signature.size() - (off + 4)).data() : &signature.data()[off + 1]), nullptr);
+                return env->GetJNIEnv()->NewObjectArray(0, env->GetJNIEnv()->FindClass(signature[off + 2] == 'L' && signature[signature.size() - 1] == ';' ? signature.substr(off + 3, signature.size() - (off + 4)).data() : &signature.data()[off + 1]), nullptr);
             default:
 #ifdef JNI_TRACE
             LOG("JNIVM", "Constructing array=`%s` failed unknown type", &signature.data()[off + 1]);
@@ -170,28 +170,28 @@ T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
         LOG("JNIVM", "CallMethod field is null");
 #endif
     if (mid && mid->nativehandle) {
-        auto cl = JNITypes<std::shared_ptr<Class>>::JNICast((ENV*)env->functions->reserved0, env->GetObjectClass(obj));
-        mid = findVirtualOverload((ENV*)env->functions->reserved0, cl.get(), mid);
+        auto cl = JNITypes<std::shared_ptr<Class>>::JNICast(ENV::FromJNIEnv(env), env->GetObjectClass(obj));
+        mid = findVirtualOverload(ENV::FromJNIEnv(env), cl.get(), mid);
 #ifdef JNI_TRACE
         LOG("JNIVM", "Call Function Class=`%s` Method=`%s` Signature=`%s`", cl ? cl->nativeprefix.data() : "???", mid->name.data(), mid->signature.data());
 #endif
         try {
-            return (*(std::function<T(ENV*, jobject, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, obj, param);
+            return (*(std::function<T(ENV*, jobject, const jvalue *)>*)mid->nativehandle.get())(ENV::FromJNIEnv(env), obj, param);
         } catch (...) {
             auto cur = std::make_shared<Throwable>();
             cur->except = std::current_exception();
-            ((ENV*)env->functions->reserved0)->current_exception = cur;
+            (ENV::FromJNIEnv(env))->current_exception = cur;
 #ifdef JNI_TRACE
             env->ExceptionDescribe();
 #endif
-            return defaultVal<T>((ENV*)env->functions->reserved0, mid ? mid->signature : "");
+            return defaultVal<T>(ENV::FromJNIEnv(env), mid ? mid->signature : "");
         }
     } else {
 #ifdef JNI_TRACE
         Class* cl = obj ? (Class*)env->GetObjectClass(obj) : nullptr;
         LOG("JNIVM", "Unknown Function Class=`%s` Method=`%s` Signature=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid ? mid->name.data() : "???", mid ? mid->signature.data() : "???");
 #endif
-        return defaultVal<T>((ENV*)env->functions->reserved0, mid ? mid->signature : "");
+        return defaultVal<T>(ENV::FromJNIEnv(env), mid ? mid->signature : "");
     }
 };
 
@@ -203,7 +203,7 @@ T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
 #ifdef JNI_TRACE
         LOG("JNIVM", "CallMethod Method ID is null");
 #endif
-        return defaultVal<T>((ENV*)env->functions->reserved0, "");
+        return defaultVal<T>(ENV::FromJNIEnv(env), "");
     }
 };
 
@@ -236,27 +236,27 @@ T jnivm::CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id
         LOG("JNIVM", "CallNonvirtualMethod field is null");
 #endif
     if (mid && mid->nativehandle) {
-        auto clz = JNITypes<std::shared_ptr<Class>>::JNICast((ENV*)env->functions->reserved0, cl); 
+        auto clz = JNITypes<std::shared_ptr<Class>>::JNICast(ENV::FromJNIEnv(env), cl); 
 #ifdef JNI_TRACE
         LOG("JNIVM", "Call Function Class=`%s` Method=`%s`", clz ? clz->nativeprefix.data() : "???", mid->name.data());
 #endif
         mid = findNonVirtualOverload(clz.get(), mid);
         try {
-            return (*(std::function<T(ENV*, jobject, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, obj, param);
+            return (*(std::function<T(ENV*, jobject, const jvalue *)>*)mid->nativehandle.get())(ENV::FromJNIEnv(env), obj, param);
         } catch (...) {
             auto cur = std::make_shared<Throwable>();
             cur->except = std::current_exception();
-            ((ENV*)env->functions->reserved0)->current_exception = cur;
+            (ENV::FromJNIEnv(env))->current_exception = cur;
 #ifdef JNI_TRACE
             env->ExceptionDescribe();
 #endif
-            return defaultVal<T>((ENV*)env->functions->reserved0, mid ? mid->signature : "");
+            return defaultVal<T>(ENV::FromJNIEnv(env), mid ? mid->signature : "");
         }
     } else {
 #ifdef JNI_TRACE
         LOG("JNIVM", "Unknown Function Class=`%s` Method=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid ? mid->name.data() : "???");
 #endif
-        return defaultVal<T>((ENV*)env->functions->reserved0, mid ? mid->signature : "");
+        return defaultVal<T>(ENV::FromJNIEnv(env), mid ? mid->signature : "");
     }
 };
 
@@ -284,7 +284,7 @@ void jnivm::CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID
 
 template <class T>
 T jnivm::CallStaticMethod(JNIEnv * env, jclass _cl, jmethodID id, jvalue * param) {
-    auto cl = JNITypes<std::shared_ptr<Class>>::JNICast((ENV*)env->functions->reserved0, _cl);
+    auto cl = JNITypes<std::shared_ptr<Class>>::JNICast(ENV::FromJNIEnv(env), _cl);
     auto mid = ((Method *)id);
 #ifdef JNI_DEBUG
     if(!cl)
@@ -297,21 +297,21 @@ T jnivm::CallStaticMethod(JNIEnv * env, jclass _cl, jmethodID id, jvalue * param
         LOG("JNIVM", "Call Function Class=`%s` Method=`%s`", cl ? cl->nativeprefix.data() : "???", mid->name.data());
 #endif
         try {
-            return (*(std::function<T(ENV*, Class*, const jvalue *)>*)mid->nativehandle.get())((ENV*)env->functions->reserved0, cl.get(), param);
+            return (*(std::function<T(ENV*, Class*, const jvalue *)>*)mid->nativehandle.get())(ENV::FromJNIEnv(env), cl.get(), param);
         } catch (...) {
             auto cur = std::make_shared<Throwable>();
             cur->except = std::current_exception();
-            ((ENV*)env->functions->reserved0)->current_exception = cur;
+            (ENV::FromJNIEnv(env))->current_exception = cur;
 #ifdef JNI_TRACE
             env->ExceptionDescribe();
 #endif
-            return defaultVal<T>((ENV*)env->functions->reserved0, mid ? mid->signature : "");
+            return defaultVal<T>(ENV::FromJNIEnv(env), mid ? mid->signature : "");
         }
     } else {
 #ifdef JNI_TRACE
         LOG("JNIVM", "Unknown Function Class=`%s` Method=`%s`", cl ? cl->nativeprefix.data() : "???", mid ? mid->name.data() : "???");
 #endif
-        return defaultVal<T>((ENV*)env->functions->reserved0, mid ? mid->signature : "");
+        return defaultVal<T>(ENV::FromJNIEnv(env), mid ? mid->signature : "");
     }
 };
 

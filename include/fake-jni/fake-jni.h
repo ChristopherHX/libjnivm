@@ -6,6 +6,16 @@
 #include "../jnivm/class.h"
 #include "libraryoptions.h"
 namespace FakeJni {
+    class Jvm;
+    class Env;
+    class JniEnvContext {
+    public:
+        JniEnvContext(Jvm& vm);
+        JniEnvContext() {}
+        static thread_local Env* env;
+        Env& getJniEnv();
+    };
+
     using JObject = jnivm::Object;
     using JString = jnivm::String;
     using JClass = jnivm::Class;
@@ -48,9 +58,7 @@ namespace FakeJni {
         };
     };
 
-    class Jvm : public JavaVM {
-    protected:
-        jnivm::VM vm;
+    class Jvm : public JavaVM, protected jnivm::VM {
     private:
         class libinst {
             void* handle;
@@ -61,11 +69,12 @@ namespace FakeJni {
             ~libinst();
         };
         std::unordered_map<std::string, std::unique_ptr<libinst>> libraries;
+        // JNIInvokeInterface oldinterface;
+    protected:
+        virtual std::shared_ptr<jnivm::ENV> CreateEnv() override;
+
     public:
-        Jvm() {
-            functions = vm.GetJavaVM()->functions;
-            ((JNIInvokeInterface *)functions)->reserved1 = this;
-        }
+        Jvm();
 
         // compatibility stub
         void registerDefaultSignalHandler() {}
@@ -86,19 +95,22 @@ namespace FakeJni {
         void destroy() {}
     };
 
-    class Env : public JNIEnv {
-        std::shared_ptr<jnivm::ENV> env;
+    class Env : public JNIEnv, protected jnivm::ENV {
         Jvm& jvm;
     public:
-        Env(Jvm& jvm, const std::shared_ptr<jnivm::ENV>& env) : jvm(jvm) {
-            functions = env->env.functions;
-            this->env = env;
+        Env(Jvm& jvm, jnivm::VM *vm, const JNINativeInterface& interface) : jvm(jvm), jnivm::ENV(vm, interface) {
+            functions = GetJNIEnv()->functions;
+            if(FakeJni::JniEnvContext::env != nullptr) throw std::runtime_error("Multiple Jvm's in one thread are unsupported, use jnivm::VM for this feature");        
+                FakeJni::JniEnvContext::env = this;
+        }
+        ~Env() {
+            FakeJni::JniEnvContext::env = nullptr;
         }
 
         std::shared_ptr<JObject> resolveReference(jobject obj);
 
         jobject createLocalReference(std::shared_ptr<JObject> obj) {
-            return jnivm::JNITypes<std::shared_ptr<JObject>>::ToJNIReturnType(env.get(), obj);
+            return jnivm::JNITypes<std::shared_ptr<JObject>>::ToJNIReturnType(this, obj);
         }
         Jvm& getVM();
     };
@@ -180,31 +192,46 @@ namespace FakeJni {
                 };
             }
         };
+        template<bool, class U> struct Helper3;
+        template<class U> struct Helper3<false, U> {
+            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name, int ty) {
+                if((ty & (int)JFieldID::Modifiers::STATIC) == 0) {
+                    return Helper2<(jnivm::Function<typename U::Type>::type == jnivm::FunctionType::Property), U>::Get(name);
+                } else {
+                    return [name](jnivm::ENV*env, jnivm::Class* cl) {
+                        cl->Hook(env, name, U::handle);
+                    };
+                }
+            }
+        };
+        template<class U> struct Helper3<true, U> {
+            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name, int ty) {
+                if((ty & (int)JMethodID::Modifiers::STATIC) == 0) {
+                    return [name](jnivm::ENV*env, jnivm::Class* cl) {
+                    cl->HookInstanceFunction(env, name, U::handle);
+                };
+                } else {
+                    return [name](jnivm::ENV*env, jnivm::Class* cl) {
+                        cl->Hook(env, name, U::handle);
+                    };
+                }
+            }
+        };
+
         std::function<void(jnivm::ENV*env, jnivm::Class* cl)> registre;
         template<class U> Descriptor(U && d, const char* name) {
             registre = Helper<U::isFunction, U>::Get(name);
         }
         template<class U> Descriptor(U && d, const char* name, JMethodID::Modifiers ty) {
             static_assert(U::isFunction, "JMethodID::Type requires that this is a Function registration");
-            if(((int)ty & (int)JMethodID::Modifiers::STATIC) == 0) {
-                registre = [name](jnivm::ENV*env, jnivm::Class* cl) {
-                    cl->HookInstanceFunction(env, name, U::handle);
-                };
-            } else {
-                registre = [name](jnivm::ENV*env, jnivm::Class* cl) {
-                    cl->Hook(env, name, U::handle);
-                };
-            }
+            registre = Helper3<U::isFunction, U>::Get(name, ty);
         }
         template<class U> Descriptor(U && d, const char* name, JFieldID::Modifiers ty) {
             static_assert(!U::isFunction, "JMethodID::Type requires that this is a field registration");
-            if(((int)ty & (int)JFieldID::Modifiers::STATIC) == 0) {
-                registre = Helper2<(jnivm::Function<typename U::Type>::type == jnivm::FunctionType::Property), U>::Get(name);
-            } else {
-                registre = [name](jnivm::ENV*env, jnivm::Class* cl) {
-                    cl->Hook(env, name, U::handle);
-                };
-            }
+            registre = Helper3<U::isFunction, U>::Get(name, ty);
+        }
+        template<class U> Descriptor(U && d, const char* name, int flags) {
+            registre = Helper3<U::isFunction, U>::Get(name, flags);
         }
 #endif
         template<class U> Descriptor(U && d) {
@@ -218,9 +245,6 @@ namespace FakeJni {
 
 namespace FakeJni {
     template<class cl> void Jvm::registerClass() {
-        if(FakeJni::JniEnvContext::env == nullptr) {
-            FakeJni::JniEnvContext::env = std::make_shared<Env>(*this, vm.GetEnv());
-        }
         cl::registerClass();
     }
 
@@ -238,7 +262,7 @@ namespace FakeJni {
                                             return getDescriptor();\
                                         }
 #define BEGIN_NATIVE_DESCRIPTOR(name, ...)  std::shared_ptr<jnivm::Class> name ::getDescriptor() {\
-                                                auto cl = ((jnivm::ENV*)FakeJni::JniEnvContext().getJniEnv().functions->reserved0)->GetClass< name >( name ::getClassName().data());\
+                                                auto cl = jnivm::ENV::FromJNIEnv(&FakeJni::JniEnvContext().getJniEnv())->GetClass< name >( name ::getClassName().data());\
                                                 if(cl->methods.size() == 0 && cl->fields.size() == 0 && !cl->Instantiate && !cl->baseclasses) {\
                                                     registerClass();\
                                                 }\
@@ -249,9 +273,9 @@ namespace FakeJni {
                                                 static std::vector<FakeJni::Descriptor> desc({
 #define END_NATIVE_DESCRIPTOR                   });\
                                                 FakeJni::LocalFrame frame;\
-                                                std::shared_ptr<jnivm::Class> clazz = ((jnivm::ENV*)frame.getJniEnv().functions->reserved0)->GetClass<ClassName>(ClassName::getClassName().data());\
+                                                std::shared_ptr<jnivm::Class> clazz = jnivm::ENV::FromJNIEnv(&FakeJni::JniEnvContext().getJniEnv())->GetClass<ClassName>(ClassName::getClassName().data());\
                                                 for(auto&& des : desc) {\
-                                                    des.registre((jnivm::ENV*)frame.getJniEnv().functions->reserved0, clazz.get());\
+                                                    des.registre(jnivm::ENV::FromJNIEnv(&FakeJni::JniEnvContext().getJniEnv()), clazz.get());\
                                                 }\
                                                 return clazz;\
                                             }

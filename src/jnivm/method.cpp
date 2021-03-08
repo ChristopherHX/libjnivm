@@ -3,20 +3,26 @@
 
 using namespace jnivm;
 
-Method * Class::getMethod(const char *sig, const char *name) {
-    for(auto&& m : methods) {
-        if(m->name == name) {
-            if(m->signature == sig) {
-                return m.get();
-            }
-#ifdef JNI_TRACE
-			else {
-				
-			}
-#endif
-        }
-    }
-    return nullptr;
+// class MethodProxy {
+// 	Class* cl;
+// 	std::string name;
+// 	std::string signature;
+// public:
+// 	MethodProxy(Class* cl, const char *name, const char *sig) {
+// 		this->cl = cl;
+// 		this->name = name;
+// 		this->signature = sig;
+// 	}
+// 	operator Method*() {
+
+// 		return nullptr;
+// 	}
+// };
+
+#include <fake-jni/fake-jni.h>
+#include "internal/method.h"
+MethodProxy Class::getMethod(const char *sig, const char *name) {
+    return { GetMethodID<false, true>(FakeJni::JniEnv::getCurrentEnv(), (jclass)(Object*)this, name, sig), GetMethodID<true, true>(FakeJni::JniEnv::getCurrentEnv(), (jclass)(Object*)this, name, sig) };
 }
 
 template<class T> jvalue toJValue(T val) {
@@ -37,33 +43,33 @@ jvalue Method::jinvoke(jnivm::ENV &env, jclass cl, ...) {
 	auto type = signature[signature.find_last_of(')') + 1];
 	switch (type) {
 	case 'V':
-		env.env.functions->CallStaticVoidMethodV(&env.env, cl, (jmethodID)this, l);
+		env.GetJNIEnv()->functions->CallStaticVoidMethodV(env.GetJNIEnv(), cl, (jmethodID)this, l);
 		ret = {};
 		break;
 	case 'Z':
-		ret = toJValue(env.env.functions->CallStaticBooleanMethodV(&env.env, cl, (jmethodID)this, l));
+		ret = toJValue(env.GetJNIEnv()->functions->CallStaticBooleanMethodV(env.GetJNIEnv(), cl, (jmethodID)this, l));
 		break;
 	case 'B':
-		ret = toJValue(env.env.functions->CallStaticByteMethodV(&env.env, cl, (jmethodID)this, l));
+		ret = toJValue(env.GetJNIEnv()->functions->CallStaticByteMethodV(env.GetJNIEnv(), cl, (jmethodID)this, l));
 		break;
 	case 'S':
-		ret = toJValue(env.env.functions->CallStaticShortMethodV(&env.env, cl, (jmethodID)this, l));
+		ret = toJValue(env.GetJNIEnv()->functions->CallStaticShortMethodV(env.GetJNIEnv(), cl, (jmethodID)this, l));
 		break;
 	case 'I':
-		ret = toJValue(env.env.functions->CallStaticIntMethodV(&env.env, cl, (jmethodID)this, l));
+		ret = toJValue(env.GetJNIEnv()->functions->CallStaticIntMethodV(env.GetJNIEnv(), cl, (jmethodID)this, l));
 		break;
 	case 'J':
-		ret = toJValue(env.env.functions->CallStaticLongMethodV(&env.env, cl, (jmethodID)this, l));
+		ret = toJValue(env.GetJNIEnv()->functions->CallStaticLongMethodV(env.GetJNIEnv(), cl, (jmethodID)this, l));
 		break;
 	case 'F':
-		ret = toJValue(env.env.functions->CallStaticFloatMethodV(&env.env, cl, (jmethodID)this, l));
+		ret = toJValue(env.GetJNIEnv()->functions->CallStaticFloatMethodV(env.GetJNIEnv(), cl, (jmethodID)this, l));
 		break;
 	case 'D':
-		ret = toJValue(env.env.functions->CallStaticDoubleMethodV(&env.env, cl, (jmethodID)this, l));
+		ret = toJValue(env.GetJNIEnv()->functions->CallStaticDoubleMethodV(env.GetJNIEnv(), cl, (jmethodID)this, l));
 		break;
 	case '[':
 	case 'L':
-		ret = toJValue(env.env.functions->CallStaticObjectMethodV(&env.env, cl, (jmethodID)this, l));
+		ret = toJValue(env.GetJNIEnv()->functions->CallStaticObjectMethodV(env.GetJNIEnv(), cl, (jmethodID)this, l));
 		break;
 	default:
 		va_end(l);
@@ -83,33 +89,33 @@ jvalue Method::jinvoke(jnivm::ENV &env, jobject obj, ...) {
 	auto type = signature[signature.find_last_of(')') + 1];
 	switch (type) {
 	case 'V':
-		env.env.functions->CallVoidMethodV(&env.env, obj, (jmethodID)this, l);
+		env.GetJNIEnv()->functions->CallVoidMethodV(env.GetJNIEnv(), obj, (jmethodID)this, l);
 		ret = {};
 		break;
 	case 'Z':
-		ret = toJValue(env.env.functions->CallBooleanMethodV(&env.env, obj, (jmethodID)this, l));
+		ret = toJValue(env.GetJNIEnv()->functions->CallBooleanMethodV(env.GetJNIEnv(), obj, (jmethodID)this, l));
 		break;
 	case 'B':
-		ret = toJValue(env.env.functions->CallByteMethodV(&env.env, obj, (jmethodID)this, l));
+		ret = toJValue(env.GetJNIEnv()->functions->CallByteMethodV(env.GetJNIEnv(), obj, (jmethodID)this, l));
 		break;
 	case 'S':
-		ret = toJValue(env.env.functions->CallShortMethodV(&env.env, obj, (jmethodID)this, l));
+		ret = toJValue(env.GetJNIEnv()->functions->CallShortMethodV(env.GetJNIEnv(), obj, (jmethodID)this, l));
 		break;
 	case 'I':
-		ret = toJValue(env.env.functions->CallIntMethodV(&env.env, obj, (jmethodID)this, l));
+		ret = toJValue(env.GetJNIEnv()->functions->CallIntMethodV(env.GetJNIEnv(), obj, (jmethodID)this, l));
 		break;
 	case 'J':
-		ret = toJValue(env.env.functions->CallLongMethodV(&env.env, obj, (jmethodID)this, l));
+		ret = toJValue(env.GetJNIEnv()->functions->CallLongMethodV(env.GetJNIEnv(), obj, (jmethodID)this, l));
 		break;
 	case 'F':
-		ret = toJValue(env.env.functions->CallFloatMethodV(&env.env, obj, (jmethodID)this, l));
+		ret = toJValue(env.GetJNIEnv()->functions->CallFloatMethodV(env.GetJNIEnv(), obj, (jmethodID)this, l));
 		break;
 	case 'D':
-		ret = toJValue(env.env.functions->CallDoubleMethodV(&env.env, obj, (jmethodID)this, l));
+		ret = toJValue(env.GetJNIEnv()->functions->CallDoubleMethodV(env.GetJNIEnv(), obj, (jmethodID)this, l));
 		break;
 	case '[':
 	case 'L':
-		ret = toJValue(env.env.functions->CallObjectMethodV(&env.env, obj, (jmethodID)this, l));
+		ret = toJValue(env.GetJNIEnv()->functions->CallObjectMethodV(env.GetJNIEnv(), obj, (jmethodID)this, l));
 		break;
 	default:
 		va_end(l);

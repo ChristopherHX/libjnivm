@@ -11,13 +11,15 @@ namespace jnivm {
     class Class;
     class Throwable;
     class ENV : public std::enable_shared_from_this<ENV> {
-    public:
         // Reference to parent VM
         VM * vm;
         // Invocation Table
         JNINativeInterface ninterface;
         // Holder of the invocation table
         JNIEnv env;
+    protected:
+        void OverrideJNINativeInterface(const JNINativeInterface& ninterface);
+    public:
 #ifdef EnableJNIVMGC
         // All explicit local Objects are stored here controlled by push and pop localframe
         std::forward_list<std::vector<std::shared_ptr<Object>>> localframe;
@@ -32,6 +34,10 @@ namespace jnivm {
         
         template<class T>
         std::shared_ptr<Class> GetClass(const char * name);
+
+        VM* GetVM();
+        JNIEnv* GetJNIEnv();
+        static ENV* FromJNIEnv(JNIEnv * env);
     };
 }
 #endif
@@ -54,8 +60,8 @@ namespace jnivm {
         static std::function<std::shared_ptr<jnivm::Object>(ENV* env)> CreateLambda() {
             return [](ENV* env) -> std::shared_ptr<jnivm::Object> {
                 auto res = std::make_shared<T>();
-                auto f = env->vm->typecheck.find(typeid(T));
-                if(f != env->vm->typecheck.end()) {
+                auto f = env->GetVM()->typecheck.find(typeid(T));
+                if(f != env->GetVM()->typecheck.end()) {
                     res->clazz = f->second;
                 }
                 return res;

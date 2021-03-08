@@ -39,7 +39,10 @@ namespace jnivm {
         JNINativeInterface ninterface;
         // Map of all jni threads and local stuff by thread id
         std::unordered_map<pthread_t, std::shared_ptr<ENV>> jnienvs;
-
+    protected:
+        void OverrideJNIInvokeInterface(const JNIInvokeInterface& iinterface);
+        virtual std::shared_ptr<ENV> CreateEnv();
+        const JNINativeInterface& GetNativeInterfaceTemplate();
     public:
 #ifdef JNI_DEBUG
         // For Generating Stub header files out of captured jni usage
@@ -57,12 +60,17 @@ namespace jnivm {
         VM(VM&&) = delete;
         // Initialize the native VM instance
         VM();
+        // Skip initialize if requested
+        VM(bool skipInit);
+        void initialize();
         // Returns the jni JavaVM
         JavaVM * GetJavaVM();
         // Returns the jni JNIEnv of the current thread
         JNIEnv * GetJNIEnv();
         // Returns the Env of the current thread
-        std::shared_ptr<ENV> GetEnv();
+        const std::shared_ptr<ENV>& GetEnv();
+
+        static VM* FromJavaVM(JavaVM * env);
 
 #ifdef JNI_DEBUG
         // Dump all classes incl. function referenced or called from the (foreign) code

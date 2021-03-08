@@ -5,7 +5,7 @@
 #include <regex>
 using namespace jnivm;
 
-static const char* blacklisted[] = { "java/lang/Object", "java/lang/String", "java/lang/Class", "java/nio/ByteBuffer" };
+static const char* blacklisted[] = { "java/lang/Object", "java/lang/String", "java/lang/Class", "java/nio/ByteBuffer", "java/lang/Throwable", "java/lang/reflect/Method", "java/lang/reflect/Field", "jnivm/lang/Weak", "jnivm/lang/Global" };
 
 std::string Class::GenerateHeader(std::string scope) {
 	if (std::find(std::begin(blacklisted), std::end(blacklisted), nativeprefix) != std::end(blacklisted)) return {};

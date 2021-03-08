@@ -12,7 +12,7 @@ namespace jnivm {
             using BaseClasseTuple = std::tuple<BaseClasses...>;
             using ArrayBaseType = ArrayBase<BaseClasses...>;
             static std::vector<std::shared_ptr<Class>> GetBaseClasses(ENV* env) {
-                std::vector<std::shared_ptr<Class>> ret = { env->vm->typecheck[typeid(BaseClasses)]... };
+                std::vector<std::shared_ptr<Class>> ret = { env->GetVM()->typecheck[typeid(BaseClasses)]... };
 #ifndef NDEBUG
                 for(size_t i = 0, size = ret.size(); i < size; ++i) {
                     if(!ret[i]) {

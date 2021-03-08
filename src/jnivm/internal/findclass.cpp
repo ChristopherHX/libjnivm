@@ -7,7 +7,7 @@
 std::shared_ptr<jnivm::Class> jnivm::InternalFindClass(ENV *env, const char *name) {
 	auto prefix = name;
 	auto && nenv = *env;
-	auto && vm = nenv.vm;
+	auto && vm = nenv.GetVM();
 #ifdef JNI_TRACE
 	LOG("JNIVM", "InternalFindClass %s", name);
 #endif
@@ -92,7 +92,7 @@ std::shared_ptr<jnivm::Class> jnivm::InternalFindClass(ENV *env, const char *nam
 }
 
 jclass jnivm::InternalFindClass(JNIEnv *env, const char *name) {
-	return JNITypes<std::shared_ptr<Class>>::ToJNIType((ENV*)env->functions->reserved0, InternalFindClass((ENV*)env->functions->reserved0, name));
+	return JNITypes<std::shared_ptr<Class>>::ToJNIType(ENV::FromJNIEnv(env), InternalFindClass(ENV::FromJNIEnv(env), name));
 }
 
 void jnivm::Declare(JNIEnv *env, const char *signature) {

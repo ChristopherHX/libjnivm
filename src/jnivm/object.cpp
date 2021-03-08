@@ -10,7 +10,7 @@ std::shared_ptr<jnivm::Class> jnivm::Object::getClassInternal(jnivm::ENV *env) {
 
 jnivm::Class &jnivm::Object::getClass() {
     auto&& env = std::addressof(FakeJni::JniEnvContext().getJniEnv());
-    auto ret = getClassInternal((ENV*)env->functions->reserved0);
+    auto ret = getClassInternal(ENV::FromJNIEnv(env));
     if(ret == nullptr) {
         throw std::runtime_error("Invalid Object");
     }

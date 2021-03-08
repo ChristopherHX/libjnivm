@@ -217,9 +217,9 @@ template<class T> struct ClassName<T, true> {
 #include "env.h"
 
 template<class T, class B> std::string jnivm::JNITypesObjectBase<T, B>::GetJNISignature(jnivm::ENV *env){
-    std::lock_guard<std::mutex> lock(env->vm->mtx);
-    auto r = env->vm->typecheck.find(typeid(T));
-    if(r != env->vm->typecheck.end()) {
+    std::lock_guard<std::mutex> lock(env->GetVM()->mtx);
+    auto r = env->GetVM()->typecheck.find(typeid(T));
+    if(r != env->GetVM()->typecheck.end()) {
         return "L" + r->second->nativeprefix + ";";
     } else {
         return "L" + ClassName<T, hasname<T>::value>::getClassName() + ";"; 
@@ -228,9 +228,9 @@ template<class T, class B> std::string jnivm::JNITypesObjectBase<T, B>::GetJNISi
 
 template<class T, class B> std::shared_ptr<jnivm::Class> jnivm::JNITypesObjectBase<T, B>::GetClass(jnivm::ENV *env) {
     // ToDo find the deadlock or replace with recursive_mutex
-    // std::lock_guard<std::mutex> lock(env->vm->mtx);
-    auto r = env->vm->typecheck.find(typeid(T));
-    if(r != env->vm->typecheck.end()) {
+    // std::lock_guard<std::mutex> lock(env->GetVM()->mtx);
+    auto r = env->GetVM()->typecheck.find(typeid(T));
+    if(r != env->GetVM()->typecheck.end()) {
         return r->second;
     } else {
         return nullptr;

@@ -40,6 +40,13 @@ public:
     }
 };
 
+class DerivedClass : public SampleClass {
+public:
+    DEFINE_CLASS_NAME("com/example/DerivedClass", SampleClass)
+
+
+};
+
 FakeJni::JBoolean SampleClass::staticbooleanfield = false;
 
 BEGIN_NATIVE_DESCRIPTOR(SampleClass)
@@ -55,11 +62,11 @@ BEGIN_NATIVE_DESCRIPTOR(SampleClass)
 { Field<&SampleClass::shortarrayfield>{}, "shortarrayfield" },
 { Field<&SampleClass::intarrayfield>{}, "intarrayfield" },
 { Field<&SampleClass::longarrayfield>{}, "longarrayfield" },
-// staticbooleanfield as static field
-{ Field<&staticbooleanfield>{}, "staticbooleanfield" },
 // staticbooleanfield explicitly as static field
-{ Field<&staticbooleanfield>{}, "staticbooleanfield2", JFieldID::STATIC },
+{ Field<&staticbooleanfield>{}, "staticbooleanfield", JFieldID::PUBLIC | JFieldID::STATIC },
 // staticbooleanfield as member field
+{ Field<&staticbooleanfield>{}, "staticbooleanfield2" },
+// staticbooleanfield explicitly as member field
 { Field<&staticbooleanfield>{}, "booleanfield2", JFieldID::PUBLIC },
 { Function<&SampleClass::JustAMemberFunction>{}, "JustAMemberFunction" },
 // exampleStaticFunction as member function, not static, this is different to fields
@@ -67,13 +74,16 @@ BEGIN_NATIVE_DESCRIPTOR(SampleClass)
 // exampleStaticFunction explicitly as member function, not static
 { Function<&exampleStaticFunction>{}, "exampleStaticMemberFunction2", JMethodID::PUBLIC },
 // exampleStaticFunction explicitly as static function
-{ Function<&exampleStaticFunction>{}, "exampleStaticFunction", JMethodID::STATIC },
+{ Function<&exampleStaticFunction>{}, "exampleStaticFunction", JMethodID::PUBLIC | JMethodID::STATIC },
+END_NATIVE_DESCRIPTOR
+
+BEGIN_NATIVE_DESCRIPTOR(DerivedClass)
 END_NATIVE_DESCRIPTOR
 
 int main(int argc, char** argv) {
     Jvm jvm;
     jvm.registerClass<SampleClass>();
-    auto SampleClass_ = jvm.findClass("SampleClass");
+    jvm.registerClass<DerivedClass>();
     LocalFrame frame(jvm);
     jobject ref = frame.getJniEnv().createLocalReference(std::make_shared<SampleClass>());
     jfieldID fieldid = frame.getJniEnv().GetFieldID(frame.getJniEnv().GetObjectClass(ref), "booleanfield", "Z");
@@ -110,10 +120,14 @@ int main(int argc, char** argv) {
 
     jfieldID staticbooleanfield = frame.getJniEnv().GetStaticFieldID(frame.getJniEnv().GetObjectClass(ref), "staticbooleanfield", "Z");
     value = frame.getJniEnv().GetStaticBooleanField(frame.getJniEnv().GetObjectClass(ref), staticbooleanfield);
-    std::cout << "booleanfield2 has value " << (bool)value << "\n";
+    std::cout << "staticbooleanfield has value " << (bool)value << "\n";
 
     SampleClass::staticbooleanfield = false;
     value = frame.getJniEnv().GetStaticBooleanField(frame.getJniEnv().GetObjectClass(ref), staticbooleanfield);
-    std::cout << "booleanfield2 has changed it's value to " << (bool)value << "\n";
+    std::cout << "staticbooleanfield has changed it's value to " << (bool)value << "\n";
+
+    auto CDerivedClass = jvm.findClass("com/example/DerivedClass");
+    // ! This line may not work with the original fake-jni, see here https://github.com/dukeify/fake-jni/issues/101
+    CDerivedClass->getMethod("(D)V", "exampleStaticMemberFunction")->invoke(frame.getJniEnv(), CDerivedClass.get(), 3.4);
     return 0;
 }

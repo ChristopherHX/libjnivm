@@ -464,7 +464,7 @@ TEST(FakeJni, Test) {
     ASSERT_EQ(t1, "");
     ASSERT_EQ(s3->asStdString(), "Test");
 
-    ASSERT_EQ(jvm.findClass("FakeJniTest")->getClass().getName(), "java/lang/Class");
+    ASSERT_EQ(jvm.findClass("FakeJniTest")->getClass().getName(), "Class");
 }
 
 template<char...ch> struct TemplateString {
@@ -531,8 +531,8 @@ TEST(JNIVM, Inherience) {
     // };
 
 
-    ASSERT_EQ(env->env.GetSuperclass(testClass2), testClass);
-    ASSERT_EQ(env->env.GetSuperclass(testClass3), testClass2);
+    ASSERT_EQ(env->GetJNIEnv()->GetSuperclass(testClass2), testClass);
+    ASSERT_EQ(env->GetJNIEnv()->GetSuperclass(testClass3), testClass2);
     
 }
 
@@ -601,26 +601,26 @@ TEST(JNIVM, ExternalFuncs) {
     env->GetClass<TestInterface>("TestInterface");
     auto c = env->GetClass<TestClass>("TestClass");
     bool succeded = false;
-    auto x = (env->env).FindClass("TestClass");
-    auto m = (env->env).GetStaticMethodID(x, "factory", "()LTestClass;");
-    auto o = (env->env).CallStaticObjectMethod(x, m);
+    auto x = env->GetJNIEnv()->FindClass("TestClass");
+    auto m = env->GetJNIEnv()->GetStaticMethodID(x, "factory", "()LTestClass;");
+    auto o = env->GetJNIEnv()->CallStaticObjectMethod(x, m);
     c->HookInstanceFunction(env.get(), "test", [&succeded, src = jnivm::JNITypes<std::shared_ptr<jnivm::Object>>::JNICast(env.get(), o)](jnivm::ENV*env, jnivm::Object*obj) {
         ASSERT_EQ(src.get(), obj);
         succeded = true;
     });
-    auto m2 = (env->env).GetMethodID(x, "test", "()V");
-    (env->env).CallVoidMethod(o, m2);
+    auto m2 = env->GetJNIEnv()->GetMethodID(x, "test", "()V");
+    env->GetJNIEnv()->CallVoidMethod(o, m2);
     ASSERT_TRUE(succeded);
     c->HookInstanceFunction(env.get(), "test", [&succeded, src = jnivm::JNITypes<std::shared_ptr<jnivm::Object>>::JNICast(env.get(), o)](jnivm::Object*obj) {
         ASSERT_EQ(src.get(), obj);
         succeded = false;
     });
-    (env->env).CallVoidMethod(o, m2);
+    env->GetJNIEnv()->CallVoidMethod(o, m2);
     ASSERT_FALSE(succeded);
     c->HookInstanceFunction(env.get(), "test", [&succeded, src = jnivm::JNITypes<std::shared_ptr<jnivm::Object>>::JNICast(env.get(), o)]() {
         succeded = true;
     });
-    (env->env).CallVoidMethod(o, m2);
+    env->GetJNIEnv()->CallVoidMethod(o, m2);
     ASSERT_TRUE(succeded);
 
     // static
@@ -629,19 +629,19 @@ TEST(JNIVM, ExternalFuncs) {
         ASSERT_EQ(c.get(), obj);
         succeded = true;
     });
-    m2 = (env->env).GetStaticMethodID(x, "test", "()V");
-    (env->env).CallStaticVoidMethod(x, m2);
+    m2 = env->GetJNIEnv()->GetStaticMethodID(x, "test", "()V");
+    env->GetJNIEnv()->CallStaticVoidMethod(x, m2);
     ASSERT_TRUE(succeded);
     c->Hook(env.get(), "test", [&succeded, &c](jnivm::Class*obj) {
         ASSERT_EQ(c.get(), obj);
         succeded = false;
     });
-    (env->env).CallStaticVoidMethod(x, m2);
+    env->GetJNIEnv()->CallStaticVoidMethod(x, m2);
     ASSERT_FALSE(succeded);
     c->Hook(env.get(), "test", [&succeded, &c]() {
         succeded = true;
     });
-    (env->env).CallStaticVoidMethod(x, m2);
+    env->GetJNIEnv()->CallStaticVoidMethod(x, m2);
     ASSERT_TRUE(succeded);
 }
 
@@ -651,14 +651,14 @@ TEST(JNIVM, WeakAndIsSame) {
     env->GetClass<TestInterface>("TestInterface");
     auto c = env->GetClass<TestClass>("TestClass");
     bool succeded = false;
-    auto x = (env->env).FindClass("TestClass");
-    auto m = (env->env).GetStaticMethodID(x, "factory", "()LTestClass;");
-    env->env.PushLocalFrame(100);
-    auto o = (env->env).CallStaticObjectMethod(x, m);
-    auto w = env->env.NewWeakGlobalRef(o);
-    ASSERT_TRUE(env->env.IsSameObject(o, w));
-    env->env.PopLocalFrame(nullptr);
-    ASSERT_TRUE(env->env.IsSameObject(0, w));
+    auto x = env->GetJNIEnv()->FindClass("TestClass");
+    auto m = env->GetJNIEnv()->GetStaticMethodID(x, "factory", "()LTestClass;");
+    env->GetJNIEnv()->PushLocalFrame(100);
+    auto o = env->GetJNIEnv()->CallStaticObjectMethod(x, m);
+    auto w = env->GetJNIEnv()->NewWeakGlobalRef(o);
+    ASSERT_TRUE(env->GetJNIEnv()->IsSameObject(o, w));
+    env->GetJNIEnv()->PopLocalFrame(nullptr);
+    ASSERT_TRUE(env->GetJNIEnv()->IsSameObject(0, w));
 }
 
 TEST(JNIVM, WeakToGlobalReference) {
@@ -667,22 +667,22 @@ TEST(JNIVM, WeakToGlobalReference) {
     env->GetClass<TestInterface>("TestInterface");
     auto c = env->GetClass<TestClass>("TestClass");
     bool succeded = false;
-    auto x = (env->env).FindClass("TestClass");
-    auto m = (env->env).GetStaticMethodID(x, "factory", "()LTestClass;");
-    env->env.PushLocalFrame(100);
-    auto o = (env->env).CallStaticObjectMethod(x, m);
-    auto w = env->env.NewWeakGlobalRef(o);
-    ASSERT_TRUE(env->env.IsSameObject(o, w));
-    ASSERT_EQ(env->env.GetObjectRefType(w), JNIWeakGlobalRefType);
-    auto g = env->env.NewGlobalRef(w);
-    ASSERT_TRUE(env->env.IsSameObject(g, w));
-    ASSERT_TRUE(env->env.IsSameObject(g, o));
-    ASSERT_EQ(env->env.GetObjectRefType(g), JNIGlobalRefType);
-    env->env.PopLocalFrame(nullptr);
-    ASSERT_FALSE(env->env.IsSameObject(0, w));
-    env->env.DeleteGlobalRef(g);
-    ASSERT_TRUE(env->env.IsSameObject(0, w));
-    ASSERT_EQ(env->env.NewGlobalRef(w), (jobject)0);
+    auto x = env->GetJNIEnv()->FindClass("TestClass");
+    auto m = env->GetJNIEnv()->GetStaticMethodID(x, "factory", "()LTestClass;");
+    env->GetJNIEnv()->PushLocalFrame(100);
+    auto o = env->GetJNIEnv()->CallStaticObjectMethod(x, m);
+    auto w = env->GetJNIEnv()->NewWeakGlobalRef(o);
+    ASSERT_TRUE(env->GetJNIEnv()->IsSameObject(o, w));
+    ASSERT_EQ(env->GetJNIEnv()->GetObjectRefType(w), JNIWeakGlobalRefType);
+    auto g = env->GetJNIEnv()->NewGlobalRef(w);
+    ASSERT_TRUE(env->GetJNIEnv()->IsSameObject(g, w));
+    ASSERT_TRUE(env->GetJNIEnv()->IsSameObject(g, o));
+    ASSERT_EQ(env->GetJNIEnv()->GetObjectRefType(g), JNIGlobalRefType);
+    env->GetJNIEnv()->PopLocalFrame(nullptr);
+    ASSERT_FALSE(env->GetJNIEnv()->IsSameObject(0, w));
+    env->GetJNIEnv()->DeleteGlobalRef(g);
+    ASSERT_TRUE(env->GetJNIEnv()->IsSameObject(0, w));
+    ASSERT_EQ(env->GetJNIEnv()->NewGlobalRef(w), (jobject)0);
 }
 
 TEST(JNIVM, WeakToLocalReference) {
@@ -691,25 +691,25 @@ TEST(JNIVM, WeakToLocalReference) {
     env->GetClass<TestInterface>("TestInterface");
     auto c = env->GetClass<TestClass>("TestClass");
     bool succeded = false;
-    ASSERT_EQ(env->env.GetObjectRefType(nullptr), JNIInvalidRefType);
-    auto x = (env->env).FindClass("TestClass");
-    auto m = (env->env).GetStaticMethodID(x, "factory", "()LTestClass;");
-    env->env.PushLocalFrame(100);
-    auto o = (env->env).CallStaticObjectMethod(x, m);
-    auto w = env->env.NewWeakGlobalRef(o);
-    ASSERT_TRUE(env->env.IsSameObject(o, w));
-    ASSERT_EQ(env->env.GetObjectRefType(w), JNIWeakGlobalRefType);
-    auto g = env->env.NewLocalRef(w);
-    ASSERT_TRUE(env->env.IsSameObject(g, w));
-    ASSERT_TRUE(env->env.IsSameObject(g, o));
-    ASSERT_EQ(env->env.GetObjectRefType(g), JNILocalRefType);
-    env->env.DeleteLocalRef(o);
-    ASSERT_FALSE(env->env.IsSameObject(0, w));
-    env->env.PopLocalFrame(nullptr);
-    ASSERT_TRUE(env->env.IsSameObject(0, w));
-    ASSERT_EQ(env->env.NewLocalRef(w), (jobject)0);
-    ASSERT_EQ(env->env.NewWeakGlobalRef(w), (jobject)0);
-    ASSERT_EQ(env->env.NewGlobalRef(w), (jobject)0);
+    ASSERT_EQ(env->GetJNIEnv()->GetObjectRefType(nullptr), JNIInvalidRefType);
+    auto x = env->GetJNIEnv()->FindClass("TestClass");
+    auto m = env->GetJNIEnv()->GetStaticMethodID(x, "factory", "()LTestClass;");
+    env->GetJNIEnv()->PushLocalFrame(100);
+    auto o = env->GetJNIEnv()->CallStaticObjectMethod(x, m);
+    auto w = env->GetJNIEnv()->NewWeakGlobalRef(o);
+    ASSERT_TRUE(env->GetJNIEnv()->IsSameObject(o, w));
+    ASSERT_EQ(env->GetJNIEnv()->GetObjectRefType(w), JNIWeakGlobalRefType);
+    auto g = env->GetJNIEnv()->NewLocalRef(w);
+    ASSERT_TRUE(env->GetJNIEnv()->IsSameObject(g, w));
+    ASSERT_TRUE(env->GetJNIEnv()->IsSameObject(g, o));
+    ASSERT_EQ(env->GetJNIEnv()->GetObjectRefType(g), JNILocalRefType);
+    env->GetJNIEnv()->DeleteLocalRef(o);
+    ASSERT_FALSE(env->GetJNIEnv()->IsSameObject(0, w));
+    env->GetJNIEnv()->PopLocalFrame(nullptr);
+    ASSERT_TRUE(env->GetJNIEnv()->IsSameObject(0, w));
+    ASSERT_EQ(env->GetJNIEnv()->NewLocalRef(w), (jobject)0);
+    ASSERT_EQ(env->GetJNIEnv()->NewWeakGlobalRef(w), (jobject)0);
+    ASSERT_EQ(env->GetJNIEnv()->NewGlobalRef(w), (jobject)0);
 }
 
 #include <baron/baron.h>
@@ -783,7 +783,8 @@ public:
 //     return ret;
 // }
 
-TEST(JNIVM, Hooking) {
+// DISABLED: getMethod is a exclusive feature of FakeJni::Jvm and throws an exception
+TEST(JNIVM, DISABLED_Hooking) {
     jnivm::VM vm;
     auto env = vm.GetEnv().get();
     auto c = env->GetClass<TestClass>("TestClass");
@@ -791,8 +792,8 @@ TEST(JNIVM, Hooking) {
     c->Hook(env, "Test2", &TestClass::Test2);
     c->Hook(env, "Test2", &TestClass::Test3);
     c->Hook(env, "Test4", &TestClass::Test4);
-    auto mid = env->env.GetStaticMethodID((jclass)c.get(), "Instatiate", "()LTestClass;");
-    auto obj = env->env.CallStaticObjectMethod((jclass)c.get(), mid);
+    auto mid = env->GetJNIEnv()->GetStaticMethodID((jclass)c.get(), "Instatiate", "()LTestClass;");
+    auto obj = env->GetJNIEnv()->CallStaticObjectMethod((jclass)c.get(), mid);
     auto jenv = vm.GetJNIEnv();
     ASSERT_TRUE(c->getMethod("(Z)Z", "Test")->invoke(*jenv, (jnivm::Object*)obj, false).z);
     ASSERT_FALSE(c->getMethod("(Z)Z", "Test")->invoke(*jenv, (jnivm::Object*)obj, true).z);
@@ -803,7 +804,7 @@ TEST(JNIVM, Hooking) {
         { "NativeTest4", "(Ljava/lang/Class;)V", (void*)&TestClass::NativeTest4 },
         { "NativeTest5", "(Ljava/lang/Class;)Ljava/lang/Class;", (void*)&TestClass::NativeTest5 }
     };
-    env->env.RegisterNatives((jclass)c.get(), methods, sizeof(methods) / sizeof(*methods));
+    env->GetJNIEnv()->RegisterNatives((jclass)c.get(), methods, sizeof(methods) / sizeof(*methods));
     ASSERT_EQ(c->natives.size(), sizeof(methods) / sizeof(*methods));
     c->getMethod("(LTestClass;)V", "NativeTest3")->invoke(*jenv, c.get(), obj);
     c->getMethod("(Ljava/lang/Class;)V", "NativeTest4")->invoke(*jenv, (jnivm::Object*)obj, c);
@@ -811,12 +812,12 @@ TEST(JNIVM, Hooking) {
     // c->InstantiateArray = [](jnivm::ENV *jenv, jsize length) {
     //     return std::make_shared<jnivm::Array<TestClass>>(length);
     // };
-    auto innerArray = env->env.NewObjectArray(12, (jclass)c.get(), obj);
-    // auto c2 = jnivm::JNITypes<std::shared_ptr<jnivm::Class>>::JNICast(env, env->env.GetObjectClass(innerArray));
+    auto innerArray = env->GetJNIEnv()->NewObjectArray(12, (jclass)c.get(), obj);
+    // auto c2 = jnivm::JNITypes<std::shared_ptr<jnivm::Class>>::JNICast(env, env->GetJNIEnv()->GetObjectClass(innerArray));
     // c2->InstantiateArray = [](jnivm::ENV *jenv, jsize length) {
     //     return std::make_shared<jnivm::Array<jnivm::Array<TestClass>>>(length);
     // };
-    auto outerArray = env->env.NewObjectArray(20, env->env.GetObjectClass(innerArray), innerArray);
+    auto outerArray = env->GetJNIEnv()->NewObjectArray(20, env->GetJNIEnv()->GetObjectClass(innerArray), innerArray);
     c->getMethod("([Ljava/lang/Class;[[LTestClass;)V", "Test4")->invoke(*jenv, c.get(), (jobject)nullptr, (jobject)outerArray);
 
 
@@ -829,7 +830,7 @@ TEST(JNIVM, Hooking) {
 
     auto obj6 = std::make_shared<TestClass3>();
     obj6->test();
-    env->env.UnregisterNatives((jclass)c.get());
+    env->GetJNIEnv()->UnregisterNatives((jclass)c.get());
     ASSERT_EQ(c->natives.size(), 0);
 }
 
@@ -872,19 +873,19 @@ TEST(JNIVM, VirtualFunction) {
     auto ptr = jnivm::JNITypes<decltype(val)>::ToJNIReturnType(env, val);
     auto _c2 = jnivm::JNITypes<decltype(c2)>::ToJNIType(env, c2);
     auto _c = jnivm::JNITypes<decltype(c)>::ToJNIType(env, c);
-    ASSERT_EQ(env->env.CallIntMethod(ptr, env->env.GetMethodID(_c, "Test", "()I")), (int)TestEnum::B);
-    ASSERT_EQ(env->env.CallIntMethod(ptr, env->env.GetMethodID(_c2, "Test", "()I")), (int)TestEnum::B);
-    ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c2, env->env.GetMethodID(_c, "Test", "()I")), (int)TestEnum::B);
-    ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c2, env->env.GetMethodID(_c2, "Test", "()I")), (int)TestEnum::B);
-    ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c, env->env.GetMethodID(_c, "Test", "()I")), (int)TestEnum::A);
-    ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c, env->env.GetMethodID(_c2, "Test", "()I")), (int)TestEnum::A);
+    ASSERT_EQ(env->GetJNIEnv()->CallIntMethod(ptr, env->GetJNIEnv()->GetMethodID(_c, "Test", "()I")), (int)TestEnum::B);
+    ASSERT_EQ(env->GetJNIEnv()->CallIntMethod(ptr, env->GetJNIEnv()->GetMethodID(_c2, "Test", "()I")), (int)TestEnum::B);
+    ASSERT_EQ(env->GetJNIEnv()->CallNonvirtualIntMethod(ptr, _c2, env->GetJNIEnv()->GetMethodID(_c, "Test", "()I")), (int)TestEnum::B);
+    ASSERT_EQ(env->GetJNIEnv()->CallNonvirtualIntMethod(ptr, _c2, env->GetJNIEnv()->GetMethodID(_c2, "Test", "()I")), (int)TestEnum::B);
+    ASSERT_EQ(env->GetJNIEnv()->CallNonvirtualIntMethod(ptr, _c, env->GetJNIEnv()->GetMethodID(_c, "Test", "()I")), (int)TestEnum::A);
+    ASSERT_EQ(env->GetJNIEnv()->CallNonvirtualIntMethod(ptr, _c, env->GetJNIEnv()->GetMethodID(_c2, "Test", "()I")), (int)TestEnum::A);
 
-    ASSERT_EQ(env->env.CallIntMethod(ptr, env->env.GetMethodID(_c, "Test2", "()I")), (int)TestEnum::B);
-    ASSERT_EQ(env->env.CallIntMethod(ptr, env->env.GetMethodID(_c2, "Test2", "()I")), (int)TestEnum::B);
-    ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c2, env->env.GetMethodID(_c, "Test2", "()I")), (int)TestEnum::B);
-    ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c2, env->env.GetMethodID(_c2, "Test2", "()I")), (int)TestEnum::B);
-    ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c, env->env.GetMethodID(_c, "Test2", "()I")), (int)TestEnum::A);
-    ASSERT_EQ(env->env.CallNonvirtualIntMethod(ptr, _c, env->env.GetMethodID(_c2, "Test2", "()I")), (int)TestEnum::A);
+    ASSERT_EQ(env->GetJNIEnv()->CallIntMethod(ptr, env->GetJNIEnv()->GetMethodID(_c, "Test2", "()I")), (int)TestEnum::B);
+    ASSERT_EQ(env->GetJNIEnv()->CallIntMethod(ptr, env->GetJNIEnv()->GetMethodID(_c2, "Test2", "()I")), (int)TestEnum::B);
+    ASSERT_EQ(env->GetJNIEnv()->CallNonvirtualIntMethod(ptr, _c2, env->GetJNIEnv()->GetMethodID(_c, "Test2", "()I")), (int)TestEnum::B);
+    ASSERT_EQ(env->GetJNIEnv()->CallNonvirtualIntMethod(ptr, _c2, env->GetJNIEnv()->GetMethodID(_c2, "Test2", "()I")), (int)TestEnum::B);
+    ASSERT_EQ(env->GetJNIEnv()->CallNonvirtualIntMethod(ptr, _c, env->GetJNIEnv()->GetMethodID(_c, "Test2", "()I")), (int)TestEnum::A);
+    ASSERT_EQ(env->GetJNIEnv()->CallNonvirtualIntMethod(ptr, _c, env->GetJNIEnv()->GetMethodID(_c2, "Test2", "()I")), (int)TestEnum::A);
 }
 
 }
@@ -932,42 +933,142 @@ TEST(FakeJni, attachLibrary) {
     static bool JNI_OnUnloadCalled = false;
     {
         FakeJni::Jvm vm;
-        std::string path = "testpath";
         static void * handle = (void *)34;
-        vm.attachLibrary(path, "", {
+        vm.attachLibrary("testpath", "", {
             [](const char*name, int) -> void*{
                 dlopenCalled = true;
-                // ASSERT_STRCASEEQ(path.c_str(), name);
                 return handle;
-        },  [](void* handle, const char*name) ->void* {
-                // ASSERT_EQ(_handle, handle);
+        },  [](void* _handle, const char*name) ->void* {
                 dlsymCalled = true;
-                if(strcmp(name, "JNI_OnLoad")) {
+                if(!strcmp(name, "JNI_OnLoad")) {
                     return (void*)+[](JavaVM* vm, void* reserved) -> jint {
                         JNI_OnLoadCalled = true;
                         return 0;
                     };
                 }
-                if(strcmp(name, "JNI_OnUnload")) {
+                if(!strcmp(name, "JNI_OnUnload")) {
                     return (void*)+[](JavaVM* vm, void* reserved) -> jint  {
                         JNI_OnUnloadCalled = true;
                         return 0;
                     };
                 }
                 return nullptr;
-        },  [](void* handle) -> int {
+        },  [](void* _handle) -> int {
                 dlcloseCalled = true;
                 return 0;
         } });
+        ASSERT_TRUE(dlopenCalled);
+        ASSERT_TRUE(dlsymCalled);
+        ASSERT_TRUE(JNI_OnLoadCalled);
+        ASSERT_FALSE(JNI_OnUnloadCalled);
+        ASSERT_FALSE(dlcloseCalled);
     }
-    ASSERT_TRUE(dlopenCalled);
-    ASSERT_TRUE(dlsymCalled);
-    ASSERT_TRUE(JNI_OnLoadCalled);
     ASSERT_TRUE(JNI_OnUnloadCalled);
     ASSERT_TRUE(dlcloseCalled);
 }
 
-TEST(JNIVM, ThrowingExceptions) {
+TEST(FakeJni, attachLibrary2) {
+    static int dlopenCalled= 0;
+    static int JNI_OnLoadCalled= 0;
+    static int dlsymCalled= 0;
+    static int dlcloseCalled= 0;
+    static int JNI_OnUnloadCalled= 0;
+    {
+        FakeJni::Jvm vm;
+        FakeJni::LibraryOptions opts = {
+            [](const char*name, int) -> void*{
+                ++dlopenCalled;
+                return (void*)678;
+        },  [](void* handle, const char*name) ->void* {
+                ++dlsymCalled;
+                if(!strcmp(name, "JNI_OnLoad")) {
+                    return (void*)+[](JavaVM* vm, void* reserved) -> jint {
+                        ++JNI_OnLoadCalled;
+                        return 0;
+                    };
+                }
+                if(!strcmp(name, "JNI_OnUnload")) {
+                    return (void*)+[](JavaVM* vm, void* reserved) -> jint  {
+                        ++JNI_OnUnloadCalled;
+                        return 0;
+                    };
+                }
+                return nullptr;
+        },  [](void* handle) -> int {
+                ++dlcloseCalled;
+                return 0;
+        } };
+        vm.attachLibrary("testpath", "", opts);
+        ASSERT_EQ(dlopenCalled, 1);
+        ASSERT_EQ(dlsymCalled, 1);
+        ASSERT_EQ(JNI_OnLoadCalled, 1);
+        ASSERT_EQ(JNI_OnUnloadCalled, 0);
+        ASSERT_EQ(dlcloseCalled, 0);
+        vm.attachLibrary("testpath2", "", opts);
+        ASSERT_EQ(dlopenCalled, 2);
+        ASSERT_EQ(dlsymCalled, 2);
+        ASSERT_EQ(JNI_OnLoadCalled, 2);
+        ASSERT_EQ(JNI_OnUnloadCalled, 0);
+        ASSERT_EQ(dlcloseCalled, 0);
+    }
+    ASSERT_EQ(JNI_OnUnloadCalled, 2);
+    ASSERT_EQ(dlcloseCalled, 2);
+}
+
+TEST(FakeJni, attachLibrary3) {
+    static int dlopenCalled= 0;
+    static int JNI_OnLoadCalled= 0;
+    static int dlsymCalled= 0;
+    static int dlcloseCalled= 0;
+    static int JNI_OnUnloadCalled= 0;
+    {
+        FakeJni::Jvm vm;
+        FakeJni::LibraryOptions opts = {
+            [](const char*name, int) -> void*{
+                ++dlopenCalled;
+                return (void*)678;
+        },  [](void* handle, const char*name) ->void* {
+                ++dlsymCalled;
+                if(!strcmp(name, "JNI_OnLoad")) {
+                    return (void*)+[](JavaVM* vm, void* reserved) -> jint {
+                        ++JNI_OnLoadCalled;
+                        return 0;
+                    };
+                }
+                if(!strcmp(name, "JNI_OnUnload")) {
+                    return (void*)+[](JavaVM* vm, void* reserved) -> jint  {
+                        ++JNI_OnUnloadCalled;
+                        return 0;
+                    };
+                }
+                return nullptr;
+        },  [](void* handle) -> int {
+                ++dlcloseCalled;
+                return 0;
+        } };
+        vm.attachLibrary("testpath", "", opts);
+        ASSERT_EQ(dlopenCalled, 1);
+        ASSERT_EQ(dlsymCalled, 1);
+        ASSERT_EQ(JNI_OnLoadCalled, 1);
+        ASSERT_EQ(JNI_OnUnloadCalled, 0);
+        ASSERT_EQ(dlcloseCalled, 0);
+        vm.detachLibrary("testpath");
+        ASSERT_EQ(dlsymCalled, 2);
+        ASSERT_EQ(JNI_OnUnloadCalled, 1);
+        ASSERT_EQ(dlcloseCalled, 1);
+        vm.attachLibrary("testpath2", "", opts);
+        ASSERT_EQ(dlopenCalled, 2);
+        ASSERT_EQ(dlsymCalled, 3);
+        ASSERT_EQ(JNI_OnLoadCalled, 2);
+        ASSERT_EQ(JNI_OnUnloadCalled, 1);
+        ASSERT_EQ(dlcloseCalled, 1);
+    }
+    ASSERT_EQ(JNI_OnUnloadCalled, 2);
+    ASSERT_EQ(dlcloseCalled, 2);
+}
+
+// DISABLED: getMethod is a exclusive feature of FakeJni::Jvm and throws an exception
+TEST(JNIVM, DISABLED_ThrowingExceptions) {
     jnivm::VM vm;
     vm.GetJNIEnv()->ThrowNew(vm.GetJNIEnv()->FindClass("java/lang/Throwable"), "Fatal error");
     ASSERT_TRUE(vm.GetJNIEnv()->ExceptionCheck());

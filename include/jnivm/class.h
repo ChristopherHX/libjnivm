@@ -13,6 +13,7 @@ namespace jnivm {
     template<FunctionType, class> struct HookManager;
     class Field;
     class Method;
+    class MethodProxy;
 
     class Class : public Object {
     public:
@@ -33,11 +34,10 @@ namespace jnivm {
 
         }
 
-        Method* getMethod(const char* sig, const char* name);
+        MethodProxy getMethod(const char* sig, const char* name);
 
         std::string getName() const {
-            auto s = nativeprefix.data();
-            return nativeprefix;
+            return name;
         }
 
         template<class T> void Hook(ENV* env, const std::string& method, T&& t);

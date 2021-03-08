@@ -6,7 +6,7 @@ FakeJni::JniEnvContext::JniEnvContext(FakeJni::Jvm &vm) {
     }
 } 
 
-thread_local std::shared_ptr<FakeJni::Env> FakeJni::JniEnvContext::env = nullptr;
+thread_local FakeJni::Env* FakeJni::JniEnvContext::env = nullptr;
 
 FakeJni::Env &FakeJni::JniEnvContext::getJniEnv() {
     if (env == nullptr) {
@@ -16,11 +16,11 @@ FakeJni::Env &FakeJni::JniEnvContext::getJniEnv() {
 }
 
 std::shared_ptr<jnivm::Class> FakeJni::Jvm::findClass(const char *name) {
-    return vm.GetEnv()->GetClass(name);
+    return jnivm::VM::GetEnv()->GetClass(name);
 }
 
 jobject FakeJni::Jvm::createGlobalReference(std::shared_ptr<jnivm::Object> obj) {
-    return vm.GetEnv()->env.NewGlobalRef((jobject)obj.get());
+    return jnivm::VM::GetEnv()->GetJNIEnv()->NewGlobalRef((jobject)obj.get());
 }
 
 std::vector<std::shared_ptr<jnivm::Class>> jnivm::Object::GetBaseClasses(jnivm::ENV *env) {
@@ -57,7 +57,7 @@ void FakeJni::Jvm::detachLibrary(const std::string &rpath) {
 }
 
 std::shared_ptr<FakeJni::JObject> FakeJni::Env::resolveReference(jobject obj) {
-    return jnivm::JNITypes<std::shared_ptr<JObject>>::JNICast(env.get(), obj);
+    return jnivm::JNITypes<std::shared_ptr<JObject>>::JNICast(this, obj);
 }
 
 FakeJni::Jvm &FakeJni::Env::getVM() {
@@ -71,7 +71,7 @@ void FakeJni::Jvm::start() {
 }
 
 void FakeJni::Jvm::start(std::shared_ptr<FakeJni::JArray<FakeJni::JString>> args) {
-	for(auto&& c : vm.classes) {
+	for(auto&& c : classes) {
 		LocalFrame frame(*this);
 		auto main = c.second->getMethod("([Ljava/lang/String;)V", "main");
 		if(main != nullptr) {

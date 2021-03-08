@@ -4,33 +4,33 @@
 using namespace jnivm;
 
 jsize jnivm::GetArrayLength(JNIEnv *env, jarray a) {
-    return a ? JNITypes<std::shared_ptr<Array<void>>>::JNICast((ENV*)env->functions->reserved0, a)->getSize() : 0;
+    return a ? JNITypes<std::shared_ptr<Array<void>>>::JNICast(ENV::FromJNIEnv(env), a)->getSize() : 0;
 }
 jobjectArray jnivm::NewObjectArray(JNIEnv * env, jsize length, jclass c, jobject init) {
-    auto cl0 = JNITypes<std::shared_ptr<Class>>::JNICast((ENV*)env->functions->reserved0, c);
+    auto cl0 = JNITypes<std::shared_ptr<Class>>::JNICast(ENV::FromJNIEnv(env), c);
     auto classname = cl0->nativeprefix[0] == '[' ? "[" + cl0->nativeprefix : "[L" + cl0->nativeprefix + ";";
-    auto cl = InternalFindClass((ENV*)env->functions->reserved0, classname.data());
+    auto cl = InternalFindClass(ENV::FromJNIEnv(env), classname.data());
     // auto arr = std::make_shared<Array<Object>>(new std::shared_ptr<Object>[length], length);
-    auto arr = cl->InstantiateArray ? cl->InstantiateArray((ENV*)env->functions->reserved0, length) : std::make_shared<Array<Object>>(length);
+    auto arr = cl->InstantiateArray ? cl->InstantiateArray(ENV::FromJNIEnv(env), length) : std::make_shared<Array<Object>>(length);
     arr->clazz = std::move(cl);
     if(init) {
         for (jsize i = 0; i < length; i++) {
             (*arr)[i] = (*(Object*)init).shared_from_this();
         }
     }
-    return JNITypes<std::shared_ptr<Array<Object>>>::ToJNIType((ENV*)env->functions->reserved0, arr);
+    return JNITypes<std::shared_ptr<Array<Object>>>::ToJNIType(ENV::FromJNIEnv(env), arr);
 }
 jobject jnivm::GetObjectArrayElement(JNIEnv *env, jobjectArray a, jsize i ) {
-    return JNITypes<std::shared_ptr<Object>>::ToJNIType((ENV*)env->functions->reserved0, (*JNITypes<std::shared_ptr<Array<Object>>>::JNICast((ENV*)env->functions->reserved0, a))[i]);
+    return JNITypes<std::shared_ptr<Object>>::ToJNIType(ENV::FromJNIEnv(env), (*JNITypes<std::shared_ptr<Array<Object>>>::JNICast(ENV::FromJNIEnv(env), a))[i]);
 }
 void jnivm::SetObjectArrayElement(JNIEnv *env, jobjectArray a, jsize i, jobject v) {
-    (*JNITypes<std::shared_ptr<Array<Object>>>::JNICast((ENV*)env->functions->reserved0, a))[i] = v ? JNITypes<std::shared_ptr<Object>>::JNICast((ENV*)env->functions->reserved0, v) : nullptr;
+    (*JNITypes<std::shared_ptr<Array<Object>>>::JNICast(ENV::FromJNIEnv(env), a))[i] = v ? JNITypes<std::shared_ptr<Object>>::JNICast(ENV::FromJNIEnv(env), v) : nullptr;
 }
 
 template <class T> typename JNITypes<T>::Array jnivm::NewArray(JNIEnv * env, jsize length) {
     auto arr = length ? std::make_shared<Array<T>>(new T[length] {0}, length) : std::make_shared<Array<T>>(0);
-    arr->clazz = InternalFindClass((ENV*)env->functions->reserved0, (std::string("[") + JNITypes<T>::GetJNISignature((ENV*)env->functions->reserved0)).data());
-    return JNITypes<std::shared_ptr<Array<T>>>::ToJNIType((ENV*)env->functions->reserved0, arr);
+    arr->clazz = InternalFindClass(ENV::FromJNIEnv(env), (std::string("[") + JNITypes<T>::GetJNISignature(ENV::FromJNIEnv(env))).data());
+    return JNITypes<std::shared_ptr<Array<T>>>::ToJNIType(ENV::FromJNIEnv(env), arr);
 }
 
 template <class T>
@@ -38,7 +38,7 @@ T *jnivm::GetArrayElements(JNIEnv *env, typename JNITypes<T>::Array a, jboolean 
     if (iscopy) {
         *iscopy = false;
     }
-    return a ? JNITypes<std::shared_ptr<Array<T>>>::JNICast((ENV*)env->functions->reserved0, a)->getArray() : nullptr;
+    return a ? JNITypes<std::shared_ptr<Array<T>>>::JNICast(ENV::FromJNIEnv(env), a)->getArray() : nullptr;
 }
 
 template <class T>
@@ -48,13 +48,13 @@ void jnivm::ReleaseArrayElements(JNIEnv *, typename JNITypes<T>::Array a, T *car
 
 template <class T>
 void jnivm::GetArrayRegion(JNIEnv *env, typename JNITypes<T>::Array a, jsize start, jsize len, T * buf) {
-    auto ja = JNITypes<std::shared_ptr<Array<T>>>::JNICast((ENV*)env->functions->reserved0, a);
+    auto ja = JNITypes<std::shared_ptr<Array<T>>>::JNICast(ENV::FromJNIEnv(env), a);
     memcpy(buf, ja->getArray() + start, sizeof(T)* len);
 }
 
 template <class T>
 void jnivm::SetArrayRegion(JNIEnv *env, typename JNITypes<T>::Array a, jsize start, jsize len, const T * buf) {
-    auto ja = JNITypes<std::shared_ptr<Array<T>>>::JNICast((ENV*)env->functions->reserved0, a);
+    auto ja = JNITypes<std::shared_ptr<Array<T>>>::JNICast(ENV::FromJNIEnv(env), a);
     memcpy(ja->getArray() + start, buf, sizeof(T)* len);
 }
 
