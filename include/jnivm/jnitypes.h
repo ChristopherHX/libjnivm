@@ -355,7 +355,7 @@ template<class orgtype, class T> struct OrgTypeConverter<orgtype*, T> {
     }
 };
 
-template<class orgtype, bool val = std::is_assignable<orgtype, nullptr_t>::value> struct AnotherFactory {
+template<class orgtype, bool val = std::is_assignable<orgtype, std::nullptr_t>::value> struct AnotherFactory {
     static orgtype DefaultVal() {
         throw std::runtime_error("This type is not assignable to null");
     }
