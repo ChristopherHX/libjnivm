@@ -7,15 +7,23 @@ using namespace jnivm;
 std::string Namespace::GenerateHeader(std::string scope) {
 	std::ostringstream ss;
 	if (name.length()) {
-		scope += "::" + name;
+		scope += scope.empty() ? name : "::" + name;
 	}
 	for (auto &cl : classes) {
-		ss << cl->GenerateHeader(scope);
-		ss << "\n";
+		auto sub = cl->GenerateHeader(scope);
+		if(!sub.empty()) {
+			ss << sub;
+			if(sub[sub.length() - 1] != '\n')
+				ss << "\n";
+		}
 	}
 	for (auto &np : namespaces) {
-		ss << np->GenerateHeader(scope);
-		ss << "\n";
+		auto sub = np->GenerateHeader(scope);
+		if(!sub.empty()) {
+			ss << sub;
+			if(sub[sub.length() - 1] != '\n')
+				ss << "\n";
+		}
 	}
 	return ss.str();
 }
@@ -23,25 +31,37 @@ std::string Namespace::GenerateHeader(std::string scope) {
 std::string Namespace::GeneratePreDeclaration() {
 	std::ostringstream ss;
 	bool indent = name.length();
-	if (indent) {
-		ss << "namespace " << name << " {\n";
-	}
+	bool empty = true;
 	for (auto &cl : classes) {
-		ss << (indent
-								? std::regex_replace(cl->GeneratePreDeclaration(),
-																		std::regex("(^|\n)([^\n]+)"), "$1    $2")
-								: cl->GeneratePreDeclaration());
-		ss << "\n";
+		auto sub = cl->GeneratePreDeclaration();
+		if(!sub.empty()) {
+			if(empty) {
+				if (indent) {
+					ss << "namespace " << name << " {\n";
+				}
+				empty = false;
+			} else {
+				ss << "\n";
+			}
+			ss << (indent ? std::regex_replace(sub, std::regex("(^|\n)([^\n]+)"), "$1    $2") : sub);
+		}
 	}
 	for (auto &np : namespaces) {
-		ss << (indent
-								? std::regex_replace(np->GeneratePreDeclaration(),
-																		std::regex("(^|\n)([^\n]+)"), "$1    $2")
-								: np->GeneratePreDeclaration());
-		ss << "\n";
+		auto sub = np->GeneratePreDeclaration();
+		if(!sub.empty()) {
+			if(empty) {
+				if (indent) {
+					ss << "namespace " << name << " {\n";
+				}
+				empty = false;
+			} else {
+				ss << "\n";
+			}
+			ss << (indent ? std::regex_replace(sub, std::regex("(^|\n)([^\n]+)"), "$1    $2") : sub);
+		}
 	}
-	if (indent) {
-		ss << "}";
+	if (!empty && indent) {
+		ss << "\n}";
 	}
 	return ss.str();
 }
@@ -49,7 +69,7 @@ std::string Namespace::GeneratePreDeclaration() {
 std::string Namespace::GenerateStubs(std::string scope) {
 	std::ostringstream ss;
 	if (name.length()) {
-		scope += "::" + name;
+		scope += scope.empty() ? name : "::" + name;
 	}
 	for (auto &cl : classes) {
 		ss << cl->GenerateStubs(scope);
@@ -63,10 +83,10 @@ std::string Namespace::GenerateStubs(std::string scope) {
 std::string jnivm::Namespace::GenerateJNIPreDeclaration(std::string scope) {
 	std::ostringstream ss;
 	if (name.length()) {
-		scope += "::" + name;
+		scope += scope.empty() ? name : "::" + name;
 	}
 	for (auto &cl : classes) {
-		ss << "env->GetClass<jnivm::" << std::regex_replace(cl->nativeprefix, std::regex("/"), "::") << ">(\"" << cl->nativeprefix << "\");\n";
+		ss << cl->GenerateJNIPreDeclaration();
 	}
 	for (auto &np : namespaces) {
 		ss << np->GenerateJNIPreDeclaration(scope);
@@ -77,7 +97,7 @@ std::string jnivm::Namespace::GenerateJNIPreDeclaration(std::string scope) {
 std::string Namespace::GenerateJNIBinding(std::string scope) {
 	std::ostringstream ss;
 	if (name.length()) {
-		scope += "::" + name;
+		scope += scope.empty() ? name : "::" + name;
 	}
 	for (auto &cl : classes) {
 		ss << cl->GenerateJNIBinding(scope);

@@ -24,7 +24,7 @@ std::string Field::GenerateStubs(std::string scope, const std::string &cname) {
 	return ss.str();
 }
 
-std::string Field::GenerateJNIBinding(std::string scope) {
+std::string Field::GenerateJNIBinding(std::string scope, const std::string &cname) {
 	std::ostringstream ss;
 	if(!JNIVM_FAKE_JNI_SYNTAX) {
 		ss << "c->Hook(env, \"" << name << "\", ";
@@ -33,7 +33,11 @@ std::string Field::GenerateJNIBinding(std::string scope) {
 		ss << "&" << scope;
 		ss << ");\n";
 	} else {
-		ss << "{Field<&" << scope << ">, \"" << name << "\"},\n";
+		ss << "{FakeJni::Field<&" << cname << "::" << name << ">{}, \"" << name << "\", FakeJni::JFieldID::PUBLIC";
+		if(_static) {
+			ss << " | FakeJni::JFieldID::STATIC";
+		}
+		ss << " },\n";
 	}
 	return ss.str();
 }

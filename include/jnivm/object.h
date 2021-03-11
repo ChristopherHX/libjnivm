@@ -14,6 +14,8 @@ namespace jnivm {
         ObjectMutexWrapper(const ObjectMutexWrapper& other) : ObjectMutexWrapper() {}
         ObjectMutexWrapper(ObjectMutexWrapper&& other) : ObjectMutexWrapper() {}
         std::recursive_mutex lock;
+        jnivm::ObjectMutexWrapper &operator =(const jnivm::ObjectMutexWrapper &) { return *this; }
+        jnivm::ObjectMutexWrapper &operator =(jnivm::ObjectMutexWrapper &&) { return *this; }
     };
 
     class Object : public std::enable_shared_from_this<Object> {

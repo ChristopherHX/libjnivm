@@ -2,9 +2,18 @@
 
 FakeJni::JniEnvContext::JniEnvContext(FakeJni::Jvm &vm) {
     if (!env) {
+		this->vm = &vm;
         vm.AttachCurrentThread(nullptr, nullptr);
-    }
-} 
+    } else {
+		this->vm = nullptr;
+	}
+}
+
+FakeJni::JniEnvContext::~JniEnvContext() {
+	if(this->vm) {
+		vm->DetachCurrentThread();
+	}
+}
 
 thread_local FakeJni::Env* FakeJni::JniEnvContext::env = nullptr;
 
@@ -52,7 +61,7 @@ void FakeJni::Jvm::attachLibrary(const std::string &rpath, const std::string &op
 	libraries.insert({ rpath, std::make_unique<libinst>(rpath, this, loptions) });
 }
 
-void FakeJni::Jvm::detachLibrary(const std::string &rpath) {
+void FakeJni::Jvm::removeLibrary(const std::string &rpath, const std::string &options) {
 	libraries.erase(rpath);
 }
 
@@ -76,6 +85,7 @@ void FakeJni::Jvm::start(std::shared_ptr<FakeJni::JArray<FakeJni::JString>> args
 		auto main = c.second->getMethod("([Ljava/lang/String;)V", "main");
 		if(main != nullptr) {
 			main->invoke(frame.getJniEnv(), c.second.get(), args);
+			return;
 		}
 	}
 	throw std::runtime_error("main with [Ljava/lang/String;)V not found in any class!");
@@ -83,27 +93,49 @@ void FakeJni::Jvm::start(std::shared_ptr<FakeJni::JArray<FakeJni::JString>> args
 
 FakeJni::LibraryOptions::LibraryOptions(void *(*dlopen)(const char *, int), void *(*dlsym)(void *handle, const char *), int (*dlclose)(void *)) : dlopen(dlopen), dlsym(dlsym), dlclose(dlclose) {
 }
+#ifdef _WIN32
+struct LibraryOptions_Wrapper {
+	HMODULE mod;
+	bool free;
+};
+#endif
 
 FakeJni::LibraryOptions::LibraryOptions() : LibraryOptions(
 #ifdef _WIN32
 [](const char * name, int) -> void* {
 	static_assert(sizeof(HMODULE) <= sizeof(void*), "The windows handle is too large to fit in void*");
+	if(!name || name[0] == '\0') {
+		void(*h)() = +[]() {};
+		HMODULE mod;
+		if(GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCSTR) h, &mod)) {
+			return new LibraryOptions_Wrapper { mod , false };
+		} else {
+			return nullptr;
+		}
+	}
 	int size = MultiByteToWideChar(CP_UTF8, 0, name, -1, NULL, 0);
 	std::vector<wchar_t> wd(size + 1);
 	(void)MultiByteToWideChar(CP_UTF8, 0, name, -1, wd.data(), wd.size());
 	wd[size] = L'\0';
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP) && !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-	return (void*)LoadPackagedLibrary(wd.data(), 0);
+	auto ret = LoadPackagedLibrary(wd.data(), 0);
 #else
-	return (void*)LoadLibraryW(wd.data());
+	auto ret = LoadLibraryW(wd.data());
 #endif
+	if(!ret) {
+		return nullptr;
+	}
+	return new LibraryOptions_Wrapper { ret , true };
 }, [](void * handle, const char * sym) -> void* {
-	static_assert(sizeof(HMODULE) <= sizeof(void*), "The windows HMODULE is too large to fit in void*");
-	static_assert(sizeof(FARPROC) <= sizeof(void*), "The windows FARPROC is too large to fit in void*");
-	return (void*)GetProcAddress((HMODULE)handle, sym);
+	return handle && sym ? (void*)GetProcAddress(((LibraryOptions_Wrapper*)handle)->mod, sym) : nullptr;
 }, [](void * handle) -> int {
-	static_assert(sizeof(HMODULE) <= sizeof(void*), "The windows HMODULE is too large to fit in void*");
-	return CloseHandle((HMODULE)handle);
+	int ret = 0;
+	if(!handle) return ret;
+	if(((LibraryOptions_Wrapper*)handle)->free) {
+		ret = CloseHandle(((LibraryOptions_Wrapper*)handle)->mod);
+	}
+	delete (LibraryOptions_Wrapper*)handle;
+	return ret;
 }
 #else
 ::dlopen, ::dlsym, ::dlclose

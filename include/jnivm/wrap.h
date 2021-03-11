@@ -54,7 +54,7 @@ namespace jnivm {
                 return JNITypes<typename Function::Return>::GetJNISignature(env);
             }
         };
-        template<size_t...I> class BaseWrapper<FunctionType::None, false, false, false, std::index_sequence<I...>> {
+        template<size_t...I, bool b1> class BaseWrapper<FunctionType::None, false, false, b1, std::index_sequence<I...>> {
             Funk handle;
         public:
             BaseWrapper(Funk handle) : handle(handle) {}
@@ -129,7 +129,7 @@ namespace jnivm {
                 return JNITypes<typename Function::Return>::GetJNISignature(env);
             }
         };
-        template<size_t Z, size_t...I> class BaseWrapper<FunctionType::InstanceProperty, false, false, false, std::index_sequence<Z, I...>> {
+        template<size_t Z, bool b1, bool b2, size_t...I> class BaseWrapper<FunctionType::InstanceProperty, false, b1, b2, std::index_sequence<Z, I...>> {
             Funk handle;
         public:
             BaseWrapper(Funk handle) : handle(handle) {}
@@ -203,7 +203,7 @@ namespace jnivm {
                 return JNITypes<typename Function::Return>::GetJNISignature(env);
             }
         };
-        template<size_t E, size_t C, size_t...I> class BaseWrapper<FunctionType::None, true, true, false, std::index_sequence<E, C, I...>> {
+        template<size_t E, size_t C, bool b1, size_t...I> class BaseWrapper<FunctionType::None, true, true, b1, std::index_sequence<E, C, I...>> {
             Funk handle;
         public:
             BaseWrapper(Funk handle) : handle(handle) {}
@@ -341,16 +341,16 @@ namespace jnivm {
         public:
             BaseWrapper(Funk handle) : handle(handle) {}
             constexpr void StaticInvoke(ENV * env, Class* clazz, const jvalue* values) {
-                handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-2]))...);
+                handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-1]))...);
             }
             constexpr void StaticSet(ENV * env, Class* clazz, const jvalue* values) {
-                handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-2]))...);
+                handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-1]))...);
             }
             constexpr void InstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
-                handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-3]))...);
+                handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-1]))...);
             }
             constexpr void InstanceSet(ENV * env, jobject obj, const jvalue* values) {
-                handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-3]))...);
+                handle((JNITypes<typename Function::template Parameter<I>>::JNICast(env, values[I-1]))...);
             }
             static std::string GetJNIInvokeSignature(ENV * env) {
                 return "(" + UnfoldJNISignature<typename Function::template Parameter<I>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));

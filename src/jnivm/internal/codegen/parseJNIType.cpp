@@ -61,10 +61,10 @@ const char *jnivm::ParseJNIType(const char *cur, const char *end, std::string &t
 	case '[':
 		cur = ParseJNIType(last + 1, end, type);
 		if(!JNIVM_FAKE_JNI_SYNTAX) {
-			type = "std::shared_ptr<jnivm::Array<" + type + ">>";
+			type = "std::shared_ptr<jnivm::Array<" + ( type.rfind("std::shared_ptr<" , 0) == 0 && type[type.length() - 1] == '>' ? type.substr(16, type.length() - 17) : type) + ">>";
 		} else {
-			if((cur - (last + 1)) == 1) {
-				switch (*(last + 1))
+			if((cur - last) == 1) {
+				switch (*cur)
 				{
 				case 'Z':
 					type = "std::shared_ptr<FakeJni::JBooleanArray>";
@@ -91,18 +91,22 @@ const char *jnivm::ParseJNIType(const char *cur, const char *end, std::string &t
 					break;
 				}
 			} else {
-				type = "std::shared_ptr<FakeJni::JArray<" + type + ">>";
+				type = "std::shared_ptr<FakeJni::JArray<" + ( type.rfind("std::shared_ptr<" , 0) == 0 && type[type.length() - 1] == '>' ? type.substr(16, type.length() - 17) : type) + ">>";
 			}
 		}
 		break;
 	case 'L':
-		auto cend = std::find(cur, end, ';');
+		auto cend = std::find(++cur, end, ';');
 		if(JNIVM_FAKE_JNI_SYNTAX && (cend - cur) == 16 && !memcmp(cur, "java/lang/String", 16)) {
 			type = "std::shared_ptr<FakeJni::JString>";
 		} else if(JNIVM_FAKE_JNI_SYNTAX && (cend - cur) == 16 && !memcmp(cur, "java/lang/Object", 16)) {
 			type = "std::shared_ptr<FakeJni::JObject>";
+		} else if(JNIVM_FAKE_JNI_SYNTAX && (cend - cur) == 19 && !memcmp(cur, "java/lang/Throwable", 19)) {
+			type = "std::shared_ptr<FakeJni::JThrowable>";
+		} else if(JNIVM_FAKE_JNI_SYNTAX && (cend - cur) == 15 && !memcmp(cur, "java/lang/Class", 15)) {
+			type = "std::shared_ptr<FakeJni::JClass>";
 		} else {
-			type = "std::shared_ptr<" + std::regex_replace(std::string(cur + 1, cend), std::regex("(/|\\$)"),
+			type = "std::shared_ptr<jnivm::" + std::regex_replace(std::string(cur, cend), std::regex("(/|\\$)"),
 																"::") +
 						">";
 		}

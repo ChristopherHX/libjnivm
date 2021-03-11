@@ -3,7 +3,13 @@
 using namespace jnivm;
 
 std::string VM::GeneratePreDeclaration() {
-	return "#include <jnivm.h>\n" + np.GeneratePreDeclaration();
+	return "#include "
+#if JNIVM_FAKE_JNI_SYNTAX
+	"<fake-jni/fake-jni.h>"
+#else
+	"<jnivm.h>"
+#endif
+	"\n" + np.GeneratePreDeclaration();
 }
 
 std::string VM::GenerateHeader() {
@@ -25,6 +31,7 @@ std::string VM::GenerateJNIBinding() {
 void VM::GenerateClassDump(const char *path) {
 	std::ofstream of(path);
 	of << GeneratePreDeclaration()
+	   << "\n"
 	   << GenerateHeader()
 	   << GenerateStubs();
 	if(!JNIVM_FAKE_JNI_SYNTAX) {
@@ -33,6 +40,9 @@ void VM::GenerateClassDump(const char *path) {
 		   << GenerateJNIBinding()
 		   << "\n}";
 	} else {
-		of << GenerateJNIBinding();
+		of << GenerateJNIBinding() << "\n"
+		   << "void InitJNIBinding(FakeJni::Jvm* vm) {\n"
+		   << GenerateJNIPreDeclaration()
+		   << "\n}";
 	}
 }

@@ -1052,7 +1052,7 @@ TEST(FakeJni, attachLibrary3) {
         ASSERT_EQ(JNI_OnLoadCalled, 1);
         ASSERT_EQ(JNI_OnUnloadCalled, 0);
         ASSERT_EQ(dlcloseCalled, 0);
-        vm.detachLibrary("testpath");
+        vm.removeLibrary("testpath");
         ASSERT_EQ(dlsymCalled, 2);
         ASSERT_EQ(JNI_OnUnloadCalled, 1);
         ASSERT_EQ(dlcloseCalled, 1);
@@ -1179,4 +1179,135 @@ TEST(JNIVM, ContructArray) {
     auto a_2 = jnivm::JNITypes<std::shared_ptr<jnivm::Array<jint>>>::JNICast(vm.GetEnv().get(), a2);
     ASSERT_TRUE(a_2);
     ASSERT_EQ(a_2->getSize(), len);
+}
+#include <baron/baron.h>
+
+#include <fake-jni/fake-jni.h>
+namespace jnivm {
+    namespace baron {
+        namespace impl {
+            class createMainMethod;
+        }
+    }
+    namespace test {
+        namespace Gamma {
+            class Functional;
+        }
+    }
+}
+class jnivm::baron::impl::createMainMethod : public FakeJni::JObject {
+public:
+    DEFINE_CLASS_NAME("baron/impl/createMainMethod")
+    static void main(std::shared_ptr<FakeJni::JArray<std::shared_ptr<java::lang::String>>>);
+};
+
+class jnivm::test::Gamma::Functional : public FakeJni::JObject {
+public:
+    DEFINE_CLASS_NAME("test/Gamma/Functional")
+    class Test5;
+};
+
+class jnivm::test::Gamma::Functional::Test5 : public FakeJni::JObject {
+public:
+    DEFINE_CLASS_NAME("test/Gamma/Functional$Test5")
+    class HelloWorld;
+};
+
+class jnivm::test::Gamma::Functional::Test5::HelloWorld : public FakeJni::JObject {
+public:
+    DEFINE_CLASS_NAME("test/Gamma/Functional$Test5$HelloWorld")
+    HelloWorld(std::shared_ptr<test::Gamma::Functional::Test5>);
+};
+
+void jnivm::baron::impl::createMainMethod::main(std::shared_ptr<FakeJni::JArray<std::shared_ptr<java::lang::String>>> arg0) {
+
+}
+
+jnivm::test::Gamma::Functional::Test5::HelloWorld::HelloWorld(std::shared_ptr<test::Gamma::Functional::Test5> arg0) {
+
+}
+
+BEGIN_NATIVE_DESCRIPTOR(jnivm::baron::impl::createMainMethod)
+{FakeJni::Function<&createMainMethod::main>{}, "main", FakeJni::JMethodID::PUBLIC | FakeJni::JMethodID::STATIC },
+END_NATIVE_DESCRIPTOR
+BEGIN_NATIVE_DESCRIPTOR(jnivm::test::Gamma::Functional)
+END_NATIVE_DESCRIPTOR
+BEGIN_NATIVE_DESCRIPTOR(jnivm::test::Gamma::Functional::Test5)
+END_NATIVE_DESCRIPTOR
+BEGIN_NATIVE_DESCRIPTOR(jnivm::test::Gamma::Functional::Test5::HelloWorld)
+{FakeJni::Constructor<HelloWorld, std::shared_ptr<test::Gamma::Functional::Test5>>{}},
+END_NATIVE_DESCRIPTOR
+
+TEST(Baron, Test23) {
+    Baron::Jvm vm;
+    createMainMethod(vm, [](std::shared_ptr<FakeJni::JArray<FakeJni::JString>> args) {
+        std::cout << "main called\n";
+        FakeJni::LocalFrame frame;
+        jclass c = frame.getJniEnv().FindClass("test/Gamma/Functional$Test5$HelloWorld");
+        frame.getJniEnv().GetMethodID(c, "<init>", "(Ltest/Gamma/Functional$Test5;)V");
+    });
+    vm.registerClass<jnivm::baron::impl::createMainMethod>();
+    vm.registerClass<jnivm::test::Gamma::Functional::Test5::HelloWorld>();
+    vm.start();
+    vm.destroy();
+    vm.printStatistics();
+}
+
+TEST(JNIVM, FakeJni_0_0_5_COMPAT) {
+    jstring jo;
+    using namespace jnivm;
+    VM vm;
+    std::shared_ptr<String> s = std::make_shared<String>("Test");
+    {
+        String s2 = { "Test2" };
+        // created a copy
+        jo = JNITypes<String>::ToJNIType(vm.GetEnv().get(), s2);
+        auto j2 = JNITypes<String>::ToJNIType(vm.GetEnv().get(), &s2);
+    }
+    auto len = vm.GetJNIEnv()->GetStringLength(jo);
+    String s3;
+    s3 = JNITypes<String, String>::JNICast(vm.GetEnv().get(), jo);
+}
+
+class FakeJni_0_0_5_COMPAT_TEST : public FakeJni::JObject {
+    FakeJni::JString testmember;
+    // std::string testmember2;
+public:
+    DEFINE_CLASS_NAME("FakeJni_0_0_5_COMPAT_TEST");
+};
+
+BEGIN_NATIVE_DESCRIPTOR(FakeJni_0_0_5_COMPAT_TEST)
+{FakeJni::Constructor<FakeJni_0_0_5_COMPAT_TEST>{}},
+{FakeJni::Field<&FakeJni_0_0_5_COMPAT_TEST::testmember>{}, "testmember" },
+// {FakeJni::Field<&FakeJni_0_0_5_COMPAT_TEST::testmember2>{}, "testmember2" },
+END_NATIVE_DESCRIPTOR
+
+TEST(FakeJni, FakeJni_0_0_5_COMPAT_TEST) {
+    FakeJni::Jvm vm;
+    vm.registerClass<FakeJni_0_0_5_COMPAT_TEST>();
+    FakeJni::LocalFrame frame;
+    auto&&env = frame.getJniEnv();
+    jclass cl = env.FindClass("FakeJni_0_0_5_COMPAT_TEST");
+    jmethodID mid = env.GetMethodID(cl, "<init>", "()V");
+    jobject obj = env.NewObject(cl, mid);
+    jfieldID fid = env.GetFieldID(cl, "testmember", "Ljava/lang/String;");
+    jstring value = (jstring)env.GetObjectField(obj, fid);
+    auto chars = env.GetStringUTFChars(value, nullptr);
+    std::cout << "value: `" << chars << "`\n";
+    env.ReleaseStringUTFChars(value, chars);
+    env.SetObjectField(obj, fid, env.NewStringUTF("Hello World"));
+    value = (jstring)env.GetObjectField(obj, fid);
+    chars = env.GetStringUTFChars(value, nullptr);
+    std::cout << "value: `" << chars << "`\n";
+    env.ReleaseStringUTFChars(value, chars);
+    vm.destroy();
+    static_assert(std::is_same<FakeJni::JArray<FakeJni::JString *>, FakeJni::JArray<FakeJni::JString>>::value, "SameType");
+    FakeJni::JString s = {"Hi"};
+    auto ay = std::make_shared<FakeJni::JArray<FakeJni::JString>>(1);
+    FakeJni::JArray<FakeJni::JString *> * args = ay.get();
+    (*args)[0] = &s;
+    ASSERT_TRUE((*args)[0]);
+    FakeJni::JString* s5 = (*args)[0] = s;
+    ASSERT_TRUE(s5);
+    std::cout << *s5 << "\n";
 }

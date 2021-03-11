@@ -9,9 +9,11 @@ namespace FakeJni {
     class Jvm;
     class Env;
     class JniEnvContext {
+        FakeJni::Jvm* vm;
     public:
         JniEnvContext(Jvm& vm);
-        JniEnvContext() {}
+        JniEnvContext() : vm(nullptr) {}
+        ~JniEnvContext();
         static thread_local Env* env;
         Env& getJniEnv();
     };
@@ -19,6 +21,7 @@ namespace FakeJni {
     using JObject = jnivm::Object;
     using JString = jnivm::String;
     using JClass = jnivm::Class;
+    using JThrowable = jnivm::Throwable;
 
     template<class T> using JArray = jnivm::Array<T>;
     using JBoolean = jboolean;
@@ -83,11 +86,16 @@ namespace FakeJni {
         void start(std::shared_ptr<JArray<JString>> args);
 
         void attachLibrary(const std::string &rpath = "", const std::string &options = "", LibraryOptions loptions = {});
-        void detachLibrary(const std::string &rpath = "");
+        void removeLibrary(const std::string &rpath = "", const std::string &options = "");
 
         jobject createGlobalReference(std::shared_ptr<JObject> obj);
 
         template<class cl> inline void registerClass();
+
+        // compatibility stub
+        template<class cl> inline void unregisterClass() {
+
+        }
 
         std::shared_ptr<JClass> findClass(const char * name);
 
@@ -152,6 +160,7 @@ namespace FakeJni {
         static std::shared_ptr<U> ctr(T...args) {
             return std::make_shared<U>(args...);
         }
+        static constexpr bool isFunction = true;
     };
     struct Descriptor {
 #ifdef __cpp_nontype_template_parameter_auto
@@ -196,7 +205,10 @@ namespace FakeJni {
         template<class U> struct Helper3<false, U> {
             static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name, int ty) {
                 if((ty & (int)JFieldID::Modifiers::STATIC) == 0) {
-                    return Helper2<(jnivm::Function<typename U::Type>::type == jnivm::FunctionType::Property), U>::Get(name);
+                    return [name](jnivm::ENV*env, jnivm::Class* cl) {
+                        cl->HookInstanceProperty(env, name, U::handle);
+                    };
+                    // return Helper2<(jnivm::Function<typename U::Type>::type == jnivm::FunctionType::Property), U>::Get(name);
                 } else {
                     return [name](jnivm::ENV*env, jnivm::Class* cl) {
                         cl->Hook(env, name, U::handle);

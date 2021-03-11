@@ -15,7 +15,7 @@ namespace jnivm {
 #ifdef JNI_DEBUG
         std::string GenerateHeader();
         std::string GenerateStubs(std::string scope, const std::string &cname);
-        std::string GenerateJNIBinding(std::string scope);
+        std::string GenerateJNIBinding(std::string scope, const std::string &cname);
 #endif
     };
 }

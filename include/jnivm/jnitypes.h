@@ -13,11 +13,7 @@ namespace jnivm {
     class ENV;
     class VM;
 
-    template<class T> struct JNITypes : JNITypes<std::shared_ptr<T>> {
-        JNITypes() {
-            static_assert(std::is_base_of<Object, T>::value || std::is_same<Object, Object>::value, "You have to extend jnivm::Object");
-        }
-    };
+    template<class T, class orgtype = T> struct JNITypes;
 
     template<class T, class=void> struct hasname : std::false_type{
 
@@ -29,7 +25,7 @@ namespace jnivm {
     };
 #endif
 
-    template<class T, class B = jobject> struct JNITypesObjectBase {
+    template<class T, class B = jobject, class orgtype = std::shared_ptr<T>> struct JNITypesObjectBase {
         JNITypesObjectBase() {
             static_assert(std::is_base_of<Object, T>::value || std::is_same<Object, Object>::value, "You have to extend jnivm::Object");
         }
@@ -40,27 +36,68 @@ namespace jnivm {
 
         static std::shared_ptr<jnivm::Class> GetClass(ENV * env);
         
-        static std::shared_ptr<T> JNICast(ENV* env, const jvalue& v) {
+        static orgtype JNICast(ENV* env, const jvalue& v) {
             return JNICast(env, v.l);
         }
-        static std::shared_ptr<T> JNICast(ENV* env, const jobject& o);
+        static orgtype JNICast(ENV* env, const jobject& o);
 
         template<class Y>
         static B ToJNIType(ENV* env, const std::shared_ptr<Y>& p);
         template<class Y>
+        static B ToJNIType(ENV* env, std::shared_ptr<Y>& p) {
+            return ToJNIType(env, const_cast<const std::shared_ptr<Y>&>(p));
+        }
+        template<class Y>
         static constexpr jobject ToJNIReturnType(ENV* env, const std::shared_ptr<Y>& p) {
+            return ToJNIType(env, p);
+        }
+        template<class Y>
+        static B ToJNIType(ENV* env, Y*const &p) {
+            if(!p) return nullptr;
+            auto val = p->weak_from_this().lock();
+            return ToJNIType(env, val ? std::shared_ptr<Y>(val, p) : std::make_shared<Y>(*p));
+        }
+        template<class Y>
+        static B ToJNIType(ENV* env, Y& p) {
+            auto val = p.weak_from_this().lock();
+            return ToJNIType(env, val ? std::shared_ptr<Y>(val, &p) : std::make_shared<Y>(p));
+        }
+        template<class Y>
+        static B ToJNIType(ENV* env, const Y& p) {
+            return ToJNIType(env, std::make_shared<Y>(p));
+        }
+        template<class Y>
+        static jobject ToJNIReturnType(ENV* env, Y*const &p) {
+            return ToJNIType(env, p);
+        }
+        template<class Y>
+        static jobject ToJNIReturnType(ENV* env, const Y& p) {
             return ToJNIType(env, p);
         }
     };
 
-    template<class T> struct JNITypes<std::shared_ptr<T>> : JNITypesObjectBase<T> {};
+    template<class T, class orgtype> struct JNITypes : JNITypesObjectBase<T, jobject, orgtype> {
+        JNITypes() {
+            static_assert(std::is_base_of<Object, T>::value || std::is_same<Object, Object>::value, "You have to extend jnivm::Object");
+        }
+    };
+
+    template<class T> struct JNITypes<T*> : JNITypes<T, T*> {};
+    template<class T> struct JNITypes<T&> : JNITypes<T, T&> {};
+    template<class T> struct JNITypes<const T&> : JNITypes<T, const T&> {};
+    template<class T> struct JNITypes<std::shared_ptr<T>> : JNITypes<T, std::shared_ptr<T>> {};
+    template<class T> struct JNITypes<const std::shared_ptr<T>&> : JNITypes<T, const std::shared_ptr<T>&> {};
 
     class String;
     class Class;
     class Throwable;
-    template<> struct JNITypes<std::shared_ptr<String>> : JNITypesObjectBase<String, jstring> {};
-    template<> struct JNITypes<std::shared_ptr<Class>> : JNITypesObjectBase<Class, jclass> {};
-    template<> struct JNITypes<std::shared_ptr<Throwable>> : JNITypesObjectBase<Throwable, jthrowable> {};
+    template<class orgtype> struct JNITypes<String, orgtype> : JNITypesObjectBase<String, jstring, orgtype> {};
+    template<> struct JNITypes<jstring> : JNITypesObjectBase<String, jstring> {};
+    // template<> struct JNITypes<std::string> : JNITypesObjectBase<String, jstring, String> {};
+    template<class orgtype> struct JNITypes<Class, orgtype> : JNITypesObjectBase<Class, jclass, orgtype> {};
+    template<> struct JNITypes<jclass> : JNITypesObjectBase<Class, jclass> {};
+    template<class orgtype> struct JNITypes<Throwable, orgtype> : JNITypesObjectBase<Throwable, jthrowable, orgtype> {};
+    template<> struct JNITypes<jthrowable> : JNITypesObjectBase<Throwable, jthrowable> {};
 
     template<class T> struct ___JNIType {
         static T ToJNIType(ENV* env, T v) {
@@ -187,7 +224,7 @@ namespace jnivm {
     };
 
 
-    template <class T> struct JNITypes<Array<T>> : JNITypesObjectBase<Array<T>, typename JNITypes<T>::Array> {
+    template <class T> struct JNITypes<impl::Array<T>> : JNITypesObjectBase<impl::Array<T>, typename JNITypes<T>::Array> {
         using Array = jobjectArray;
         static std::string GetJNISignature(ENV * env) {
             auto res = "[" + JNITypes<T>::GetJNISignature(env);
@@ -196,7 +233,7 @@ namespace jnivm {
         }
     };
 
-    template <class T> struct JNITypes<std::shared_ptr<Array<T>>> : JNITypes<Array<T>> {
+    template <class T> struct JNITypes<std::shared_ptr<impl::Array<T>>> : JNITypes<impl::Array<T>> {
     };
 }
 
@@ -216,7 +253,7 @@ template<class T> struct ClassName<T, true> {
 #include "vm.h"
 #include "env.h"
 
-template<class T, class B> std::string jnivm::JNITypesObjectBase<T, B>::GetJNISignature(jnivm::ENV *env){
+template<class T, class B, class orgtype> std::string jnivm::JNITypesObjectBase<T, B, orgtype>::GetJNISignature(jnivm::ENV *env){
     std::lock_guard<std::mutex> lock(env->GetVM()->mtx);
     auto r = env->GetVM()->typecheck.find(typeid(T));
     if(r != env->GetVM()->typecheck.end()) {
@@ -226,7 +263,7 @@ template<class T, class B> std::string jnivm::JNITypesObjectBase<T, B>::GetJNISi
     }
 }
 
-template<class T, class B> std::shared_ptr<jnivm::Class> jnivm::JNITypesObjectBase<T, B>::GetClass(jnivm::ENV *env) {
+template<class T, class B, class orgtype> std::shared_ptr<jnivm::Class> jnivm::JNITypesObjectBase<T, B, orgtype>::GetClass(jnivm::ENV *env) {
     // ToDo find the deadlock or replace with recursive_mutex
     // std::lock_guard<std::mutex> lock(env->GetVM()->mtx);
     auto r = env->GetVM()->typecheck.find(typeid(T));
@@ -237,7 +274,7 @@ template<class T, class B> std::shared_ptr<jnivm::Class> jnivm::JNITypesObjectBa
     }
 }
 
-template<class T, class B> template<class Y> B jnivm::JNITypesObjectBase<T, B>::ToJNIType(jnivm::ENV *env, const std::shared_ptr<Y> &p) {
+template<class T, class B, class orgtype> template<class Y> B jnivm::JNITypesObjectBase<T, B, orgtype>::ToJNIType(jnivm::ENV *env, const std::shared_ptr<Y> &p) {
     if(!p) return nullptr;
     // Cache return values in localframe list of this thread, destroy delayed
     
@@ -296,9 +333,32 @@ template<> std::shared_ptr<jnivm::Global> UnpackJObject<jnivm::Global>(jnivm::Ob
     }
 }
 
-template<class T, class B> std::shared_ptr<T> jnivm::JNITypesObjectBase<T, B>::JNICast(jnivm::ENV *env, const jobject &o) {
+template<class orgtype, class T> struct OrgTypeConverter {
+    static orgtype& Convert(jnivm::ENV *env, std::shared_ptr<T> && org) {
+        if(!org) {
+            throw std::runtime_error("Cannot assign null to value type!");
+        }
+        return *org.get();
+    }
+};
+
+template<class orgtype, class T> struct OrgTypeConverter<std::shared_ptr<orgtype>, T> {
+    static std::shared_ptr<T> && Convert(jnivm::ENV *env, std::shared_ptr<T> && org) {
+        return std::move(org);
+    }
+};
+
+template<class orgtype, class T> struct OrgTypeConverter<orgtype*, T> {
+    static orgtype* Convert(jnivm::ENV *env, std::shared_ptr<T> && org) {
+        (void)JNITypes<Object>::ToJNIType(env, org);
+        return org.get();
+    }
+};
+
+
+template<class T, class B, class orgtype> orgtype jnivm::JNITypesObjectBase<T, B, orgtype>::JNICast(jnivm::ENV *env, const jobject &o) {
     if(!o) {
         return nullptr;
     }
-    return UnpackJObject<T>((Object*)o);
+    return OrgTypeConverter<orgtype, T>::Convert(env, UnpackJObject<T>((Object*)o));
 }

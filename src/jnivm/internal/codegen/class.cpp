@@ -5,40 +5,46 @@
 #include <regex>
 using namespace jnivm;
 
-static const char* blacklisted[] = { "java/lang/Object", "java/lang/String", "java/lang/Class", "java/nio/ByteBuffer", "java/lang/Throwable", "java/lang/reflect/Method", "java/lang/reflect/Field", "jnivm/lang/Weak", "jnivm/lang/Global" };
+static const char* blacklisted[] = { "java/lang/Object", "java/lang/String", "java/lang/Class", "java/nio/ByteBuffer", "java/lang/Throwable", "java/lang/reflect/Method", "java/lang/reflect/Field", "internal/lang/Weak", "internal/lang/Global" };
 
 std::string Class::GenerateHeader(std::string scope) {
 	if (std::find(std::begin(blacklisted), std::end(blacklisted), nativeprefix) != std::end(blacklisted)) return {};
 	std::ostringstream ss;
-	scope += "::" + name;
+	scope += scope.empty() ? name : "::" + name;
 	ss << "class " << scope << " : ";
 	if(!JNIVM_FAKE_JNI_SYNTAX) {
-		ss << "jnivm::Object";
+		ss << "public jnivm::Object";
 	} else {
-		ss << "FakeJni::JObject";
+		ss << "public FakeJni::JObject";
 	}
 	ss << " {\npublic:\n";
 	if(JNIVM_FAKE_JNI_SYNTAX) {
 	    ss << "    DEFINE_CLASS_NAME(\"" << nativeprefix << "\")\n";
 	}
 	for (auto &cl : classes) {
-		ss << std::regex_replace(cl->GeneratePreDeclaration(),
-															std::regex("(^|\n)([^\n]+)"), "$1    $2");
-		ss << "\n";
+		auto sub = cl->GeneratePreDeclaration();
+		if(!sub.empty()) {
+			ss << std::regex_replace(sub, std::regex("(^|\n)([^\n]+)"), "$1    $2");
+			ss << "\n";
+		}
 	}
 	for (auto &field : fields) {
-		ss << std::regex_replace(field->GenerateHeader(),
-															std::regex("(^|\n)([^\n]+)"), "$1    $2");
-		ss << "\n";
+		auto sub = field->GenerateHeader();
+		if(!sub.empty()) {
+			ss << std::regex_replace(sub, std::regex("(^|\n)([^\n]+)"), "$1    $2");
+			ss << "\n";
+		}
 	}
 	for (auto &method : methods) {
-		ss << std::regex_replace(method->GenerateHeader(name),
-															std::regex("(^|\n)([^\n]+)"), "$1    $2");
-		ss << "\n";
+		auto sub = method->GenerateHeader(name);
+		if(!sub.empty()) {
+			ss << std::regex_replace(sub, std::regex("(^|\n)([^\n]+)"), "$1    $2");
+			ss << "\n";
+		}
 	}
-	ss << "};";
+	ss << "};\n\n";
 	for (auto &cl : classes) {
-		ss << "\n";
+		// ss << "\n";
 		ss << cl->GenerateHeader(scope);
 	}
 	return ss.str();
@@ -54,7 +60,7 @@ std::string Class::GeneratePreDeclaration() {
 std::string Class::GenerateStubs(std::string scope) {
 	if (std::find(std::begin(blacklisted), std::end(blacklisted), nativeprefix) != std::end(blacklisted)) return {};
 	std::ostringstream ss;
-	scope += "::" + name;
+	scope += scope.empty() ? name : "::" + name;
 	for (auto &cl : classes) {
 		ss << cl->GenerateStubs(scope);
 	}
@@ -67,26 +73,40 @@ std::string Class::GenerateStubs(std::string scope) {
 	return ss.str();
 }
 
+std::string jnivm::Class::GenerateJNIPreDeclaration() {
+	if (std::find(std::begin(blacklisted), std::end(blacklisted), nativeprefix) != std::end(blacklisted)) return {};
+	std::ostringstream ss;
+	if(!JNIVM_FAKE_JNI_SYNTAX) {
+		ss << "env->GetClass<jnivm::" << std::regex_replace(nativeprefix, std::regex("[/\\$]"), "::") << ">(\"" << nativeprefix << "\");\n";
+	} else {
+		ss << "vm->registerClass<jnivm::" << std::regex_replace(nativeprefix, std::regex("[/\\$]"), "::") << ">();\n";
+	}
+	for (auto &cl : classes) {
+		ss << cl->GenerateJNIPreDeclaration();
+	}
+	return ss.str();
+}
+
 std::string Class::GenerateJNIBinding(std::string scope) {
 	if (std::find(std::begin(blacklisted), std::end(blacklisted), nativeprefix) != std::end(blacklisted)) return {};
 	std::ostringstream ss;
-	scope += "::" + name;
+	scope += scope.empty() ? name : "::" + name;
 	if(!JNIVM_FAKE_JNI_SYNTAX) {
 		ss << "{\nauto c = env->GetClass(\"" << nativeprefix << "\");\n";
 		for (auto &cl : classes) {
 			ss << cl->GenerateJNIBinding(scope);
 		}
 		for (auto &field : fields) {
-			ss << field->GenerateJNIBinding(scope);
+			ss << field->GenerateJNIBinding(scope, name);
 		}
 		for (auto &method : methods) {
 			ss << method->GenerateJNIBinding(scope, name);
 		}
 		ss << "}\n";
 	} else {
-		ss << "BEGIN_NATIVE_DESCRIPTOR(" << name << ")\n";
+		ss << "BEGIN_NATIVE_DESCRIPTOR(" << scope << ")\n";
 		for (auto &field : fields) {
-			ss << field->GenerateJNIBinding(scope);
+			ss << field->GenerateJNIBinding(scope, name);
 		}
 		for (auto &method : methods) {
 			ss << method->GenerateJNIBinding(scope, name);

@@ -58,6 +58,7 @@ namespace jnivm {
 
     template<class T> struct Factory<T, true> {
         static std::function<std::shared_ptr<jnivm::Object>(ENV* env)> CreateLambda() {
+            static_assert(std::is_base_of<Object, T>::value, "You have to public extend jnivm::Object / FakeJni::JObject");
             return [](ENV* env) -> std::shared_ptr<jnivm::Object> {
                 auto res = std::make_shared<T>();
                 auto f = env->GetVM()->typecheck.find(typeid(T));

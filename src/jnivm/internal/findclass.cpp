@@ -4,7 +4,7 @@
 #include <cstring>
 #include "log.h"
 
-std::shared_ptr<jnivm::Class> jnivm::InternalFindClass(ENV *env, const char *name) {
+std::shared_ptr<jnivm::Class> jnivm::InternalFindClass(ENV *env, const char *name, bool returnZero) {
 	auto prefix = name;
 	auto && nenv = *env;
 	auto && vm = nenv.GetVM();
@@ -31,6 +31,7 @@ std::shared_ptr<jnivm::Class> jnivm::InternalFindClass(ENV *env, const char *nam
 			if (namsp != cur->namespaces.end()) {
 				next = *namsp;
 			} else {
+				if(returnZero) return nullptr;
 				next = std::make_shared<Namespace>();
 				cur->namespaces.push_back(next);
 				next->name = std::move(sname);
@@ -50,10 +51,12 @@ std::shared_ptr<jnivm::Class> jnivm::InternalFindClass(ENV *env, const char *nam
 				if (cl != curc->classes.end()) {
 					next = *cl;
 				} else {
+					if(returnZero) return nullptr;
 					next = std::make_shared<Class>();
 					curc->classes.push_back(next);
 					next->name = std::move(sname);
 					next->nativeprefix = std::string(prefix, pos);
+					vm->classes[next->nativeprefix] = next;
 				}
 			} else {
 				auto cl = std::find_if(cur->classes.begin(), cur->classes.end(),
@@ -63,10 +66,12 @@ std::shared_ptr<jnivm::Class> jnivm::InternalFindClass(ENV *env, const char *nam
 				if (cl != cur->classes.end()) {
 					next = *cl;
 				} else {
+					if(returnZero) return nullptr;
 					next = std::make_shared<Class>();
 					cur->classes.push_back(next);
 					next->name = std::move(sname);
 					next->nativeprefix = std::string(prefix, pos);
+					vm->classes[next->nativeprefix] = next;
 				}
 			}
 			curc = next;
@@ -78,6 +83,7 @@ std::shared_ptr<jnivm::Class> jnivm::InternalFindClass(ENV *env, const char *nam
 	if (ccl != vm->classes.end()) {
 		curc = ccl->second;
 	} else {
+		if(returnZero) return nullptr;
 		curc = std::make_shared<Class>();
 		const char * lastslash = strrchr(name, '/');
 		curc->name = lastslash != nullptr ? lastslash + 1 : name;
@@ -91,8 +97,8 @@ std::shared_ptr<jnivm::Class> jnivm::InternalFindClass(ENV *env, const char *nam
 	return curc;
 }
 
-jclass jnivm::InternalFindClass(JNIEnv *env, const char *name) {
-	return JNITypes<std::shared_ptr<Class>>::ToJNIType(ENV::FromJNIEnv(env), InternalFindClass(ENV::FromJNIEnv(env), name));
+jclass jnivm::InternalFindClass(JNIEnv *env, const char *name, bool returnZero) {
+	return JNITypes<std::shared_ptr<Class>>::ToJNIType(ENV::FromJNIEnv(env), InternalFindClass(ENV::FromJNIEnv(env), name, returnZero));
 }
 
 void jnivm::Declare(JNIEnv *env, const char *signature) {

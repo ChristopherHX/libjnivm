@@ -41,7 +41,7 @@ std::string Method::GenerateHeader(const std::string &cname) {
 	}
 	ss << "(";
 	if(!JNIVM_FAKE_JNI_SYNTAX) {
-		ss << "jnivm::ENV *";
+		ss << "jnivm::ENV* env";
 		if (_static) {
 			ss << ", jnivm::Class* cl";
 		}
@@ -103,7 +103,7 @@ std::string Method::GenerateStubs(std::string scope, const std::string &cname) {
 		ss << parameters[i] << " arg" << i;
 	}
 	ss << ") {\n    ";
-	if(rettype != "void") {
+	if(rettype != "void" && name != "<init>") {
 		ss << "return {};";
 	}
 	ss << "\n}\n\n";
@@ -163,13 +163,17 @@ std::string Method::GenerateJNIBinding(std::string scope, const std::string &cna
 		ss << ");\n";
 	} else {
 		if (name == "<init>") {
-			ss << "{Constructor<" << scope;
+			ss << "{FakeJni::Constructor<" << cname;
 			for (size_t i = 0; i < parameters.size(); i++) {
 				ss << ", " << parameters[i];
 			}
-			ss << ">, \"" << name << "\"},\n";
+			ss << ">{}},\n";
 		} else {
-			ss << "{Function<&" << scope << "::" << name << ">, \"" << name << "\"},\n";
+			ss << "{FakeJni::Function<&" << cname << "::" << name << ">{}, \"" << name << "\", FakeJni::JMethodID::PUBLIC";
+			if(_static) {
+				ss << " | FakeJni::JMethodID::STATIC";
+			}
+			ss << " },\n";
 		}
 	}
 	return ss.str();

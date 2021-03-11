@@ -61,7 +61,7 @@ namespace jnivm {
         // Initialize the native VM instance
         VM();
         // Skip initialize if requested
-        VM(bool skipInit);
+        VM(bool skipInit, bool ReturnNull = false);
         void initialize();
         // Returns the jni JavaVM
         JavaVM * GetJavaVM();

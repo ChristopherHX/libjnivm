@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <jni.h>
+#include "arrayBase.h"
 
 namespace jnivm {
 
@@ -92,6 +93,19 @@ namespace jnivm {
                     static_assert(std::is_base_of<Z, Y>::value, "Invalid conversion");
                     return std::shared_ptr<Z>(ref, dynamic_cast<Y*>(ref.get()));
                 }
+                template<class Z>
+                operator Z*() {
+                    static_assert(std::is_base_of<Z, Y>::value, "Invalid conversion");
+                    return dynamic_cast<Y*>(ref.get());
+                }
+                operator bool() const {
+                    return ref != nullptr;
+                }
+                // template<class Z>
+                // operator Z&() {
+                //     static_assert(std::is_base_of<Z, Y>::value, "Invalid conversion");
+                //     return *dynamic_cast<Y*>(ref.get());
+                // }
                 Y& operator*() {
                     return *dynamic_cast<Y*>(ref.get());
                 }
@@ -102,6 +116,25 @@ namespace jnivm {
                 guard &operator=(std::shared_ptr<Z> other) {
                     static_assert(std::is_base_of<Y, Z>::value, "Invalid Assignment");
                     ref = other;
+                    return *this;
+                }
+
+                template<class Z>
+                guard &operator=(Z* p) {
+                    static_assert(std::is_base_of<Y, Z>::value, "Invalid Assignment");
+                    if(p) {
+                        auto val = p->weak_from_this().lock();
+                        ref = val ? std::shared_ptr<Z>(val, p) : std::make_shared<Z>(*p);
+                    } else {
+                        ref = nullptr;
+                    }
+                    return *this;
+                }
+                template<class Z>
+                guard &operator=(Z& p) {
+                    static_assert(std::is_base_of<Y, Z>::value, "Invalid Assignment");
+                    auto val = p.weak_from_this().lock();
+                    ref = val ? std::shared_ptr<Z>(val, &p) : std::make_shared<Z>(p);
                     return *this;
                 }
             };
@@ -120,6 +153,15 @@ namespace jnivm {
 
         };
     }
+    template<class T> struct remove_shared {
+        using Type = T;
+    };
+    template<class T> struct remove_shared<std::shared_ptr<T>> {
+        using Type = T;
+    };
+    template<class T> struct remove_shared<T*> {
+        using Type = T;
+    };
 
-    template<class T> using Array = impl::Array<T>;
+    template<class T> using Array = impl::Array<typename remove_shared<T>::Type>;
 }

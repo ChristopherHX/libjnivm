@@ -26,7 +26,7 @@ jfieldID jnivm::GetFieldID(JNIEnv *env, jclass cl_, const char *name, const char
     if (ccl != cur->fields.end()) {
         next = *ccl;
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Found symbol, Class: %s, %sField: %s, Signature: %s", cl ? cl->nativeprefix.data() : nullptr, isStatic ? "Static" : "", name, type);
+        LOG("JNIVM", "Found symbol, Class=`%s`, %sField=`%s`, Signature=`%s`", cl ? cl->nativeprefix.data() : nullptr, isStatic ? "Static" : "", name, type);
 #endif
     } else {
         if(cur->baseclasses) {
@@ -51,7 +51,7 @@ jfieldID jnivm::GetFieldID(JNIEnv *env, jclass cl_, const char *name, const char
         Declare(env, next->type.data());
 #endif
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Unresolved symbol, Class: %s, %sField: %s, Signature: %s", cl ? cl->nativeprefix.data() : nullptr, isStatic ? "Static" : "", name, type);
+        LOG("JNIVM", "Unresolved symbol, Class=`%s`, %sField=`%s`, Signature=`%s`", cl ? cl->nativeprefix.data() : nullptr, isStatic ? "Static" : "", name, type);
 #endif
     }
     return (jfieldID)next.get();
@@ -73,7 +73,7 @@ template <class T> T jnivm::GetField(JNIEnv *env, jobject obj, jfieldID id) {
         return (*(std::function<T(ENV*, jobject, const jvalue*)>*)fid->getnativehandle.get())(ENV::FromJNIEnv(env), obj, nullptr);
     } else {
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Unknown Field Getter %s", fid->name.data());
+        LOG("JNIVM", "Invoked Unknown Field Getter %s", fid->name.data());
 #endif
         return defaultVal<T>(ENV::FromJNIEnv(env), fid ? fid->type : "");
     }
@@ -94,7 +94,7 @@ template <class T> void jnivm::SetField(JNIEnv *env, jobject obj, jfieldID id, T
         (*(std::function<void(ENV*, jobject, const jvalue*)>*)fid->setnativehandle.get())(ENV::FromJNIEnv(env), obj, &val);
     } else {
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Unknown Field Setter %s", fid->name.data());
+        LOG("JNIVM", "Invoked Unknown Field Setter %s", fid->name.data());
 #endif
     }
 }
@@ -121,7 +121,7 @@ template <class T> T jnivm::GetStaticField(JNIEnv *env, jclass cl, jfieldID id) 
         }
     } else {
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Unknown Field Getter %s", fid->name.data());
+        LOG("JNIVM", "Invoked Unknown Field Getter %s", fid->name.data());
 #endif
         return defaultVal<T>(ENV::FromJNIEnv(env), fid ? fid->type : "");
     }
@@ -152,7 +152,7 @@ void jnivm::SetStaticField(JNIEnv *env, jclass cl, jfieldID id, T value) {
         }
     } else {
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Unknown Field Setter %s", fid->name.data());
+        LOG("JNIVM", "Invoked Unknown Field Setter %s", fid->name.data());
 #endif
     }
 }

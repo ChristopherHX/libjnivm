@@ -62,6 +62,17 @@ if(JNIVM_ENABLE_TESTS)
     if(JNIVM_ENABLE_RETURN_NON_ZERO)
         target_compile_definitions(JNIVMTests PRIVATE JNI_RETURN_NON_ZERO)
     endif()
+
+    add_executable(JNIVMTestCodeGen src/tests/CodeGen.cpp)
+    target_link_libraries(JNIVMTestCodeGen jnivm)
+
+    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/generated.hpp
+                    COMMAND JNIVMTestCodeGen ARGS ${CMAKE_CURRENT_BINARY_DIR}/generated.hpp
+                    DEPENDS JNIVMTestCodeGen
+                    VERBATIM)
+    add_executable(JNIVMTestCodeGenTest src/tests/CodeGen.cpp ${CMAKE_CURRENT_BINARY_DIR}/generated.hpp)
+    target_compile_definitions(JNIVMTestCodeGenTest PRIVATE EXTRA_INCLUDE="${CMAKE_CURRENT_BINARY_DIR}/generated.hpp")
+    target_link_libraries(JNIVMTestCodeGenTest jnivm)
 endif()
 
 option(JNIVM_BUILD_EXAMPLES "Enable jnivm / fake-jni (compat) examples" OFF)

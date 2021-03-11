@@ -2,7 +2,7 @@
 
 using namespace FakeJni;
 
-FakeJni::Jvm::Jvm() : VM(true) {
+FakeJni::Jvm::Jvm() : VM(true, true) {
     functions = GetJavaVM()->functions;
     initialize();
     // oldinterface = *GetJavaVM()->functions;

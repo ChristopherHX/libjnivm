@@ -68,11 +68,11 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
         Declare(env, next->signature.data());
 #endif
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Unresolved symbol, Class: %s, %sMethod: %s, Signature: %s", cur ? cur->nativeprefix.data() : nullptr, isStatic ? "Static" : "", str0, str1);
+        LOG("JNIVM", "Unresolved symbol, Class=`%s`, %sMethod=`%s`, Signature=`%s`", cur ? cur->nativeprefix.data() : nullptr, isStatic ? "Static" : "", str0, str1);
 #endif
     } else {
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Found symbol, Class: %s, %sMethod: %s, Signature: %s", cur ? cur->nativeprefix.data() : nullptr, isStatic ? "Static" : "", str0, str1);
+        LOG("JNIVM", "Found symbol, Class=`%s`, %sMethod=`%s`, Signature=`%s`", cur ? cur->nativeprefix.data() : nullptr, isStatic ? "Static" : "", str0, str1);
 #endif
     }
     return (jmethodID)next.get();
@@ -116,13 +116,34 @@ template<> jobject jnivm::defaultVal(ENV* env, std::string signature) {
                 break;
             }
             
-        } else if (signature[off + 1] == 'L' && signature[signature.size() - 1] == ';'){
+        } else if(signature[off + 1] == 'L' && signature[signature.size() - 1] == ';'){
             auto c = env->GetClass(signature.substr(off + 2, signature.size() - (off + 3)).data());
             if(c->Instantiate) {
 #ifdef JNI_TRACE
                 LOG("JNIVM", "Construct object=`%s` via default constructor", &signature.data()[off + 1]);
 #endif
                 return JNITypes<std::shared_ptr<Object>>::ToJNIReturnType(env, c->Instantiate(env));
+            } else {
+                std::lock_guard guard(env->GetVM()->mtx);
+                bool safetocreatedummy = true;
+                for(auto&& ty : env->GetVM()->typecheck) {
+                    if(ty.second == c) {
+                        safetocreatedummy = false;
+                        break;
+                    }
+                }
+                if(safetocreatedummy) {
+#ifdef JNI_TRACE
+                    LOG("JNIVM", "Construct dummy object=`%s`, no native type attached to this Class", &signature.data()[off + 1]);
+#endif
+                    auto dummy = std::make_shared<Object>();
+                    dummy->clazz = c;
+                    return JNITypes<std::shared_ptr<Object>>::ToJNIReturnType(env, dummy);
+                } else {
+#ifdef JNI_TRACE
+                    LOG("JNIVM", "You have to create a default constructor for object=`%s` to get a non zero return value", &signature.data()[off + 1]);
+#endif
+                }
             }
         }
 #ifdef JNI_TRACE
@@ -188,8 +209,8 @@ T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
         }
     } else {
 #ifdef JNI_TRACE
-        Class* cl = obj ? (Class*)env->GetObjectClass(obj) : nullptr;
-        LOG("JNIVM", "Unknown Function Class=`%s` Method=`%s` Signature=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid ? mid->name.data() : "???", mid ? mid->signature.data() : "???");
+        auto cl = JNITypes<std::shared_ptr<Class>>::JNICast(ENV::FromJNIEnv(env), env->GetObjectClass(obj));
+        LOG("JNIVM", "Invoked Unknown Member Function Class=`%s` Method=`%s` Signature=`%s`", cl ? cl->nativeprefix.data() : "???", mid ? mid->name.data() : "???", mid ? mid->signature.data() : "???");
 #endif
         return defaultVal<T>(ENV::FromJNIEnv(env), mid ? mid->signature : "");
     }
@@ -254,7 +275,8 @@ T jnivm::CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id
         }
     } else {
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Unknown Function Class=`%s` Method=`%s`", cl ? ((Class*)cl)->nativeprefix.data() : "???", mid ? mid->name.data() : "???");
+        auto clz = JNITypes<std::shared_ptr<Class>>::JNICast(ENV::FromJNIEnv(env), cl);
+        LOG("JNIVM", "Invoked Unknown NonVirtual Member Function Class=`%s` Method=`%s` Signature=`%s`", clz ? clz->nativeprefix.data() : "???", mid ? mid->name.data() : "???", mid ? mid->signature.data() : "???");
 #endif
         return defaultVal<T>(ENV::FromJNIEnv(env), mid ? mid->signature : "");
     }
@@ -309,7 +331,7 @@ T jnivm::CallStaticMethod(JNIEnv * env, jclass _cl, jmethodID id, jvalue * param
         }
     } else {
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Unknown Function Class=`%s` Method=`%s`", cl ? cl->nativeprefix.data() : "???", mid ? mid->name.data() : "???");
+        LOG("JNIVM", "Invoked Unknown Static Function Class=`%s` Method=`%s` Signature=`%s`", cl ? cl->nativeprefix.data() : "???", mid ? mid->name.data() : "???", mid ? mid->signature.data() : "???");
 #endif
         return defaultVal<T>(ENV::FromJNIEnv(env), mid ? mid->signature : "");
     }

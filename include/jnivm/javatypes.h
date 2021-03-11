@@ -23,4 +23,10 @@ namespace jnivm {
             using ByteBuffer = jnivm::ByteBuffer;
         }
     }
+    namespace internal {
+        namespace lang {
+            using Global = jnivm::Global;
+            using Weak = jnivm::Weak;
+        }
+    }
 }

@@ -15,10 +15,7 @@
 using namespace jnivm;
 
 jint GetVersion(JNIEnv *) {
-#ifdef JNI_DEBUG
-	LOG("JNIVM", "GetVersion unsupported");
-#endif
-	return 0;
+	return JNI_VERSION_1_6;
 };
 jclass DefineClass(JNIEnv *, const char *, jobject, const jbyte *, jsize) {
 #ifdef JNI_DEBUG
@@ -27,11 +24,11 @@ jclass DefineClass(JNIEnv *, const char *, jobject, const jbyte *, jsize) {
 	return 0;
 };
 
+template<bool returnZero=false>
 jclass FindClass(JNIEnv *env, const char *name) {
-	// std::lock_guard<std::mutex> lock(((VM *)(env->functions->reserved1))->mtx);
 	auto&& nenv = *ENV::FromJNIEnv(env);
 	std::lock_guard<std::mutex> lock(nenv.GetVM()->mtx);
-	return InternalFindClass(env, name);
+	return InternalFindClass(env, name, returnZero);
 };
 jmethodID FromReflectedMethod(JNIEnv *env, jobject obj) {
 	if(obj && env->functions->IsSameObject(env, env->functions->GetObjectClass(env, obj), FindClass(env, "java/lang/reflect/Method"))) {
@@ -163,7 +160,7 @@ jobject NewGlobalRef(JNIEnv * env, jobject obj) {
 	}
 	auto global = std::make_shared<Global>();
 	global->wrapped = std::move(strong);
-	global->clazz = InternalFindClass(ENV::FromJNIEnv(env), "jnivm/lang/Global");
+	global->clazz = InternalFindClass(ENV::FromJNIEnv(env), "internal/lang/Global");
 	return NewGlobalRef(env, global);
 };
 void DeleteGlobalRef(JNIEnv * env, std::shared_ptr<Object> obj) {
@@ -304,7 +301,7 @@ jweak NewWeakGlobalRef(JNIEnv *env, jobject obj) {
 	}
 	auto weak = std::make_shared<Weak>();
 	weak->wrapped = strong->weak_from_this();
-	weak->clazz = InternalFindClass(ENV::FromJNIEnv(env), "jnivm/lang/Weak");
+	weak->clazz = InternalFindClass(ENV::FromJNIEnv(env), "internal/lang/Weak");
 
 	return (jweak) NewGlobalRef(env, weak);
 }
@@ -340,7 +337,7 @@ template<> struct JNINativeInterfaceCompose<> {
 	template<class Y> using index = std::integral_constant<size_t, 0>;	
 };
 
-template<class ...jnitypes> constexpr JNINativeInterface GetInterface() {
+template<bool ReturnNull, class ...jnitypes> constexpr JNINativeInterface GetInterface() {
 	using compose = JNINativeInterfaceCompose<jnitypes...>;
 	using composeType = typename compose::Type;
 	return {
@@ -350,7 +347,7 @@ template<class ...jnitypes> constexpr JNINativeInterface GetInterface() {
 		NULL,
 		GetVersion,
 		DefineClass,
-		FindClass,
+		FindClass<ReturnNull>,
 		FromReflectedMethod,
 		FromReflectedField,
 		/* spec doesn't show jboolean parameter */
@@ -378,7 +375,7 @@ template<class ...jnitypes> constexpr JNINativeInterface GetInterface() {
 		CallStaticMethod<jobject>,
 		GetObjectClass,
 		IsInstanceOf,
-		GetMethodID<false>,
+		GetMethodID<false, ReturnNull>,
 		CallMethod<jobject>,
 		CallMethod<jobject>,
 		CallMethod<jobject>,
@@ -397,12 +394,12 @@ template<class ...jnitypes> constexpr JNINativeInterface GetInterface() {
 		CallNonvirtualMethod<void>,
 		CallNonvirtualMethod<void>,
 		CallNonvirtualMethod<void>,
-		GetFieldID<false>,
+		GetFieldID<false, ReturnNull>,
 		GetField<jobject>,
 		GetField<jnitypes>...,
 		SetField<jobject>,
 		SetField<jnitypes>...,
-		GetMethodID<true>,
+		GetMethodID<true, ReturnNull>,
 		CallStaticMethod<jobject>,
 		CallStaticMethod<jobject>,
 		CallStaticMethod<jobject>,
@@ -412,7 +409,7 @@ template<class ...jnitypes> constexpr JNINativeInterface GetInterface() {
 		CallStaticMethod<void>,
 		CallStaticMethod<void>,
 		CallStaticMethod<void>,
-		GetFieldID<true>,
+		GetFieldID<true, ReturnNull>,
 		GetStaticField<jobject>,
 		GetStaticField<jnitypes>...,
 		SetStaticField<jobject>,
@@ -457,7 +454,7 @@ template<class ...jnitypes> constexpr JNINativeInterface GetInterface() {
 
 #include <fake-jni/fake-jni.h>
 
-jnivm::VM::VM(bool skipInit) : ninterface(GetInterface<jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble>()), iinterface({
+jnivm::VM::VM(bool skipInit, bool ReturnNull) : ninterface(ReturnNull ? GetInterface<true, jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble>() : GetInterface<false, jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble>()), iinterface({
 			this,
 			NULL,
 			NULL,
@@ -531,8 +528,8 @@ void VM::initialize() {
 	env->GetClass<Throwable>("java/lang/Throwable");
 	env->GetClass<Method>("java/lang/reflect/Method");
 	env->GetClass<Field>("java/lang/reflect/Field");
-	env->GetClass<Weak>("jnivm/lang/Weak");
-	env->GetClass<Global>("jnivm/lang/Global");
+	env->GetClass<Weak>("internal/lang/Weak");
+	env->GetClass<Global>("internal/lang/Global");
 }
 
 JavaVM *VM::GetJavaVM() {

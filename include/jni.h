@@ -953,7 +953,7 @@ jint JNI_CreateJavaVM(JavaVM**, JNIEnv**, void*);
 jint JNI_GetCreatedJavaVMs(JavaVM**, jsize, jsize*);
 #define JNIIMPORT
 #if defined(_WIN32) && defined(_MSC_VER) && !defined(__clang__)
-#define JNIEXPORT
+#define JNIEXPORT __declspec(dllexport)
 #else
 #define JNIEXPORT __attribute__ ((visibility ("default")))
 #endif
