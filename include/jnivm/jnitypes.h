@@ -355,10 +355,21 @@ template<class orgtype, class T> struct OrgTypeConverter<orgtype*, T> {
     }
 };
 
+template<class orgtype, bool val = std::is_assignable<orgtype, nullptr_t>::value> struct AnotherFactory {
+    static orgtype DefaultVal() {
+        throw std::runtime_error("This type is not assignable to null");
+    }
+};
+
+template<class orgtype> struct AnotherFactory<orgtype, true> {
+    static orgtype DefaultVal() {
+        return nullptr;
+    }
+};
 
 template<class T, class B, class orgtype> orgtype jnivm::JNITypesObjectBase<T, B, orgtype>::JNICast(jnivm::ENV *env, const jobject &o) {
     if(!o) {
-        return nullptr;
+        return AnotherFactory<orgtype>::DefaultVal();
     }
     return OrgTypeConverter<orgtype, T>::Convert(env, UnpackJObject<T>((Object*)o));
 }
