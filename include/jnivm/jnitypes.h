@@ -350,7 +350,7 @@ template<class orgtype, class T> struct OrgTypeConverter<std::shared_ptr<orgtype
 
 template<class orgtype, class T> struct OrgTypeConverter<orgtype*, T> {
     static orgtype* Convert(jnivm::ENV *env, std::shared_ptr<T> && org) {
-        (void)JNITypes<Object>::ToJNIType(env, org);
+        (void)jnivm::JNITypes<Object>::ToJNIType(env, org);
         return org.get();
     }
 };
