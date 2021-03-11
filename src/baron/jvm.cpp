@@ -96,13 +96,13 @@ bool Baron::Jvm::isMethodDenied(const char *name, const char *sig, const char *c
     auto results = { denyMethods.equal_range(""), denyMethods.equal_range(name) };
     for(auto && res : results) {
         for (auto i = res.first; i != res.second; ++i) {
-            if(name != "" && i->first != "" && i->first != name) {
+            if(name && name[0] != '\0' && i->first != "" && i->first != name) {
                 continue;
             }
-            if(sig != "" && i->second.signature != "" && i->second.signature != sig) {
+            if(sig && sig[0] != '\0' && i->second.signature != "" && i->second.signature != sig) {
                 continue;
             }
-            if(clazz == "" || i->second.classname.empty() || i->second.classname == clazz) {
+            if(!clazz || clazz[0] == '\0' || i->second.classname.empty() || i->second.classname == clazz) {
                 return true;
             }
         }
@@ -114,13 +114,13 @@ bool Baron::Jvm::isFieldDenied(const char *name, const char *sig, const char *cl
     auto results = { denyFields.equal_range(""), denyFields.equal_range(name) };
     for(auto && res : results) {
         for (auto i = res.first; i != res.second; ++i) {
-            if(name != "" && i->first != "" && i->first != name) {
+            if(name && name[0] != '\0' && i->first != "" && i->first != name) {
                 continue;
             }
-            if(sig != "" && i->second.signature != "" && i->second.signature != sig) {
+            if(sig && sig[0] != '\0' && i->second.signature != "" && i->second.signature != sig) {
                 continue;
             }
-            if(clazz == "" || i->second.classname.empty() || i->second.classname == clazz) {
+            if(!clazz || clazz[0] == '\0' || i->second.classname.empty() || i->second.classname == clazz) {
                 return true;
             }
         }
