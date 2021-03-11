@@ -438,7 +438,7 @@ template<bool ReturnNull, class ...jnitypes> struct InterfaceFactory {
 
 #include <fake-jni/fake-jni.h>
 
-template<bool ReturnNull> static const JNINativeInterface &jnivm::VM::GetNativeInterfaceTemplate() {
+template<bool ReturnNull> const JNINativeInterface &jnivm::VM::GetNativeInterfaceTemplate() {
 	return InterfaceFactory<ReturnNull, jobject, jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble, void>::Type::Interface2;
 }
 
