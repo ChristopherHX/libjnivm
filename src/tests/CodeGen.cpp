@@ -20,7 +20,7 @@ void callSomeJNIStuff(JNIEnv * env) {
     auto ret = env->CallObjectMethod(obj2, Hboken);
 }
 
-#if /* JNIVM_FAKE_JNI_SYNTAX &&  */defined(EXTRA_INCLUDE)
+#if JNIVM_FAKE_JNI_SYNTAX == 1 && defined(EXTRA_INCLUDE)
 #include <fake-jni/fake-jni.h>
 using namespace FakeJni;
 #else
@@ -31,7 +31,7 @@ using namespace jnivm;
 
 
 int main(int argc, const char** argv) {
-#if /* JNIVM_FAKE_JNI_SYNTAX &&  */defined(EXTRA_INCLUDE)
+#if JNIVM_FAKE_JNI_SYNTAX == 1 && defined(EXTRA_INCLUDE)
     Jvm jvm;
     LocalFrame f;
     InitJNIBinding(&jvm);
