@@ -12,12 +12,6 @@ namespace jnivm {
     template<> void defaultVal(ENV* env, std::string signature);
     template<> jobject defaultVal(ENV* env, std::string signature);
 
-    // template <class T>
-    // T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param);
-
-    // template <class T, class...Y>
-    // T CallMethod(JNIEnv * env, Y...p, jmethodID id, va_list param);
-
     template <class T, class...Y> struct MDispatchBase {
         static T CallMethod(JNIEnv * env, Y...p, jmethodID id, va_list param);
     };
@@ -27,8 +21,6 @@ namespace jnivm {
         static T CallMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, jvalue * param);
         static T CallMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param);
     };
-
-            
 
     template <class T, class...Y> struct MDispatch : MDispatchBase<T, Y...>, MDispatchBase2<T> {
         using MDispatchBase<T, Y...>::CallMethod;
@@ -41,15 +33,4 @@ namespace jnivm {
         using MDispatchBase2<void>::CallMethod;
         static void CallMethod(JNIEnv * env, Y...p, jmethodID id, ...);
     };
-    // template <class T, class...Y>
-    // T CallMethod(JNIEnv * env, Y...p, jmethodID id, ...);
-
-    // template <class...Y>
-    // void CallMethod(JNIEnv * env, Y...p, jmethodID id, ...);
-
-    // template <class T>
-    // T CallMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, jvalue * param);
-
-    // template <class T>
-    // T CallMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param);
 }

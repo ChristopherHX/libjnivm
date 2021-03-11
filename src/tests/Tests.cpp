@@ -440,8 +440,10 @@ FakeJni::Constructor<FakeJniTest>{},
 #endif
 END_NATIVE_DESCRIPTOR
 
-TEST(FakeJni, Test) {
-    FakeJni::Jvm jvm;
+#include <baron/baron.h>
+
+TEST(Baron, Test) {
+    Baron::Jvm jvm;
     jvm.registerClass<FakeJniTest>();
     FakeJni::LocalFrame frame(jvm);
     jclass c = (&frame.getJniEnv())->FindClass("FakeJniTest");
@@ -1266,7 +1268,7 @@ TEST(JNIVM, FakeJni_0_0_5_COMPAT) {
     }
     auto len = vm.GetJNIEnv()->GetStringLength(jo);
     String s3;
-    s3 = JNITypes<String, String>::JNICast(vm.GetEnv().get(), jo);
+    s3 = JNITypes<String>::JNICast(vm.GetEnv().get(), jo);
 }
 
 class FakeJni_0_0_5_COMPAT_TEST : public FakeJni::JObject {
@@ -1310,4 +1312,45 @@ TEST(FakeJni, FakeJni_0_0_5_COMPAT_TEST) {
     FakeJni::JString* s5 = (*args)[0] = s;
     ASSERT_TRUE(s5);
     std::cout << *s5 << "\n";
+}
+
+TEST(Baron, DeniedFabrication) {
+    Baron::Jvm jvm;
+    jvm.denyClass("Test");
+    FakeJni::LocalFrame f;
+    ASSERT_EQ(f.getJniEnv().FindClass("Test"), (jclass)0);
+    ASSERT_NE(f.getJniEnv().FindClass("Test2"), (jclass)0);
+    jvm.denyClass("Test2");
+    ASSERT_NE(f.getJniEnv().FindClass("Test2"), (jclass)0);
+
+    jvm.denyMethod("<init>", "()V");
+
+    jclass t2 = f.getJniEnv().FindClass("Test2");
+    ASSERT_EQ(f.getJniEnv().GetMethodID(t2, "<init>", "()V"), (jmethodID)0);
+    ASSERT_NE(f.getJniEnv().GetMethodID(t2, "test", "()V"), (jmethodID)0);
+    ASSERT_NE(f.getJniEnv().GetMethodID(t2, "<init>", "(Ljava/lang/String;)V"), (jmethodID)0);
+
+    jvm.denyMethod("", "()Ljava/lang/String;");
+
+    ASSERT_EQ(f.getJniEnv().GetMethodID(t2, "test2", "()Ljava/lang/String;"), (jmethodID)0);
+    ASSERT_NE(f.getJniEnv().GetMethodID(t2, "test3", "()Ljava/lang/Object;"), (jmethodID)0);
+    ASSERT_NE(f.getJniEnv().GetMethodID(t2, "somethingelse", "()Ljava/lang/Object;"), (jmethodID)0);
+    ASSERT_EQ(f.getJniEnv().GetMethodID(t2, "somethingelse", "()Ljava/lang/String;"), (jmethodID)0);
+
+
+    jvm.denyField("", "Ljava/lang/String;");
+
+    ASSERT_EQ(f.getJniEnv().GetFieldID(t2, "test2", "Ljava/lang/String;"), (jfieldID)0);
+    ASSERT_NE(f.getJniEnv().GetFieldID(t2, "test3", "Ljava/lang/Object;"), (jfieldID)0);
+    ASSERT_NE(f.getJniEnv().GetFieldID(t2, "somethingelse", "Ljava/lang/Object;"), (jfieldID)0);
+    ASSERT_EQ(f.getJniEnv().GetFieldID(t2, "somethingelse", "Ljava/lang/String;"), (jfieldID)0);
+
+    jvm.denyField("somethingelseAgain", "Ljava/lang/Object;");
+    ASSERT_EQ(f.getJniEnv().GetFieldID(t2, "somethingelseAgain", "Ljava/lang/Object;"), (jfieldID)0);
+
+    jvm.denyField("somethingelseAgain2", "Ljava/lang/Object;", "java/lang/String");
+    ASSERT_NE(f.getJniEnv().GetFieldID(t2, "somethingelseAgain2", "Ljava/lang/Object;"), (jfieldID)0);
+    ASSERT_EQ(f.getJniEnv().GetFieldID(f.getJniEnv().FindClass("java/lang/String"), "somethingelseAgain2", "Ljava/lang/Object;"), (jfieldID)0);
+
+    jvm.printStatistics();
 }

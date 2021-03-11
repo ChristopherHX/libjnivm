@@ -40,6 +40,9 @@ jfieldID jnivm::GetFieldID(JNIEnv *env, jclass cl_, const char *name, const char
             }
         }
         if(ReturnNull) {
+#ifdef JNI_TRACE
+            LOG("JNIVM", "Unresolved symbol, Class=`%s`, %sField=`%s`, Signature=`%s`", cl ? cl->nativeprefix.data() : nullptr, isStatic ? "Static" : "", name, type);
+#endif
             return nullptr;
         }
         next = std::make_shared<Field>();
@@ -51,13 +54,34 @@ jfieldID jnivm::GetFieldID(JNIEnv *env, jclass cl_, const char *name, const char
         Declare(env, next->type.data());
 #endif
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Unresolved symbol, Class=`%s`, %sField=`%s`, Signature=`%s`", cl ? cl->nativeprefix.data() : nullptr, isStatic ? "Static" : "", name, type);
+        LOG("JNIVM", "Constructed Unresolved symbol, Class=`%s`, %sField=`%s`, Signature=`%s`", cl ? cl->nativeprefix.data() : nullptr, isStatic ? "Static" : "", name, type);
 #endif
     }
     return (jfieldID)next.get();
 };
 
-template <class T> T jnivm::GetField(JNIEnv *env, jobject obj, jfieldID id) {
+namespace Util {
+    std::shared_ptr<Class> GetClass(jnivm::ENV* env, jobject o) {
+        return JNITypes<std::shared_ptr<Class>>::JNICast(env, env->GetJNIEnv()->GetObjectClass(o));
+    }
+    std::shared_ptr<Class> GetClass(jnivm::ENV* env, jclass o) {
+        return JNITypes<std::shared_ptr<Class>>::JNICast(env, o);
+    }
+    struct Proxy {
+        std::shared_ptr<Class> in;
+        operator Class*() {
+            return in.get();
+        }
+    };
+    Proxy GetParam(jnivm::ENV* env, jclass c) {
+        return { GetClass(env, c) };
+    }
+    jobject GetParam(jnivm::ENV* env, jobject c) {
+        return c;
+    }
+};
+
+template<bool RetNull, class T, class O> T jnivm::GetField(JNIEnv *env, O obj, jfieldID id) {
     auto fid = ((Field *)id);
 #ifdef JNI_DEBUG
     if(!obj)
@@ -66,137 +90,63 @@ template <class T> T jnivm::GetField(JNIEnv *env, jobject obj, jfieldID id) {
         LOG("JNIVM", "GetField field is null");
 #endif
     if (fid && fid->getnativehandle) {
+        if(fid->_static != std::is_same<O, jclass>::value) {
+            env->FatalError("GetField / Invalid Field ID");
+        }
 #ifdef JNI_TRACE
-        Class* cl = obj ? (Class*)env->GetObjectClass(obj) : nullptr;
-        LOG("JNIVM", "Call Field Getter Class=`%s` Field=`%s`", cl ? cl->nativeprefix.data() : "???", fid->name.data());
+        auto cl = Util::GetClass(ENV::FromJNIEnv(env), obj);
+        LOG("JNIVM", "Invoked Field Getter Class=`%s` Field=`%s`", cl ? cl->nativeprefix.data() : "???", fid->name.data());
 #endif
-        return (*(std::function<T(ENV*, jobject, const jvalue*)>*)fid->getnativehandle.get())(ENV::FromJNIEnv(env), obj, nullptr);
+        return (*(std::function<T(ENV*, std::conditional_t<std::is_same<O, jclass>::value, Class*, jobject>, const jvalue*)>*)fid->getnativehandle.get())(ENV::FromJNIEnv(env), Util::GetParam(ENV::FromJNIEnv(env), obj), nullptr);
     } else {
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Invoked Unknown Field Getter %s", fid->name.data());
+        auto cl = Util::GetClass(ENV::FromJNIEnv(env), obj);
+        LOG("JNIVM", "Invoked Unknown Field Getter Class=`%s` Field=`%s`", cl ? cl->nativeprefix.data() : "???", fid->name.data());
 #endif
         return defaultVal<T>(ENV::FromJNIEnv(env), fid ? fid->type : "");
     }
 }
 
-template <class T> void jnivm::SetField(JNIEnv *env, jobject obj, jfieldID id, T value) {
+template<class T, class O> void jnivm::SetField(JNIEnv *env, O obj, jfieldID id, T value) {
     auto fid = ((Field *)id);
 #ifdef JNI_DEBUG
     if(!obj)
-        LOG("JNIVM", "SetField object is null");
+        LOG("JNIVM", "SetField class or object is null");
     if(!id)
         LOG("JNIVM", "SetField field is null");
 #endif
-    if (fid && fid->setnativehandle) {
+    if (obj && fid && fid->setnativehandle) {
+        if(fid->_static != std::is_same<O, jclass>::value) {
+            env->FatalError("SetField / Invalid Field ID");
+        }
+#ifdef JNI_TRACE
+        auto cl = Util::GetClass(ENV::FromJNIEnv(env), obj);
+        LOG("JNIVM", "Invoked Field Setter Class=`%s` Field=`%s`", cl ? cl->nativeprefix.data() : "???", fid->name.data());
+#endif
         jvalue val;
         memset(&val, 0, sizeof(val));
         memcpy(&val, &value, sizeof(T));
-        (*(std::function<void(ENV*, jobject, const jvalue*)>*)fid->setnativehandle.get())(ENV::FromJNIEnv(env), obj, &val);
+        (*(std::function<void(ENV*, std::conditional_t<std::is_same<O, jclass>::value, Class*, jobject>, const jvalue*)>*)fid->setnativehandle.get())(ENV::FromJNIEnv(env), Util::GetParam(ENV::FromJNIEnv(env), obj), &val);
     } else {
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Invoked Unknown Field Setter %s", fid->name.data());
+        auto cl = Util::GetClass(ENV::FromJNIEnv(env), obj);
+        LOG("JNIVM", "Invoked Unknown Field Setter Class=`%s` Field=`%s`", cl ? cl->nativeprefix.data() : "???", fid->name.data());
 #endif
     }
 }
 
-template <class T> T jnivm::GetStaticField(JNIEnv *env, jclass cl, jfieldID id) {
-    auto fid = ((Field *)id);
-#ifdef JNI_DEBUG
-    if(!cl)
-        LOG("JNIVM", "GetStaticField class is null");
-    if(!id)
-        LOG("JNIVM", "GetStaticField field is null");
-#endif
-    if (fid && fid->getnativehandle) {
-        try {
-            return (*(std::function<T(ENV*, Class*, const jvalue *)>*)fid->getnativehandle.get())(ENV::FromJNIEnv(env), (Class*)cl, nullptr);
-        } catch (...) {
-            auto cur = std::make_shared<Throwable>();
-            cur->except = std::current_exception();
-            (ENV::FromJNIEnv(env))->current_exception = cur;
-    #ifdef JNI_TRACE
-            env->ExceptionDescribe();
-    #endif
-            return defaultVal<T>(ENV::FromJNIEnv(env), fid ? fid->type : "");
-        }
-    } else {
-#ifdef JNI_TRACE
-        LOG("JNIVM", "Invoked Unknown Field Getter %s", fid->name.data());
-#endif
-        return defaultVal<T>(ENV::FromJNIEnv(env), fid ? fid->type : "");
-    }
-}
 
-template <class T>
-void jnivm::SetStaticField(JNIEnv *env, jclass cl, jfieldID id, T value) {
-    auto fid = ((Field *)id);
-#ifdef JNI_DEBUG
-    if(!cl)
-        LOG("JNIVM", "SetStaticField class is null");
-    if(!id)
-        LOG("JNIVM", "SetStaticField field is null");
-#endif
-    if (fid && fid->setnativehandle) {
-        try {
-            jvalue val;
-            memset(&val, 0, sizeof(val));
-            memcpy(&val, &value, sizeof(T));
-            (*(std::function<void(ENV*, Class*, const jvalue *)>*)fid->setnativehandle.get())(ENV::FromJNIEnv(env), (Class*)cl, &val);
-        } catch (...) {
-            auto cur = std::make_shared<Throwable>();
-            cur->except = std::current_exception();
-            (ENV::FromJNIEnv(env))->current_exception = cur;
-    #ifdef JNI_TRACE
-            env->ExceptionDescribe();
-    #endif
-        }
-    } else {
-#ifdef JNI_TRACE
-        LOG("JNIVM", "Invoked Unknown Field Setter %s", fid->name.data());
-#endif
-    }
-}
+
 
 template jfieldID jnivm::GetFieldID<true>(JNIEnv *env, jclass cl, const char *name, const char *type);
 template jfieldID jnivm::GetFieldID<false>(JNIEnv *env, jclass cl, const char *name, const char *type);
 
-#define DeclareTemplate(T) template T jnivm::GetField(JNIEnv *env, jobject obj, jfieldID id)
-DeclareTemplate(jboolean);
-DeclareTemplate(jbyte);
-DeclareTemplate(jshort);
-DeclareTemplate(jint);
-DeclareTemplate(jlong);
-DeclareTemplate(jfloat);
-DeclareTemplate(jdouble);
-DeclareTemplate(jchar);
-DeclareTemplate(jobject);
-#undef DeclareTemplate
-
-#define DeclareTemplate(T) template void jnivm::SetField(JNIEnv *env, jobject obj, jfieldID id, T value) 
-DeclareTemplate(jboolean);
-DeclareTemplate(jbyte);
-DeclareTemplate(jshort);
-DeclareTemplate(jint);
-DeclareTemplate(jlong);
-DeclareTemplate(jfloat);
-DeclareTemplate(jdouble);
-DeclareTemplate(jchar);
-DeclareTemplate(jobject);
-#undef DeclareTemplate
-
-#define DeclareTemplate(T) template T jnivm::GetStaticField(JNIEnv *env, jclass cl, jfieldID id)
-DeclareTemplate(jboolean);
-DeclareTemplate(jbyte);
-DeclareTemplate(jshort);
-DeclareTemplate(jint);
-DeclareTemplate(jlong);
-DeclareTemplate(jfloat);
-DeclareTemplate(jdouble);
-DeclareTemplate(jchar);
-DeclareTemplate(jobject);
-#undef DeclareTemplate
-
-#define DeclareTemplate(T) template void jnivm::SetStaticField(JNIEnv *env, jclass cl, jfieldID id, T value)
+#define DeclareTemplate(T) template void jnivm::SetField<T, jclass>(JNIEnv *env, jclass obj, jfieldID id, T value); \
+                           template T jnivm::GetField<true, T, jclass>(JNIEnv *env, jclass obj, jfieldID id);\
+                           template T jnivm::GetField<false, T, jclass>(JNIEnv *env, jclass obj, jfieldID id);\
+                           template void jnivm::SetField<T, jobject>(JNIEnv *env, jobject obj, jfieldID id, T value); \
+                           template T jnivm::GetField<true, T, jobject>(JNIEnv *env, jobject obj, jfieldID id);\
+                           template T jnivm::GetField<false, T, jobject>(JNIEnv *env, jobject obj, jfieldID id)
 DeclareTemplate(jboolean);
 DeclareTemplate(jbyte);
 DeclareTemplate(jshort);

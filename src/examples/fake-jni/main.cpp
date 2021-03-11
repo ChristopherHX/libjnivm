@@ -83,9 +83,9 @@ END_NATIVE_DESCRIPTOR
 extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
     return JNI_VERSION_1_6;
 }
-#include <baron/baron.h>
+
 int main(int argc, char** argv) {
-    Baron::Jvm jvm;
+    FakeJni::Jvm jvm;
     jvm.registerClass<SampleClass>();
     jvm.registerClass<DerivedClass>();
     jvm.attachLibrary("");
@@ -136,6 +136,5 @@ int main(int argc, char** argv) {
     CDerivedClass->getMethod("(D)V", "exampleStaticFunction")->invoke(frame.getJniEnv(), CDerivedClass.get(), 3.4);
 
     frame.getJniEnv().GetStaticFieldID(frame.getJniEnv().GetObjectClass(ref), "staticstringfield", "Ljava/lang/String;");
-    jvm.printStatistics();
     return 0;
 }

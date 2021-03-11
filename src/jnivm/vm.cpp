@@ -301,7 +301,7 @@ jweak NewWeakGlobalRef(JNIEnv *env, jobject obj) {
 	}
 	auto weak = std::make_shared<Weak>();
 	weak->wrapped = strong->weak_from_this();
-	weak->clazz = InternalFindClass(ENV::FromJNIEnv(env), "internal/lang/Weak");
+	weak->clazz = InternalFindClass(ENV::FromJNIEnv(env), "java/lang/ref/WeakReference");
 
 	return (jweak) NewGlobalRef(env, weak);
 }
@@ -337,131 +337,112 @@ template<> struct JNINativeInterfaceCompose<> {
 	template<class Y> using index = std::integral_constant<size_t, 0>;	
 };
 
-template<bool ReturnNull, class ...jnitypes> constexpr JNINativeInterface GetInterface() {
+template<bool ReturnNull, class ...jnitypes> struct InterfaceFactory {
+	using SeqM2 = std::make_index_sequence<sizeof...(jnitypes) - 2>;
+	using SeqM1 = std::make_index_sequence<sizeof...(jnitypes) - 1>;
+	using Seq = std::make_index_sequence<sizeof...(jnitypes) * 3>;
 	using compose = JNINativeInterfaceCompose<jnitypes...>;
 	using composeType = typename compose::Type;
-	JNINativeInterface i;
-	i.CallVoidMethod = MDispatch<void, jobject>::CallMethod;
-	i.CallNonvirtualDoubleMethod = MDispatch<jdouble, jobject, jclass>::CallMethod;
-	i.CallStaticBooleanMethod = MDispatch<jboolean, jclass>::CallMethod;
-	i.CallStaticBooleanMethodV = MDispatch<jboolean, jclass>::CallMethod;
-	i.CallStaticBooleanMethodA = MDispatch<jboolean, jclass>::CallMethod;
-	// return {};
-	return {
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		GetVersion,
-		DefineClass,
-		FindClass<ReturnNull>,
-		FromReflectedMethod,
-		FromReflectedField,
-		/* spec doesn't show jboolean parameter */
-		ToReflectedMethod,
-		GetSuperclass,
-		IsAssignableFrom,
-		ToReflectedField,
-		Throw,
-		ThrowNew,
-		ExceptionOccurred,
-		ExceptionDescribe,
-		ExceptionClear,
-		FatalError,
-		PushLocalFrame,
-		PopLocalFrame,
-		NewGlobalRef,
-		DeleteGlobalRef,
-		DeleteLocalRef,
-		IsSameObject,
-		NewLocalRef,
-		EnsureLocalCapacity,
-		AllocObject,
-		MDispatch<jobject, jclass>::CallMethod,
-		MDispatch<jobject, jclass>::CallMethod,
-		MDispatch<jobject, jclass>::CallMethod,
-		GetObjectClass,
-		IsInstanceOf,
-		GetMethodID<false, ReturnNull>,
-		MDispatch<jobject, jobject>::CallMethod,
-		MDispatch<jobject, jobject>::CallMethod,
-		MDispatch<jobject, jobject>::CallMethod,
-		MDispatch<std::tuple_element_t<compose::template index<jnitypes>::value, composeType>, jobject>::CallMethod ...,
-		MDispatch<std::tuple_element_t<compose::template index<jnitypes>::value + sizeof...(jnitypes), composeType>, jobject>::CallMethod ...,
-		MDispatch<std::tuple_element_t<compose::template index<jnitypes>::value + 2*sizeof...(jnitypes), composeType>, jobject>::CallMethod ...,
-		MDispatch<void, jobject>::CallMethod,
-		MDispatch<void, jobject>::CallMethod,
-		MDispatch<void, jobject>::CallMethod,
-		MDispatch<jobject, jobject, jclass>::CallMethod,
-		MDispatch<jobject, jobject, jclass>::CallMethod,
-		MDispatch<jobject, jobject, jclass>::CallMethod,
-		MDispatch<std::tuple_element_t<compose::template index<jnitypes>::value, composeType>, jobject, jclass>::CallMethod ...,
-		MDispatch<std::tuple_element_t<compose::template index<jnitypes>::value + sizeof...(jnitypes), composeType>, jobject, jclass>::CallMethod ...,
-		MDispatch<std::tuple_element_t<compose::template index<jnitypes>::value + 2*sizeof...(jnitypes), composeType>, jobject, jclass>::CallMethod ...,
-		MDispatch<void, jobject, jclass>::CallMethod,
-		MDispatch<void, jobject, jclass>::CallMethod,
-		MDispatch<void, jobject, jclass>::CallMethod,
-		GetFieldID<false, ReturnNull>,
-		GetField<jobject>,
-		GetField<jnitypes>...,
-		SetField<jobject>,
-		SetField<jnitypes>...,
-		GetMethodID<true, ReturnNull>,
-		MDispatch<jobject, jclass>::CallMethod,
-		MDispatch<jobject, jclass>::CallMethod,
-		MDispatch<jobject, jclass>::CallMethod,
-		MDispatch<std::tuple_element_t<compose::template index<jnitypes>::value, composeType>, jclass>::CallMethod ...,
-		MDispatch<std::tuple_element_t<compose::template index<jnitypes>::value + sizeof...(jnitypes), composeType>, jclass>::CallMethod ...,
-		MDispatch<std::tuple_element_t<compose::template index<jnitypes>::value + 2*sizeof...(jnitypes), composeType>, jclass>::CallMethod ...,
-		MDispatch<void, jclass>::CallMethod,
-		MDispatch<void, jclass>::CallMethod,
-		MDispatch<void, jclass>::CallMethod,
-		GetFieldID<true, ReturnNull>,
-		GetStaticField<jobject>,
-		GetStaticField<jnitypes>...,
-		SetStaticField<jobject>,
-		SetStaticField<jnitypes>...,
-		NewString,
-		GetStringLength,
-		GetStringChars,
-		ReleaseStringChars,
-		NewStringUTF,
-		GetStringUTFLength,
-		GetStringUTFChars,
-		ReleaseStringUTFChars,
-		GetArrayLength,
-		NewObjectArray,
-		GetObjectArrayElement,
-		SetObjectArrayElement,
-		NewArray<jnitypes>...,
-		GetArrayElements<jnitypes>...,
-		ReleaseArrayElements<jnitypes>...,
-		GetArrayRegion<jnitypes>...,
-		SetArrayRegion<jnitypes>...,
-		RegisterNatives,
-		UnregisterNatives,
-		MonitorEnter,
-		MonitorExit,
-		::GetJavaVM,
-		GetStringRegion,
-		GetStringUTFRegion,
-		GetArrayElements<void>,
-		ReleaseArrayElements<void>,
-		GetStringChars,
-		ReleaseStringChars,
-		NewWeakGlobalRef,
-		DeleteWeakGlobalRef,
-		ExceptionCheck,
-		NewDirectByteBuffer,
-		GetDirectBufferAddress,
-		GetDirectBufferCapacity,
-		GetObjectRefType,
+	template<class seq> struct Impl;
+	template<size_t...I> struct Impl<std::integer_sequence<size_t, I...>> {
+		template<class seq> struct Impl2;
+		template<size_t...IM2> struct Impl2<std::integer_sequence<size_t, IM2...>> {
+			template<class seq> struct Impl3;
+			template<size_t...IM1> struct Impl3<std::integer_sequence<size_t, IM1...>> {
+				static constexpr JNINativeInterface Interface2 = {
+					NULL,
+					NULL,
+					NULL,
+					NULL,
+					GetVersion,
+					DefineClass,
+					FindClass<ReturnNull>,
+					FromReflectedMethod,
+					FromReflectedField,
+					ToReflectedMethod,
+					GetSuperclass,
+					IsAssignableFrom,
+					ToReflectedField,
+					Throw,
+					ThrowNew,
+					ExceptionOccurred,
+					ExceptionDescribe,
+					ExceptionClear,
+					FatalError,
+					PushLocalFrame,
+					PopLocalFrame,
+					NewGlobalRef,
+					DeleteGlobalRef,
+					DeleteLocalRef,
+					IsSameObject,
+					NewLocalRef,
+					EnsureLocalCapacity,
+					AllocObject,
+					MDispatch<jobject, jclass>::CallMethod,
+					MDispatch<jobject, jclass>::CallMethod,
+					MDispatch<jobject, jclass>::CallMethod,
+					GetObjectClass,
+					IsInstanceOf,
+					GetMethodID<false, ReturnNull>,
+					MDispatch<std::tuple_element_t<I, composeType>, jobject>::CallMethod ...,
+					MDispatch<std::tuple_element_t<I, composeType>, jobject, jclass>::CallMethod ...,
+					GetFieldID<false, ReturnNull>,
+					GetField<ReturnNull, std::tuple_element_t<IM1, std::tuple<jnitypes...>>, jobject>...,
+					SetField<std::tuple_element_t<IM1, std::tuple<jnitypes...>>, jobject>...,
+					GetMethodID<true, ReturnNull>,
+					MDispatch<std::tuple_element_t<I, composeType>, jclass>::CallMethod ...,
+					GetFieldID<true, ReturnNull>,
+					GetField<ReturnNull, std::tuple_element_t<IM1, std::tuple<jnitypes...>>, jclass>...,
+					SetField<std::tuple_element_t<IM1, std::tuple<jnitypes...>>, jclass>...,
+					NewString,
+					GetStringLength,
+					GetStringChars,
+					ReleaseStringChars,
+					NewStringUTF,
+					GetStringUTFLength,
+					GetStringUTFChars,
+					ReleaseStringUTFChars,
+					GetArrayLength,
+					NewObjectArray,
+					GetObjectArrayElement,
+					SetObjectArrayElement,
+					NewArray<std::tuple_element_t<IM2 + 1, std::tuple<jnitypes...>>>...,
+					GetArrayElements<std::tuple_element_t<IM2 + 1, std::tuple<jnitypes...>>>...,
+					ReleaseArrayElements<std::tuple_element_t<IM2 + 1, std::tuple<jnitypes...>>>...,
+					GetArrayRegion<std::tuple_element_t<IM2 + 1, std::tuple<jnitypes...>>>...,
+					SetArrayRegion<std::tuple_element_t<IM2 + 1, std::tuple<jnitypes...>>>...,
+					RegisterNatives,
+					UnregisterNatives,
+					MonitorEnter,
+					MonitorExit,
+					::GetJavaVM,
+					GetStringRegion,
+					GetStringUTFRegion,
+					GetArrayElements<void>,
+					ReleaseArrayElements<void>,
+					GetStringChars,
+					ReleaseStringChars,
+					NewWeakGlobalRef,
+					DeleteWeakGlobalRef,
+					ExceptionCheck,
+					NewDirectByteBuffer,
+					GetDirectBufferAddress,
+					GetDirectBufferCapacity,
+					GetObjectRefType,
+				};
+			};
+		};
 	};
-}
+	using Type = typename Impl<Seq>::template Impl2<SeqM2>::template Impl3<SeqM1>;
+};
 
 #include <fake-jni/fake-jni.h>
 
-jnivm::VM::VM(bool skipInit, bool ReturnNull) : ninterface(ReturnNull ? GetInterface<true, jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble>() : GetInterface<false, jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble>()), iinterface({
+template<bool ReturnNull> static const JNINativeInterface &jnivm::VM::GetNativeInterfaceTemplate() {
+	return InterfaceFactory<ReturnNull, jobject, jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble, void>::Type::Interface2;
+}
+
+jnivm::VM::VM(bool skipInit, bool ReturnNull) : ninterface(ReturnNull ? GetNativeInterfaceTemplate<true>() : GetNativeInterfaceTemplate<false>()/* GetInterface<true, jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble>() : GetInterface<false, jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble>() */), iinterface({
 			this,
 			NULL,
 			NULL,
@@ -535,8 +516,10 @@ void VM::initialize() {
 	env->GetClass<Throwable>("java/lang/Throwable");
 	env->GetClass<Method>("java/lang/reflect/Method");
 	env->GetClass<Field>("java/lang/reflect/Field");
-	env->GetClass<Weak>("internal/lang/Weak");
+	env->GetClass<Weak>("java/lang/ref/WeakReference");
 	env->GetClass<Global>("internal/lang/Global");
+	// auto val = InterfaceFactory<false, jobject, jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble, void>::Type::Interface;
+	// auto val2 = InterfaceFactory<false, jobject, jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble, void>::Type::Interface2;
 }
 
 JavaVM *VM::GetJavaVM() {

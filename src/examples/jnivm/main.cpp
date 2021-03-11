@@ -24,7 +24,7 @@ env->GetClass<jnivm::java::lang::Throwable>("java/lang/Throwable");
 env->GetClass<jnivm::java::lang::reflect::Method>("java/lang/reflect/Method");
 env->GetClass<jnivm::java::lang::reflect::Field>("java/lang/reflect/Field");
 env->GetClass<jnivm::java::nio::ByteBuffer>("java/nio/ByteBuffer");
-env->GetClass<jnivm::internal::lang::Weak>("internal/lang/Weak");
+env->GetClass<jnivm::internal::lang::Weak>("java/lang/ref/WeakReference");
 env->GetClass<jnivm::internal::lang::Global>("internal/lang/Global");
 {
 auto c = env->GetClass("SampleClass");

@@ -2,9 +2,15 @@
 
 using namespace FakeJni;
 
-FakeJni::Jvm::Jvm() : VM(true, true) {
+FakeJni::Jvm::Jvm(bool skipInit, bool returnNull) : VM(true, returnNull) {
     functions = GetJavaVM()->functions;
-    initialize();
+    if(!skipInit) {
+        initialize();
+    }
+}
+
+FakeJni::Jvm::Jvm() : Jvm(false, true) {
+
     // oldinterface = *GetJavaVM()->functions;
     // JNIInvokeInterface patchinterface = *GetJavaVM()->functions;
     // patchinterface.reserved1 = this;

@@ -22,6 +22,7 @@ namespace FakeJni {
     using JString = jnivm::String;
     using JClass = jnivm::Class;
     using JThrowable = jnivm::Throwable;
+    using JWeak = jnivm::Weak;
 
     template<class T> using JArray = jnivm::Array<T>;
     using JBoolean = jboolean;
@@ -75,7 +76,7 @@ namespace FakeJni {
         // JNIInvokeInterface oldinterface;
     protected:
         virtual std::shared_ptr<jnivm::ENV> CreateEnv() override;
-
+        Jvm(bool skipInit, bool returnNull);
     public:
         Jvm();
 
@@ -97,7 +98,7 @@ namespace FakeJni {
 
         }
 
-        std::shared_ptr<JClass> findClass(const char * name);
+        virtual std::shared_ptr<JClass> findClass(const char * name);
 
         // compatibility stub
         void destroy() {}

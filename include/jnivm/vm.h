@@ -41,9 +41,12 @@ namespace jnivm {
         std::unordered_map<pthread_t, std::shared_ptr<ENV>> jnienvs;
     protected:
         void OverrideJNIInvokeInterface(const JNIInvokeInterface& iinterface);
+        // If you override this, you have to use the contructor with skipInit=true and call VM::initialize in your derived Class
         virtual std::shared_ptr<ENV> CreateEnv();
         const JNINativeInterface& GetNativeInterfaceTemplate();
     public:
+        template<bool ReturnNull>
+        static const JNINativeInterface& GetNativeInterfaceTemplate();
 #ifdef JNI_DEBUG
         // For Generating Stub header files out of captured jni usage
         Namespace np;

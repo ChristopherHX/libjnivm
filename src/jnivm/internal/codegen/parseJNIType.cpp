@@ -105,6 +105,8 @@ const char *jnivm::ParseJNIType(const char *cur, const char *end, std::string &t
 			type = "std::shared_ptr<FakeJni::JThrowable>";
 		} else if(JNIVM_FAKE_JNI_SYNTAX && (cend - cur) == 15 && !memcmp(cur, "java/lang/Class", 15)) {
 			type = "std::shared_ptr<FakeJni::JClass>";
+		} else if(JNIVM_FAKE_JNI_SYNTAX && (cend - cur) == 27 && !memcmp(cur, "java/lang/ref/WeakReference", 27)) {
+			type = "std::shared_ptr<FakeJni::JWeak>";
 		} else {
 			type = "std::shared_ptr<jnivm::" + std::regex_replace(std::string(cur, cend), std::regex("(/|\\$)"),
 																"::") +

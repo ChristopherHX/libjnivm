@@ -25,17 +25,12 @@ FakeJni::Env &FakeJni::JniEnvContext::getJniEnv() {
 }
 
 std::shared_ptr<jnivm::Class> FakeJni::Jvm::findClass(const char *name) {
-    return jnivm::VM::GetEnv()->GetClass(name);
+    return jnivm::InternalFindClass(jnivm::VM::GetEnv().get(), name, true);
 }
 
 jobject FakeJni::Jvm::createGlobalReference(std::shared_ptr<jnivm::Object> obj) {
     return jnivm::VM::GetEnv()->GetJNIEnv()->NewGlobalRef((jobject)obj.get());
 }
-
-std::vector<std::shared_ptr<jnivm::Class>> jnivm::Object::GetBaseClasses(jnivm::ENV *env) {
-	return { nullptr };
-}
-
 
 FakeJni::Jvm::libinst::libinst(const std::string &rpath, JavaVM *javaVM, FakeJni::LibraryOptions loptions) : loptions(loptions), javaVM(javaVM) {
 	handle = loptions.dlopen(rpath.c_str(), 0);
@@ -141,3 +136,12 @@ FakeJni::LibraryOptions::LibraryOptions() : LibraryOptions(
 ::dlopen, ::dlsym, ::dlclose
 #endif
 ) {}
+
+jnivm::Class &jnivm::Object::getClass() {
+    auto&& env = std::addressof(FakeJni::JniEnvContext().getJniEnv());
+    auto ret = getClassInternal(ENV::FromJNIEnv(env));
+    if(ret == nullptr) {
+        throw std::runtime_error("Invalid Object");
+    }
+    return *ret.get();
+}
