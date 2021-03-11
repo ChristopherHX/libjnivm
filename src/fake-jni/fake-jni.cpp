@@ -1,4 +1,7 @@
 #include <fake-jni/fake-jni.h>
+#ifndef _WIN32
+#include <dlfcn.h>
+#endif
 
 FakeJni::JniEnvContext::JniEnvContext(FakeJni::Jvm &vm) {
     if (!env) {
