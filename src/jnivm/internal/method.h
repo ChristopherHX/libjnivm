@@ -12,30 +12,44 @@ namespace jnivm {
     template<> void defaultVal(ENV* env, std::string signature);
     template<> jobject defaultVal(ENV* env, std::string signature);
 
-    template <class T>
-    T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param);
+    // template <class T>
+    // T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param);
 
-    template <class T>
-    T CallMethod(JNIEnv * env, jobject obj, jmethodID id, va_list param);
+    // template <class T, class...Y>
+    // T CallMethod(JNIEnv * env, Y...p, jmethodID id, va_list param);
 
-    template <class T>
-    T CallMethod(JNIEnv * env, jobject obj, jmethodID id, ...);
+    template <class T, class...Y> struct MDispatchBase {
+        static T CallMethod(JNIEnv * env, Y...p, jmethodID id, va_list param);
+    };
 
-    template <class T>
-    T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, jvalue * param);
+    template <class T> struct MDispatchBase2 {
+        static T CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param);
+        static T CallMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, jvalue * param);
+        static T CallMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param);
+    };
 
-    template <class T>
-    T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, va_list param);
+            
 
-    template <class T>
-    T CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, ...);
+    template <class T, class...Y> struct MDispatch : MDispatchBase<T, Y...>, MDispatchBase2<T> {
+        using MDispatchBase<T, Y...>::CallMethod;
+        using MDispatchBase2<T>::CallMethod;
+        static T CallMethod(JNIEnv * env, Y...p, jmethodID id, ...);
+    };
 
-    template <class T>
-    T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param);
+    template <class...Y> struct MDispatch<void, Y...> : MDispatchBase<void, Y...>, MDispatchBase2<void> {
+        using MDispatchBase<void, Y...>::CallMethod;
+        using MDispatchBase2<void>::CallMethod;
+        static void CallMethod(JNIEnv * env, Y...p, jmethodID id, ...);
+    };
+    // template <class T, class...Y>
+    // T CallMethod(JNIEnv * env, Y...p, jmethodID id, ...);
 
-    template <class T>
-    T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, va_list param);
+    // template <class...Y>
+    // void CallMethod(JNIEnv * env, Y...p, jmethodID id, ...);
 
-    template <class T>
-    T CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, ...);
+    // template <class T>
+    // T CallMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, jvalue * param);
+
+    // template <class T>
+    // T CallMethod(JNIEnv * env, jclass cl, jmethodID id, jvalue * param);
 }

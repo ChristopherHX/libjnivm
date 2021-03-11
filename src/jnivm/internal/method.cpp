@@ -181,8 +181,7 @@ static Method* findVirtualOverload(jnivm::ENV *env, Class*cl, Method*mid) {
     }
 }
 
-template <class T>
-T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
+template<class T> T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jobject obj, jmethodID id, jvalue *param) {
     auto mid = ((Method *)id);
 #ifdef JNI_DEBUG
     if(!obj)
@@ -216,10 +215,9 @@ T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, jvalue * param) {
     }
 };
 
-template <class T>
-T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
+template<class T, class... Y> T jnivm::MDispatchBase<T, Y...>::CallMethod(JNIEnv *env, Y ...p, jmethodID id, va_list param) {
     if(id) {
-        return CallMethod<T>(env, obj, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
+        return MDispatch<T, Y...>::CallMethod(env, p..., id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
     } else {
 #ifdef JNI_TRACE
         LOG("JNIVM", "CallMethod Method ID is null");
@@ -228,33 +226,77 @@ T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, va_list param) {
     }
 };
 
-template <class T>
-T jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, ...) {
+
+// template <class T, class...Y>
+// T jnivm::CallMethod(JNIEnv * env, Y...p, jmethodID id, va_list param) {
+//     if(id) {
+//         return CallMethod<T>(env, p..., id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
+//     } else {
+// #ifdef JNI_TRACE
+//         LOG("JNIVM", "CallMethod Method ID is null");
+// #endif
+//         return defaultVal<T>(ENV::FromJNIEnv(env), "");
+//     }
+// };
+
+// template<class T, class... Y> static T jnivm::MDispatch<T, Y...>::CallMethod(JNIEnv *env, Y ...p, jmethodID id, ...) {
+//     va_list l;
+//     va_start(l, id);
+//     T ret = CallMethod<T, Y...>(env, p..., id, l);
+//     va_end(l);
+//     return ret;
+// };
+
+// template<class... Y> static void jnivm::MDispatch<void, Y...>::CallMethod(JNIEnv *env, Y ...p, jmethodID id, ...)  {
+//     va_list l;
+//     va_start(l, id);
+//     CallMethod<void, Y...>(env, p..., id, l);
+//     va_end(l);
+// };
+
+template<class T, class... Y> T jnivm::MDispatch<T, Y...>::CallMethod(JNIEnv *env, Y ...p, jmethodID id, ...) {
     va_list l;
     va_start(l, id);
-    T ret = CallMethod<T>(env, obj, id, l);
+    T ret = MDispatch<T, Y...>::CallMethod(env, p..., id, l);
     va_end(l);
     return ret;
 };
 
-template <>
-void jnivm::CallMethod(JNIEnv * env, jobject obj, jmethodID id, ...) {
+
+// // template <class T, class...Y>
+// // T jnivm::CallMethod(JNIEnv * env, Y...p, jmethodID id, ...) {
+// //     va_list l;
+// //     va_start(l, id);
+// //     T ret = CallMethod<T, Y...>(env, p..., id, l);
+// //     va_end(l);
+// //     return ret;
+// // };
+
+template<class... Y> void jnivm::MDispatch<void, Y...>::CallMethod(JNIEnv *env, Y ...p, jmethodID id, ...) {
     va_list l;
     va_start(l, id);
-    CallMethod<void>(env, obj, id, l);
+    MDispatch<void, Y...>::CallMethod(env, p..., id, l);
     va_end(l);
 };
 
-template <class T>
-T jnivm::CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, jvalue * param) {
+
+// // template <class...Y>
+// // void jnivm::CallMethod(JNIEnv * env, Y...p, jmethodID id, ...)  {
+// //     va_list l;
+// //     va_start(l, id);
+// //     CallMethod<void, Y...>(env, p..., id, l);
+// //     va_end(l);
+// // };
+
+template<class T> T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jobject obj, jclass cl, jmethodID id, jvalue *param) {
     auto mid = ((Method *)id);
 #ifdef JNI_DEBUG
     if(!obj)
-        LOG("JNIVM", "CallNonvirtualMethod object is null");
+        LOG("JNIVM", "CallMethod object is null");
     if(!cl)
-        LOG("JNIVM", "CallNonvirtualMethod class is null");
+        LOG("JNIVM", "CallMethod class is null");
     if(!id)
-        LOG("JNIVM", "CallNonvirtualMethod field is null");
+        LOG("JNIVM", "CallMethod field is null");
 #endif
     if (mid && mid->nativehandle) {
         auto clz = JNITypes<std::shared_ptr<Class>>::JNICast(ENV::FromJNIEnv(env), cl); 
@@ -282,37 +324,14 @@ T jnivm::CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id
     }
 };
 
-template <class T>
-T jnivm::CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, va_list param) {
-        return CallNonvirtualMethod<T>(env, obj, cl, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
-};
-
-template <class T>
-T jnivm::CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, ...) {
-    va_list l;
-    va_start(l, id);
-    T ret = CallNonvirtualMethod<T>(env, obj, cl, id, l);
-    va_end(l);
-    return ret;
-};
-
-template <>
-void jnivm::CallNonvirtualMethod(JNIEnv * env, jobject obj, jclass cl, jmethodID id, ...) {
-    va_list l;
-    va_start(l, id);
-    CallNonvirtualMethod<void>(env, obj, cl, id, l);
-    va_end(l);
-};
-
-template <class T>
-T jnivm::CallStaticMethod(JNIEnv * env, jclass _cl, jmethodID id, jvalue * param) {
+template<class T> T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jclass _cl, jmethodID id, jvalue *param) {
     auto cl = JNITypes<std::shared_ptr<Class>>::JNICast(ENV::FromJNIEnv(env), _cl);
     auto mid = ((Method *)id);
 #ifdef JNI_DEBUG
     if(!cl)
-        LOG("JNIVM", "CallStaticMethod class is null");
+        LOG("JNIVM", "CallMethod class is null");
     if(!id)
-        LOG("JNIVM", "CallStaticMethod method is null");
+        LOG("JNIVM", "CallMethod method is null");
 #endif
     if (mid && mid->nativehandle) {
 #ifdef JNI_TRACE
@@ -337,32 +356,124 @@ T jnivm::CallStaticMethod(JNIEnv * env, jclass _cl, jmethodID id, jvalue * param
     }
 };
 
-template <class T>
-T jnivm::CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, va_list param) {
-    return CallStaticMethod<T>(env, cl, id, JValuesfromValist(param, ((Method *)id)->signature.data()).data());
-};
-
-template <class T>
-T jnivm::CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, ...) {
-    va_list l;
-    va_start(l, id);
-    T ret = CallStaticMethod<T>(env, cl, id, l);
-    va_end(l);
-    return ret;
-};
-
-template <>
-void jnivm::CallStaticMethod(JNIEnv * env, jclass cl, jmethodID id, ...) {
-    va_list l;
-    va_start(l, id);
-    CallStaticMethod<void>(env, cl, id, l);
-    va_end(l);
-};
-
 template jmethodID jnivm::GetMethodID<true>(JNIEnv *env, jclass cl, const char *str0, const char *str1);
 template jmethodID jnivm::GetMethodID<false>(JNIEnv *env, jclass cl, const char *str0, const char *str1);
 
-#define DeclareTemplate(T) template T jnivm::CallMethod(JNIEnv *env, jobject obj, jmethodID id, jvalue *param)
+// #define DeclareTemplate(T) template T jnivm::CallMethod(JNIEnv *env, jobject obj, jmethodID id, jvalue *param)
+// DeclareTemplate(jboolean);
+// DeclareTemplate(jbyte);
+// DeclareTemplate(jshort);
+// DeclareTemplate(jint);
+// DeclareTemplate(jlong);
+// DeclareTemplate(jfloat);
+// DeclareTemplate(jdouble);
+// DeclareTemplate(jchar);
+// DeclareTemplate(jobject);
+// #undef DeclareTemplate
+
+// #define DeclareTemplate(T) template T jnivm::CallMethod<T, jobject>(JNIEnv *env, jobject obj, jmethodID id, va_list param)
+// DeclareTemplate(jboolean);
+// DeclareTemplate(jbyte);
+// DeclareTemplate(jshort);
+// DeclareTemplate(jint);
+// DeclareTemplate(jlong);
+// DeclareTemplate(jfloat);
+// DeclareTemplate(jdouble);
+// DeclareTemplate(jchar);
+// DeclareTemplate(jobject);
+// #undef DeclareTemplate
+
+// #define DeclareTemplate(T) template T jnivm::CallMethod<T, jobject>(JNIEnv *env, jobject obj, jmethodID id, ...)
+// DeclareTemplate(jboolean);
+// DeclareTemplate(jbyte);
+// DeclareTemplate(jshort);
+// DeclareTemplate(jint);
+// DeclareTemplate(jlong);
+// DeclareTemplate(jfloat);
+// DeclareTemplate(jdouble);
+// DeclareTemplate(jchar);
+// DeclareTemplate(jobject);
+// #undef DeclareTemplate
+
+// #define DeclareTemplate(T) template T jnivm::CallMethod(JNIEnv *env, jclass obj, jmethodID id, jvalue *param)
+// DeclareTemplate(jboolean);
+// DeclareTemplate(jbyte);
+// DeclareTemplate(jshort);
+// DeclareTemplate(jint);
+// DeclareTemplate(jlong);
+// DeclareTemplate(jfloat);
+// DeclareTemplate(jdouble);
+// DeclareTemplate(jchar);
+// DeclareTemplate(jobject);
+// #undef DeclareTemplate
+
+// #define DeclareTemplate(T) template T jnivm::CallMethod<T, jclass>(JNIEnv *env, jclass obj, jmethodID id, va_list param)
+// DeclareTemplate(jboolean);
+// DeclareTemplate(jbyte);
+// DeclareTemplate(jshort);
+// DeclareTemplate(jint);
+// DeclareTemplate(jlong);
+// DeclareTemplate(jfloat);
+// DeclareTemplate(jdouble);
+// DeclareTemplate(jchar);
+// DeclareTemplate(jobject);
+// #undef DeclareTemplate
+
+// #define DeclareTemplate(T) template T jnivm::CallMethod<T, jclass>(JNIEnv *env, jclass obj, jmethodID id, ...)
+// DeclareTemplate(jboolean);
+// DeclareTemplate(jbyte);
+// DeclareTemplate(jshort);
+// DeclareTemplate(jint);
+// DeclareTemplate(jlong);
+// DeclareTemplate(jfloat);
+// DeclareTemplate(jdouble);
+// DeclareTemplate(jchar);
+// DeclareTemplate(jobject);
+// #undef DeclareTemplate
+
+// #define DeclareTemplate(T) template T jnivm::CallMethod(JNIEnv *env, jobject obj, jclass c, jmethodID id, jvalue *param)
+// DeclareTemplate(jboolean);
+// DeclareTemplate(jbyte);
+// DeclareTemplate(jshort);
+// DeclareTemplate(jint);
+// DeclareTemplate(jlong);
+// DeclareTemplate(jfloat);
+// DeclareTemplate(jdouble);
+// DeclareTemplate(jchar);
+// DeclareTemplate(jobject);
+// #undef DeclareTemplate
+
+// #define DeclareTemplate(T) template T jnivm::CallMethod<T, jobject, jclass>(JNIEnv *env, jobject obj, jclass c, jmethodID id, va_list param)
+// DeclareTemplate(jboolean);
+// DeclareTemplate(jbyte);
+// DeclareTemplate(jshort);
+// DeclareTemplate(jint);
+// DeclareTemplate(jlong);
+// DeclareTemplate(jfloat);
+// DeclareTemplate(jdouble);
+// DeclareTemplate(jchar);
+// DeclareTemplate(jobject);
+// #undef DeclareTemplate
+
+// #define DeclareTemplate(T) template T jnivm::CallMethod<T, jobject, jclass>(JNIEnv *env, jobject obj, jclass c, jmethodID id, ...)
+// DeclareTemplate(jboolean);
+// DeclareTemplate(jbyte);
+// DeclareTemplate(jshort);
+// DeclareTemplate(jint);
+// DeclareTemplate(jlong);
+// DeclareTemplate(jfloat);
+// DeclareTemplate(jdouble);
+// DeclareTemplate(jchar);
+// DeclareTemplate(jobject);
+// #undef DeclareTemplate
+
+// #define DeclareTemplate(...) template void jnivm::CallMethod< __VA_ARGS__ >(JNIEnv *env, __VA_ARGS__, jmethodID id, ...)
+// DeclareTemplate(jobject);
+// DeclareTemplate(jclass);
+// DeclareTemplate(jobject, jclass);
+// #undef DeclareTemplate
+
+#define DeclareTemplate(T) template T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jobject obj, jmethodID id, jvalue *param)
 DeclareTemplate(jboolean);
 DeclareTemplate(jbyte);
 DeclareTemplate(jshort);
@@ -372,9 +483,10 @@ DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
 DeclareTemplate(jobject);
+DeclareTemplate(void);
 #undef DeclareTemplate
 
-#define DeclareTemplate(T) template T jnivm::CallMethod(JNIEnv *env, jobject obj, jmethodID id, va_list param)
+#define DeclareTemplate(T) template T jnivm::MDispatchBase<T, jobject>::CallMethod(JNIEnv *env, jobject obj, jmethodID id, va_list param)
 DeclareTemplate(jboolean);
 DeclareTemplate(jbyte);
 DeclareTemplate(jshort);
@@ -384,9 +496,10 @@ DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
 DeclareTemplate(jobject);
+DeclareTemplate(void);
 #undef DeclareTemplate
 
-#define DeclareTemplate(T) template T jnivm::CallMethod(JNIEnv *env, jobject obj, jmethodID id, ...)
+#define DeclareTemplate(T) template T jnivm::MDispatch<T, jobject>::CallMethod(JNIEnv *env, jobject obj, jmethodID id, ...)
 DeclareTemplate(jboolean);
 DeclareTemplate(jbyte);
 DeclareTemplate(jshort);
@@ -396,9 +509,10 @@ DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
 DeclareTemplate(jobject);
+DeclareTemplate(void);
 #undef DeclareTemplate
 
-#define DeclareTemplate(T) template T jnivm::CallStaticMethod(JNIEnv *env, jclass obj, jmethodID id, jvalue *param)
+#define DeclareTemplate(T) template T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jclass obj, jmethodID id, jvalue *param)
 DeclareTemplate(jboolean);
 DeclareTemplate(jbyte);
 DeclareTemplate(jshort);
@@ -408,9 +522,10 @@ DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
 DeclareTemplate(jobject);
+DeclareTemplate(void);
 #undef DeclareTemplate
 
-#define DeclareTemplate(T) template T jnivm::CallStaticMethod(JNIEnv *env, jclass obj, jmethodID id, va_list param)
+#define DeclareTemplate(T) template T jnivm::MDispatchBase<T, jclass>::CallMethod(JNIEnv *env, jclass obj, jmethodID id, va_list param)
 DeclareTemplate(jboolean);
 DeclareTemplate(jbyte);
 DeclareTemplate(jshort);
@@ -420,9 +535,10 @@ DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
 DeclareTemplate(jobject);
+DeclareTemplate(void);
 #undef DeclareTemplate
 
-#define DeclareTemplate(T) template T jnivm::CallStaticMethod(JNIEnv *env, jclass obj, jmethodID id, ...)
+#define DeclareTemplate(T) template T jnivm::MDispatch<T, jclass>::CallMethod(JNIEnv *env, jclass obj, jmethodID id, ...)
 DeclareTemplate(jboolean);
 DeclareTemplate(jbyte);
 DeclareTemplate(jshort);
@@ -432,9 +548,10 @@ DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
 DeclareTemplate(jobject);
+DeclareTemplate(void);
 #undef DeclareTemplate
 
-#define DeclareTemplate(T) template T jnivm::CallNonvirtualMethod(JNIEnv *env, jobject obj, jclass c, jmethodID id, jvalue *param)
+#define DeclareTemplate(T) template T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jobject obj, jclass c, jmethodID id, jvalue *param)
 DeclareTemplate(jboolean);
 DeclareTemplate(jbyte);
 DeclareTemplate(jshort);
@@ -444,9 +561,10 @@ DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
 DeclareTemplate(jobject);
+DeclareTemplate(void);
 #undef DeclareTemplate
 
-#define DeclareTemplate(T) template T jnivm::CallNonvirtualMethod(JNIEnv *env, jobject obj, jclass c, jmethodID id, va_list param)
+#define DeclareTemplate(T) template T jnivm::MDispatchBase<T, jobject, jclass>::CallMethod(JNIEnv *env, jobject obj, jclass c, jmethodID id, va_list param)
 DeclareTemplate(jboolean);
 DeclareTemplate(jbyte);
 DeclareTemplate(jshort);
@@ -456,9 +574,10 @@ DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
 DeclareTemplate(jobject);
+DeclareTemplate(void);
 #undef DeclareTemplate
 
-#define DeclareTemplate(T) template T jnivm::CallNonvirtualMethod(JNIEnv *env, jobject obj, jclass c, jmethodID id, ...)
+#define DeclareTemplate(T) template T jnivm::MDispatch<T, jobject, jclass>::CallMethod(JNIEnv *env, jobject obj, jclass c, jmethodID id, ...)
 DeclareTemplate(jboolean);
 DeclareTemplate(jbyte);
 DeclareTemplate(jshort);
@@ -468,4 +587,5 @@ DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
 DeclareTemplate(jobject);
+DeclareTemplate(void);
 #undef DeclareTemplate
