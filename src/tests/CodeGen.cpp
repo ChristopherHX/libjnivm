@@ -38,6 +38,9 @@ int main(int argc, const char** argv) {
     callSomeJNIStuff(&f.getJniEnv());
 #else
     VM vm;
+#ifdef EXTRA_INCLUDE
+    InitJNIBinding(vm.GetEnv().get());
+#endif
     callSomeJNIStuff(vm.GetJNIEnv());
     const char* path;
     if( argc != 2) {
