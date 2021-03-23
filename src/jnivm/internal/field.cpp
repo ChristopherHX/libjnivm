@@ -114,14 +114,14 @@ template<bool RetNull, class T, class O> T jnivm::GetField(JNIEnv *env, O obj, j
         }
 #ifdef JNI_TRACE
         auto cl = Util::GetClass(ENV::FromJNIEnv(env), obj);
-        LOG("JNIVM", "Invoked Field Getter Class=`%s` Field=`%s`", cl ? cl->nativeprefix.data() : "???", fid->name.data());
+        LOG("JNIVM", "Invoked Field Getter Class=`%s` Field=`%s` Signature=`%s`", cl ? cl->nativeprefix.data() : "???", fid->name.data(), fid->signature.data());
 #endif
         return  Caller<std::is_same<O, jclass>::value>::Call<T>(fid->getnativehandle.get(), ENV::FromJNIEnv(env), Util::GetParam(ENV::FromJNIEnv(env), obj));
         //return (*(std::function<T(ENV*, std::conditional_t<std::is_same<O, jclass>::value, Class*, jobject>, const jvalue*)>*)fid->getnativehandle.get())(ENV::FromJNIEnv(env), Util::GetParam(ENV::FromJNIEnv(env), obj), nullptr);
     } else {
 #ifdef JNI_TRACE
         auto cl = Util::GetClass(ENV::FromJNIEnv(env), obj);
-        LOG("JNIVM", "Invoked Unknown Field Getter Class=`%s` Field=`%s`", cl ? cl->nativeprefix.data() : "???", fid->name.data());
+        LOG("JNIVM", "Invoked Unknown Field Getter Class=`%s` Field=`%s` Signature=`%s`", cl ? cl->nativeprefix.data() : "???", fid ? fid->name.data() : "???", fid ? fid->signature.data() : "???");
 #endif
         return defaultVal<T>(ENV::FromJNIEnv(env), fid ? fid->type : "");
     }
@@ -141,7 +141,7 @@ template<class T, class O> void jnivm::SetField(JNIEnv *env, O obj, jfieldID id,
         }
 #ifdef JNI_TRACE
         auto cl = Util::GetClass(ENV::FromJNIEnv(env), obj);
-        LOG("JNIVM", "Invoked Field Setter Class=`%s` Field=`%s`", cl ? cl->nativeprefix.data() : "???", fid->name.data());
+        LOG("JNIVM", "Invoked Field Setter Class=`%s` Field=`%s` Signature=`%s`", cl ? cl->nativeprefix.data() : "???", fid->name.data(), fid->signature.data());
 #endif
         jvalue val;
         memset(&val, 0, sizeof(val));
@@ -151,7 +151,7 @@ template<class T, class O> void jnivm::SetField(JNIEnv *env, O obj, jfieldID id,
     } else {
 #ifdef JNI_TRACE
         auto cl = Util::GetClass(ENV::FromJNIEnv(env), obj);
-        LOG("JNIVM", "Invoked Unknown Field Setter Class=`%s` Field=`%s`", cl ? cl->nativeprefix.data() : "???", fid->name.data());
+        LOG("JNIVM", "Invoked Unknown Field Setter Class=`%s` Field=`%s` Signature=`%s`", cl ? cl->nativeprefix.data() : "???", fid ? fid->name.data() : "???", fid ? fid->signature.data() : "???");
 #endif
     }
 }
