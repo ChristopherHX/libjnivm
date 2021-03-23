@@ -12,7 +12,7 @@ namespace jnivm {
             return Wrapper::GetJNIInstanceInvokeSignature(env);
         }
     };
-    template<class Wrapper> struct jnivm::InvokeSignature<true, Wrapper> {
+    template<class Wrapper> struct InvokeSignature<true, Wrapper> {
         static std::string Get(ENV* env) {
             return Wrapper::GetJNIStaticInvokeSignature(env);
         }
