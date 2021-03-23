@@ -21,7 +21,7 @@ namespace jnivm {
 
     template<class w, class W, bool isStatic> struct FunctionBase {
         template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
-            auto ssig = InvokeSignature<isStatic, w::Wrapper>::Get(env);
+            auto ssig = InvokeSignature<isStatic, typename w::Wrapper>::Get(env);
             auto ccl =
                     std::find_if(cl->methods.begin(), cl->methods.end(),
                                             [&id, &ssig](std::shared_ptr<Method> &m) {
@@ -37,7 +37,7 @@ namespace jnivm {
                 method->signature = std::move(ssig);
                 cl->methods.push_back(method);
             }
-            method->nativehandle = std::make_shared<W>(w::Wrapper {t});
+            method->nativehandle = std::make_shared<W>(typename w::Wrapper {t});
         }
 
         template<class T> static void install(ENV* env, Class * cl, const std::string& id, const std::string& signature, T&& t) {
