@@ -62,11 +62,11 @@ namespace jnivm {
         }
     };
 
-    template<class w> struct HookManager<FunctionType::None, w> : FunctionBase<w, typename w::template WrapperClasses<w::Wrapper>::StaticFunction, true> {
+    template<class w> struct HookManager<FunctionType::None, w> : FunctionBase<w, typename w::template WrapperClasses<typename w::Wrapper>::StaticFunction, true> {
         
     };
 
-    template<class w> struct HookManager<FunctionType::Instance, w> : FunctionBase<w, typename w::template WrapperClasses<w::Wrapper>::InstanceFunction, false> {
+    template<class w> struct HookManager<FunctionType::Instance, w> : FunctionBase<w, typename w::template WrapperClasses<typename w::Wrapper>::InstanceFunction, false> {
         
     };
 
