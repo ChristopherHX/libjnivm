@@ -259,94 +259,51 @@ namespace jnivm {
                 }
             };
         };
-
-        template<bool env1 = std::is_same<typename Function::template Parameter<0>, ENV*>::value || std::is_same<typename Function::template Parameter<0>, JNIEnv*>::value,
-                    bool obj1 = std::is_base_of<Object, std::remove_pointer_t<typename Function::template Parameter<0>>>::value || std::is_same<typename Function::template Parameter<0>, jobject>::value,
-                    bool obj2 = env1 && (std::is_base_of<Object, std::remove_pointer_t<typename Function::template Parameter<1>>>::value || std::is_same<typename Function::template Parameter<1>, jobject>::value)
-                > struct Helper1 {
-            using Type = typename Obj<>::template InstanceBase<std::make_index_sequence<Function::plength>>;
-        };
-        template<bool y> struct Helper1<false, true, y> {
-            static constexpr size_t size = Function::plength >= 1 ? Function::plength - 1 : 0;
-            using Type = typename Obj<typename Function::template Parameter<0>>::template InstanceBase<std::make_index_sequence<size>>;
-        };
-        template<> struct Helper1<true, false, true> {
-            static constexpr size_t size = Function::plength >= 2 ? Function::plength - 2 : 0;
-            using Type = typename Obj<typename Function::template Parameter<0>, typename Function::template Parameter<1>>::template InstanceBase<std::make_index_sequence<size>>;
-        };
-        template<> struct Helper1<true, false, false> : Helper1<false, true, false> { };
-        template<bool env1 = std::is_same<typename Function::template Parameter<0>, ENV*>::value || std::is_same<typename Function::template Parameter<0>, JNIEnv*>::value,
-                    bool clazz1 = std::is_same<typename Function::template Parameter<0>, Class*>::value || std::is_same<typename Function::template Parameter<0>, jclass>::value,
-                    bool clazz2 = env1 && (std::is_same<typename Function::template Parameter<1>, Class*>::value || std::is_same<typename Function::template Parameter<1>, jclass>::value)
-                > struct Helper2 {
-            using Type = typename Obj<>::template StaticBase<false, std::make_index_sequence<Function::plength>>;
-        };
-        template<bool y> struct Helper2<false, true, y> {
-            static constexpr size_t size = Function::plength >= 1 ? Function::plength - 1 : 0;
-            using Type = typename Obj<typename Function::template Parameter<0>>::template StaticBase<false, std::make_index_sequence<size>>;
-        };
-        template<> struct Helper2<true, false, true> {
-            static constexpr size_t size = Function::plength >= 2 ? Function::plength - 2 : 0;
-            using Type = typename Obj<typename Function::template Parameter<0>, typename Function::template Parameter<1>>::template StaticBase<false, std::make_index_sequence<size>>;
-        };
-        template<> struct Helper2<true, false, false> : Helper2<false, true, false> { };
-        template<bool env1 = std::is_same<typename Function::template Parameter<0>, ENV*>::value || std::is_same<typename Function::template Parameter<0>, JNIEnv*>::value,
-                    bool obj1 = std::is_base_of<Object, std::remove_pointer_t<typename Function::template Parameter<0>>>::value || std::is_same<typename Function::template Parameter<0>, jobject>::value,
-                    bool obj2 = env1 && (std::is_base_of<Object, std::remove_pointer_t<typename Function::template Parameter<1>>>::value || std::is_same<typename Function::template Parameter<1>, jobject>::value)
-                > struct Helper3 {
-            using Type = typename Obj<>::template StaticBase<true, std::make_index_sequence<Function::plength>>;
-        };
-        template<bool y> struct Helper3<false, true, y> {
-            static constexpr size_t size = Function::plength >= 1 ? Function::plength - 1 : 0;
-            using Type = typename Obj<typename Function::template Parameter<0>>::template StaticBase<true, std::make_index_sequence<size>>;
-        };
-        template<> struct Helper3<true, false, true> {
-            static constexpr size_t size = Function::plength >= 2 ? Function::plength - 2 : 0;
-            using Type = typename Obj<typename Function::template Parameter<0>, typename Function::template Parameter<1>>::template StaticBase<true, std::make_index_sequence<size>>;
-        };
-        template<> struct Helper3<true, false, false> : Helper3<false, true, false> { };
         
-        template<> class BaseWrapper<FunctionType::Instance> : public Helper1<>::Type {
+        template<> class BaseWrapper<FunctionType::Instance> : public Obj<>::template InstanceBase<std::make_integer_sequence<size_t,Function::plength>> {
             Funk handle;
+            using BaseClass = typename Obj<>::template InstanceBase<std::make_integer_sequence<size_t,Function::plength>>;
         public:
             BaseWrapper(Funk handle) : handle(handle) {}
 
             constexpr auto InstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
-                return Helper1<>::Type::InstanceInvoke(handle, env, obj, values);
+                return BaseClass::InstanceInvoke(handle, env, obj, values);
             }
             typename Function::Return NonVirtualInstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
                 throw std::runtime_error("Calling member function pointer non virtual is not supported in c++");
             }
             constexpr auto InstanceSet(ENV * env, jobject obj, const jvalue* values) {
-                return Helper1<>::Type::InstanceSet(handle, env, obj, values);
+                return BaseClass::InstanceSet(handle, env, obj, values);
             }
         };
 
-        template<> class BaseWrapper<FunctionType::None> : public Helper2<>::Type, public Helper3<>::Type {
+        template<> class BaseWrapper<FunctionType::None> : public Obj<>::template StaticBase<true, std::make_integer_sequence<size_t,Function::plength>>, public Obj<>::template StaticBase<false, std::make_integer_sequence<size_t,Function::plength>> {
             Funk handle;
+            template<bool b>
+            using BaseClass = typename Obj<>::template StaticBase<b, std::make_integer_sequence<size_t,Function::plength>>;
         public:
             BaseWrapper(Funk handle) : handle(handle) {}
 
             constexpr typename Function::Return InstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
-                return Helper3<>::Type::InstanceInvoke(handle, env, obj, values);
+                return BaseClass<true>::InstanceInvoke(handle, env, obj, values);
             }
             constexpr typename Function::Return NonVirtualInstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
-                return Helper3<>::Type::NonVirtualInstanceInvoke(handle, env, obj, values);
+                return BaseClass<true>::NonVirtualInstanceInvoke(handle, env, obj, values);
             }
             constexpr typename Function::Return InstanceGet(ENV * env, jobject obj, const jvalue* values) {
-                return Helper3<>::Type::InstanceGet(handle, env, obj, values);
+                return BaseClass<true>::InstanceGet(handle, env, obj, values);
             }
             constexpr typename Function::Return InstanceSet(ENV * env, jobject obj, const jvalue* values) {
-                return Helper3<>::Type::InstanceSet(handle, env, obj, values);
+                return BaseClass<true>::InstanceSet(handle, env, obj, values);
             }
             typename Function::Return StaticInvoke(ENV * env, Class* c, const jvalue* values) {
-                return Helper2<>::Type::StaticInvoke(handle, env, c, values);
+                return BaseClass<false>::StaticInvoke(handle, env, c, values);
             }
             constexpr typename Function::Return StaticGet(ENV * env, Class* c, const jvalue* values) {
-                return Helper2<>::Type::StaticGet(handle, env, c, values);
+                return BaseClass<false>::StaticGet(handle, env, c, values);
             }
             constexpr typename Function::Return StaticSet(ENV * env, Class* c, const jvalue* values) {
-                return Helper2<>::Type::StaticSet(handle, env, c, values);
+                return BaseClass<false>::StaticSet(handle, env, c, values);
             }
         };
 
