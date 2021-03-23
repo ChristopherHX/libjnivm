@@ -22,6 +22,42 @@ namespace jnivm {
         }
     };
 
+    template<class T> struct AnotherHelper {
+        static T GetEnvOrObject(ENV * env, jobject o) {
+            return JNITypes<T>::JNICast(env, o);
+        }
+    };
+    template<>
+    struct AnotherHelper<JNIEnv*> {
+        static JNIEnv* GetEnvOrClass(ENV * env, Class* clazz) {
+            return env->GetJNIEnv();
+        }
+        static JNIEnv* GetEnvOrObject(ENV * env, jobject o) {
+            return env->GetJNIEnv();
+        }
+    };
+    template<>
+    struct AnotherHelper<ENV*> {
+        static ENV* GetEnvOrClass(ENV * env, Class* clazz) {
+            return env;
+        }
+        static ENV* GetEnvOrObject(ENV * env, jobject o) {
+            return env;
+        }
+    };
+    template<>
+    struct AnotherHelper<jclass> {
+        static jclass GetEnvOrClass(ENV * env, Class* clazz) {
+            return JNITypes<Class*>::ToJNIType(env, clazz->shared_from_this());
+        }
+    };
+    template<>
+    struct AnotherHelper<Class*> {
+        static Class* GetEnvOrClass(ENV * env, Class* clazz) {
+            return clazz;
+        }
+    };
+
     template<class Funk> struct Wrap {
         using T = Funk;
         using Function = jnivm::Function<Funk>;
@@ -109,42 +145,6 @@ namespace jnivm {
             // Workaround for Properties
             using InstanceSetter = typename WrapperClasses<T, void>::InstanceSetter;
             using StaticSetter = typename WrapperClasses<T, void>::StaticSetter;
-        };
-
-        template<class T> struct AnotherHelper {
-            static T GetEnvOrObject(ENV * env, jobject o) {
-                return JNITypes<T>::JNICast(env, o);
-            }
-        };
-        template<>
-        struct AnotherHelper<JNIEnv*> {
-            static JNIEnv* GetEnvOrClass(ENV * env, Class* clazz) {
-                return env->GetJNIEnv();
-            }
-            static JNIEnv* GetEnvOrObject(ENV * env, jobject o) {
-                return env->GetJNIEnv();
-            }
-        };
-        template<>
-        struct AnotherHelper<ENV*> {
-            static ENV* GetEnvOrClass(ENV * env, Class* clazz) {
-                return env;
-            }
-            static ENV* GetEnvOrObject(ENV * env, jobject o) {
-                return env;
-            }
-        };
-        template<>
-        struct AnotherHelper<jclass> {
-            static jclass GetEnvOrClass(ENV * env, Class* clazz) {
-                return JNIEnv<Class*>::ToJNIType(env, clazz);
-            }
-        };
-        template<>
-        struct AnotherHelper<Class*> {
-            static Class* GetEnvOrClass(ENV * env, Class* clazz) {
-                return clazz;
-            }
         };
 
         template<FunctionType type, class I> class OldWrapper;
