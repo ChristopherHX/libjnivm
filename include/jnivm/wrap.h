@@ -119,6 +119,112 @@ namespace jnivm {
         };
     };
 
+    template<class Funk, FunctionType type, class I> class OldWrapper;
+    template<class Funk, FunctionType type> class BaseWrapper : public OldWrapper<Funk, type, std::make_index_sequence<jnivm::Function<Funk>::plength>> {
+
+    };
+    template<class Funk>
+    class Property {
+    using Function = Function<Funk>;
+    public:
+        static std::string GetJNIInstanceGetterSignature(ENV * env) {
+            return JNITypes<typename Function::Return>::GetJNISignature(env);
+        }
+        static std::string GetJNIInstanceSetterSignature(ENV * env) {
+            return GetJNIInstanceGetterSignature(env);
+        }
+        static std::string GetJNIStaticGetterSignature(ENV * env) {
+            return GetJNIInstanceGetterSignature(env);
+        }
+        static std::string GetJNIStaticSetterSignature(ENV * env) {
+            return GetJNIInstanceGetterSignature(env);
+        }
+        
+        
+    };
+    template<class Funk, size_t...I> class OldWrapper<Funk, FunctionType::Property, std::index_sequence<I...>> : public Property<Funk> {
+        using Function = jnivm::Function<Funk>;
+        Funk handle;
+    public:
+        OldWrapper(Funk handle) : handle(handle) {}
+
+        constexpr void StaticSet(ENV * env, Class* clazz, const jvalue* values) {
+            *handle = (JNITypes<typename Function::Return>::JNICast(env, values[0]));
+        }
+        constexpr auto StaticGet(ENV * env, Class* clazz, const jvalue* values) {
+            return *handle;
+        }
+        constexpr void InstanceSet(ENV * env, jobject obj, const jvalue* values) {
+            *handle = (JNITypes<typename Function::Return>::JNICast(env, values[0]));
+        }
+        constexpr auto InstanceGet(ENV * env, jobject obj, const jvalue* values) {
+            return *handle;
+        }
+    };
+
+    template<class Funk, size_t...I> class OldWrapper<Funk, FunctionType::InstanceProperty, std::index_sequence<I...>> : public Property<Funk> {
+        using Function = jnivm::Function<Funk>;
+        Funk handle;
+    public:
+        OldWrapper(Funk handle) : handle(handle) {}
+
+        constexpr void InstanceSet(ENV * env, jobject obj, const jvalue* values) {
+            (JNITypes<std::shared_ptr<typename Function::This>>::JNICast(env, obj).get())->*handle = (JNITypes<typename Function::Return>::JNICast(env, values[0]));
+        }
+        constexpr auto InstanceGet(ENV * env, jobject obj, const jvalue* values) {
+            return (JNITypes<std::shared_ptr<typename Function::This>>::JNICast(env, obj).get())->*handle;
+        }
+    };
+    
+    template<class Funk> class BaseWrapper<Funk, FunctionType::Instance> : public Obj<Funk>::template InstanceBase<std::make_index_sequence<Function<Funk>::plength>> {
+        using Function = jnivm::Function<Funk>;
+        Funk handle;
+        using BaseClass = typename Obj<Funk>::template InstanceBase<std::make_index_sequence<Function::plength>>;
+    public:
+        BaseWrapper(Funk handle) : handle(handle) {}
+
+        constexpr auto InstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
+            return BaseClass::InstanceInvoke(handle, env, obj, values);
+        }
+        typename Function::Return NonVirtualInstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
+            throw std::runtime_error("Calling member function pointer non virtual is not supported in c++");
+        }
+        constexpr auto InstanceSet(ENV * env, jobject obj, const jvalue* values) {
+            return BaseClass::InstanceSet(handle, env, obj, values);
+        }
+    };
+
+    template<class Funk> class BaseWrapper<Funk, FunctionType::None> : public Obj<Funk>::template StaticBase<true, std::make_index_sequence<Function<Funk>::plength>>, public Obj<Funk>::template StaticBase<false, std::make_index_sequence<Function<Funk>::plength>> {
+        Funk handle;
+        using Function = jnivm::Function<Funk>;
+        template<bool b>
+        using BaseClass = typename Obj<Funk>::template StaticBase<b, std::make_index_sequence<Function::plength>>;
+    public:
+        BaseWrapper(Funk handle) : handle(handle) {}
+
+        constexpr typename Function::Return InstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
+            return BaseClass<true>::InstanceInvoke(handle, env, obj, values);
+        }
+        constexpr typename Function::Return NonVirtualInstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
+            return BaseClass<true>::NonVirtualInstanceInvoke(handle, env, obj, values);
+        }
+        constexpr typename Function::Return InstanceGet(ENV * env, jobject obj, const jvalue* values) {
+            return BaseClass<true>::InstanceGet(handle, env, obj, values);
+        }
+        constexpr typename Function::Return InstanceSet(ENV * env, jobject obj, const jvalue* values) {
+            return BaseClass<true>::InstanceSet(handle, env, obj, values);
+        }
+        typename Function::Return StaticInvoke(ENV * env, Class* c, const jvalue* values) {
+            return BaseClass<false>::StaticInvoke(handle, env, c, values);
+        }
+        constexpr typename Function::Return StaticGet(ENV * env, Class* c, const jvalue* values) {
+            return BaseClass<false>::StaticGet(handle, env, c, values);
+        }
+        constexpr typename Function::Return StaticSet(ENV * env, Class* c, const jvalue* values) {
+            return BaseClass<false>::StaticSet(handle, env, c, values);
+        }
+    };
+
     template<class Funk> struct Wrap {
         using T = Funk;
         using Function = jnivm::Function<Funk>;
@@ -208,107 +314,9 @@ namespace jnivm {
             using StaticSetter = typename WrapperClasses<T, void>::StaticSetter;
         };
 
-        template<FunctionType type, class I> class OldWrapper;
-        template<FunctionType type> class BaseWrapper : public OldWrapper<type, IntSeq> {
-
-        };
-        class Property {
-        public:
-            static std::string GetJNIInstanceGetterSignature(ENV * env) {
-                return JNITypes<typename Function::Return>::GetJNISignature(env);
-            }
-            static std::string GetJNIInstanceSetterSignature(ENV * env) {
-                return GetJNIInstanceGetterSignature(env);
-            }
-            static std::string GetJNIStaticGetterSignature(ENV * env) {
-                return GetJNIInstanceGetterSignature(env);
-            }
-            static std::string GetJNIStaticSetterSignature(ENV * env) {
-                return GetJNIInstanceGetterSignature(env);
-            }
-            
-            
-        };
-        template<size_t...I> class OldWrapper<FunctionType::Property, std::index_sequence<I...>> : public Property {
-            Funk handle;
-        public:
-            OldWrapper(Funk handle) : handle(handle) {}
-
-            constexpr void StaticSet(ENV * env, Class* clazz, const jvalue* values) {
-                *handle = (JNITypes<typename Function::Return>::JNICast(env, values[0]));
-            }
-            constexpr auto StaticGet(ENV * env, Class* clazz, const jvalue* values) {
-                return *handle;
-            }
-            constexpr void InstanceSet(ENV * env, jobject obj, const jvalue* values) {
-                *handle = (JNITypes<typename Function::Return>::JNICast(env, values[0]));
-            }
-            constexpr auto InstanceGet(ENV * env, jobject obj, const jvalue* values) {
-                return *handle;
-            }
-        };
-
-        template<size_t...I> class OldWrapper<FunctionType::InstanceProperty, std::index_sequence<I...>> : public Property {
-            Funk handle;
-        public:
-            OldWrapper(Funk handle) : handle(handle) {}
-
-            constexpr void InstanceSet(ENV * env, jobject obj, const jvalue* values) {
-                (JNITypes<std::shared_ptr<typename Function::This>>::JNICast(env, obj).get())->*handle = (JNITypes<typename Function::Return>::JNICast(env, values[0]));
-            }
-            constexpr auto InstanceGet(ENV * env, jobject obj, const jvalue* values) {
-                return (JNITypes<std::shared_ptr<typename Function::This>>::JNICast(env, obj).get())->*handle;
-            }
-        };
         
-        template<> class BaseWrapper<FunctionType::Instance> : public Obj<Funk>::template InstanceBase<std::make_integer_sequence<size_t,Function::plength>> {
-            Funk handle;
-            using BaseClass = typename Obj<Funk>::template InstanceBase<std::make_integer_sequence<size_t,Function::plength>>;
-        public:
-            BaseWrapper(Funk handle) : handle(handle) {}
-
-            constexpr auto InstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
-                return BaseClass::InstanceInvoke(handle, env, obj, values);
-            }
-            typename Function::Return NonVirtualInstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
-                throw std::runtime_error("Calling member function pointer non virtual is not supported in c++");
-            }
-            constexpr auto InstanceSet(ENV * env, jobject obj, const jvalue* values) {
-                return BaseClass::InstanceSet(handle, env, obj, values);
-            }
-        };
-
-        template<> class BaseWrapper<FunctionType::None> : public Obj<Funk>::template StaticBase<true, std::make_integer_sequence<size_t,Function::plength>>, public Obj<Funk>::template StaticBase<false, std::make_integer_sequence<size_t,Function::plength>> {
-            Funk handle;
-            template<bool b>
-            using BaseClass = typename Obj<Funk>::template StaticBase<b, std::make_integer_sequence<size_t,Function::plength>>;
-        public:
-            BaseWrapper(Funk handle) : handle(handle) {}
-
-            constexpr typename Function::Return InstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
-                return BaseClass<true>::InstanceInvoke(handle, env, obj, values);
-            }
-            constexpr typename Function::Return NonVirtualInstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
-                return BaseClass<true>::NonVirtualInstanceInvoke(handle, env, obj, values);
-            }
-            constexpr typename Function::Return InstanceGet(ENV * env, jobject obj, const jvalue* values) {
-                return BaseClass<true>::InstanceGet(handle, env, obj, values);
-            }
-            constexpr typename Function::Return InstanceSet(ENV * env, jobject obj, const jvalue* values) {
-                return BaseClass<true>::InstanceSet(handle, env, obj, values);
-            }
-            typename Function::Return StaticInvoke(ENV * env, Class* c, const jvalue* values) {
-                return BaseClass<false>::StaticInvoke(handle, env, c, values);
-            }
-            constexpr typename Function::Return StaticGet(ENV * env, Class* c, const jvalue* values) {
-                return BaseClass<false>::StaticGet(handle, env, c, values);
-            }
-            constexpr typename Function::Return StaticSet(ENV * env, Class* c, const jvalue* values) {
-                return BaseClass<false>::StaticSet(handle, env, c, values);
-            }
-        };
 
         
-        using Wrapper = typename BaseWrapper<Function::type>;
+        using Wrapper = typename BaseWrapper<Funk, Function::type>;
     };
 }
