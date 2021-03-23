@@ -120,19 +120,19 @@ namespace jnivm {
     template<class w, class W, bool isStatic> struct SetterBase : PropertyBase<w, W, isStatic, isStatic ? w::Wrapper::GetJNIStaticSetterSignature : w::Wrapper::GetJNIInstanceSetterSignature, decltype(&Field::setnativehandle), &Field::setnativehandle> {
     };
 
-    template<class w> struct HookManager<FunctionType::Getter, w> : GetterBase<w, typename w::template WrapperClasses<w::Wrapper>::StaticGetter, true> {
+    template<class w> struct HookManager<FunctionType::Getter, w> : GetterBase<w, typename w::template WrapperClasses<typename w::Wrapper>::StaticGetter, true> {
 
     };
 
-    template<class w> struct HookManager<FunctionType::Setter, w> : SetterBase<w, typename w::template WrapperClasses<w::Wrapper>::StaticSetter, true> {
+    template<class w> struct HookManager<FunctionType::Setter, w> : SetterBase<w, typename w::template WrapperClasses<typename w::Wrapper>::StaticSetter, true> {
         
     };
 
-    template<class w> struct HookManager<FunctionType::InstanceGetter, w> : GetterBase<w, typename w::template WrapperClasses<w::Wrapper>::InstanceGetter, false> {
+    template<class w> struct HookManager<FunctionType::InstanceGetter, w> : GetterBase<w, typename w::template WrapperClasses<typename w::Wrapper>::InstanceGetter, false> {
 
     };
 
-    template<class w> struct HookManager<FunctionType::InstanceSetter, w> : SetterBase<w, typename w::template WrapperClasses<w::Wrapper>::InstanceSetter, false> {
+    template<class w> struct HookManager<FunctionType::InstanceSetter, w> : SetterBase<w, typename w::template WrapperClasses<typename w::Wrapper>::InstanceSetter, false> {
         
     };
 
