@@ -203,14 +203,14 @@ namespace jnivm {
         template<class...EnvOrObjOrClass> struct Obj {
             template<class Seq> struct InstanceBase;
             template<size_t...I> struct InstanceBase<std::index_sequence<I...>> {
-                static constexpr auto InstanceInvoke(Funk& Funk, ENV * env, jobject obj, const jvalue* values) {
-                    return (JNITypes<std::shared_ptr<typename Function::This>>::JNICast(env, obj).get()->*Funk)(AnotherHelper<EnvOrObjOrClass>::GetEnvOrObject(env, obj)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
+                static constexpr auto InstanceInvoke(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
+                    return (JNITypes<std::shared_ptr<typename Function::This>>::JNICast(env, obj).get()->*funk)(AnotherHelper<EnvOrObjOrClass>::GetEnvOrObject(env, obj)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
                 }
-                static constexpr typename Function::Return NonVirtualInstanceInvoke(Funk& Funk, ENV * env, jobject obj, const jvalue* values) {
+                static constexpr typename Function::Return NonVirtualInstanceInvoke(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
                     throw std::runtime_error("Calling member function pointer non virtual is not supported in c++");
                 }
-                static constexpr auto InstanceSet(Funk& Funk, ENV * env, jobject obj, const jvalue* values) {
-                    return (JNITypes<std::shared_ptr<typename Function::This>>::JNICast(env, obj).get()->*Funk)(AnotherHelper<EnvOrObjOrClass>::GetEnvOrObject(env, obj)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
+                static constexpr auto InstanceSet(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
+                    return (JNITypes<std::shared_ptr<typename Function::This>>::JNICast(env, obj).get()->*funk)(AnotherHelper<EnvOrObjOrClass>::GetEnvOrObject(env, obj)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
                 }
                 static std::string GetJNIInstanceInvokeSignature(ENV * env) {
                     return "(" + UnfoldJNISignature<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
@@ -222,14 +222,14 @@ namespace jnivm {
             };
             template<bool b, class Seq> struct StaticBase;
             template<size_t...I> struct StaticBase<true, std::index_sequence<I...>> {
-                static constexpr auto InstanceInvoke(Funk& Funk, ENV * env, jobject obj, const jvalue* values) {
-                    return Funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrObject(env, obj)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
+                static constexpr auto InstanceInvoke(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
+                    return funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrObject(env, obj)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
                 }
-                static constexpr auto NonVirtualInstanceInvoke(Funk& Funk, ENV * env, jobject obj, const jvalue* values) {
-                    return InstanceInvoke(Funk, env, obj, values);
+                static constexpr auto NonVirtualInstanceInvoke(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
+                    return InstanceInvoke(funk, env, obj, values);
                 }
-                static constexpr auto InstanceSet(Funk& Funk, ENV * env, jobject obj, const jvalue* values) {
-                    return Funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrObject(env, obj)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
+                static constexpr auto InstanceSet(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
+                    return funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrObject(env, obj)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
                 }
                 static std::string GetJNIInstanceInvokeSignature(ENV * env) {
                     return "(" + UnfoldJNISignature<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
@@ -240,11 +240,11 @@ namespace jnivm {
                 }
             };
             template<size_t...I> struct StaticBase<false, std::index_sequence<I...>> {
-                static constexpr auto StaticInvoke(Funk& Funk, ENV * env, Class* clazz, const jvalue* values) {
-                    return Funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrClass(env, clazz)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
+                static constexpr auto StaticInvoke(Funk& funk, ENV * env, Class* clazz, const jvalue* values) {
+                    return funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrClass(env, clazz)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
                 }
-                static constexpr auto StaticSet(Funk& Funk, ENV * env, Class* clazz, const jvalue* values) {
-                    return Funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrClass(env, clazz)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
+                static constexpr auto StaticSet(Funk& funk, ENV * env, Class* clazz, const jvalue* values) {
+                    return funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrClass(env, clazz)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
                 }
                 static std::string GetJNIStaticInvokeSignature(ENV * env) {
                     return "(" + UnfoldJNISignature<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
