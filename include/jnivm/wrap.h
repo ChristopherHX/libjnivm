@@ -58,6 +58,67 @@ namespace jnivm {
         }
     };
 
+    template<class Funk, class...EnvOrObjOrClass> struct Obj {
+        using Function = jnivm::Function<Funk>;
+        template<class Seq> struct InstanceBase;
+        template<size_t...I> struct InstanceBase<std::index_sequence<I...>> {
+            static constexpr auto InstanceInvoke(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
+                return (JNITypes<std::shared_ptr<typename Function::This>>::JNICast(env, obj).get()->*funk)(AnotherHelper<EnvOrObjOrClass>::GetEnvOrObject(env, obj)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
+            }
+            static constexpr typename Function::Return NonVirtualInstanceInvoke(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
+                throw std::runtime_error("Calling member function pointer non virtual is not supported in c++");
+            }
+            static constexpr auto InstanceSet(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
+                return (JNITypes<std::shared_ptr<typename Function::This>>::JNICast(env, obj).get()->*funk)(AnotherHelper<EnvOrObjOrClass>::GetEnvOrObject(env, obj)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
+            }
+            static std::string GetJNIInstanceInvokeSignature(ENV * env) {
+                return "(" + UnfoldJNISignature<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
+            }
+            static std::string GetJNIInstanceSetterSignature(ENV * env) {
+                static_assert(sizeof...(I) == 1, "To use this function as setter, you need to have exactly one parameter");
+                return JNITypes<typename Function::template Parameter<sizeof...(EnvOrObjOrClass)>>::GetJNISignature(env);
+            }
+        };
+        template<bool b, class Seq> struct StaticBase;
+        template<size_t...I> struct StaticBase<true, std::index_sequence<I...>> {
+            static constexpr auto InstanceInvoke(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
+                return funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrObject(env, obj)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
+            }
+            static constexpr auto NonVirtualInstanceInvoke(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
+                return InstanceInvoke(funk, env, obj, values);
+            }
+            static constexpr auto InstanceSet(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
+                return funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrObject(env, obj)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
+            }
+            static std::string GetJNIInstanceInvokeSignature(ENV * env) {
+                return "(" + UnfoldJNISignature<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
+            }
+            static std::string GetJNIInstanceGetterSignature(ENV * env) {
+                static_assert(sizeof...(I) == 1, "To use this function as setter, you need to have exactly one parameter");
+                return JNITypes<typename Function::template Parameter<sizeof...(EnvOrObjOrClass)>>::GetJNISignature(env);
+            }
+        };
+        template<size_t...I> struct StaticBase<false, std::index_sequence<I...>> {
+            static constexpr auto StaticInvoke(Funk& funk, ENV * env, Class* clazz, const jvalue* values) {
+                return funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrClass(env, clazz)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
+            }
+            static constexpr auto StaticSet(Funk& funk, ENV * env, Class* clazz, const jvalue* values) {
+                return funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrClass(env, clazz)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
+            }
+            static std::string GetJNIStaticInvokeSignature(ENV * env) {
+                return "(" + UnfoldJNISignature<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
+            }
+            static std::string GetJNIStaticGetterSignature(ENV * env) {
+                static_assert(sizeof...(I) == 0, "To use this function as setter, you need to have exactly zero parameter");
+                return "(" + UnfoldJNISignature<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
+            }
+            static std::string GetJNIStaticSetterSignature(ENV * env) {
+                static_assert(sizeof...(I) == 1, "To use this function as setter, you need to have exactly one parameter");
+                return JNITypes<typename Function::template Parameter<sizeof...(EnvOrObjOrClass)>>::GetJNISignature(env);
+            }
+        };
+    };
+
     template<class Funk> struct Wrap {
         using T = Funk;
         using Function = jnivm::Function<Funk>;
@@ -199,70 +260,10 @@ namespace jnivm {
                 return (JNITypes<std::shared_ptr<typename Function::This>>::JNICast(env, obj).get())->*handle;
             }
         };
-
-        template<class...EnvOrObjOrClass> struct Obj {
-            template<class Seq> struct InstanceBase;
-            template<size_t...I> struct InstanceBase<std::index_sequence<I...>> {
-                static constexpr auto InstanceInvoke(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
-                    return (JNITypes<std::shared_ptr<typename Function::This>>::JNICast(env, obj).get()->*funk)(AnotherHelper<EnvOrObjOrClass>::GetEnvOrObject(env, obj)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
-                }
-                static constexpr typename Function::Return NonVirtualInstanceInvoke(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
-                    throw std::runtime_error("Calling member function pointer non virtual is not supported in c++");
-                }
-                static constexpr auto InstanceSet(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
-                    return (JNITypes<std::shared_ptr<typename Function::This>>::JNICast(env, obj).get()->*funk)(AnotherHelper<EnvOrObjOrClass>::GetEnvOrObject(env, obj)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
-                }
-                static std::string GetJNIInstanceInvokeSignature(ENV * env) {
-                    return "(" + UnfoldJNISignature<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
-                }
-                static std::string GetJNIInstanceSetterSignature(ENV * env) {
-                    static_assert(sizeof...(I) == 1, "To use this function as setter, you need to have exactly one parameter");
-                    return JNITypes<typename Function::template Parameter<sizeof...(EnvOrObjOrClass)>>::GetJNISignature(env);
-                }
-            };
-            template<bool b, class Seq> struct StaticBase;
-            template<size_t...I> struct StaticBase<true, std::index_sequence<I...>> {
-                static constexpr auto InstanceInvoke(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
-                    return funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrObject(env, obj)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
-                }
-                static constexpr auto NonVirtualInstanceInvoke(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
-                    return InstanceInvoke(funk, env, obj, values);
-                }
-                static constexpr auto InstanceSet(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
-                    return funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrObject(env, obj)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
-                }
-                static std::string GetJNIInstanceInvokeSignature(ENV * env) {
-                    return "(" + UnfoldJNISignature<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
-                }
-                static std::string GetJNIInstanceGetterSignature(ENV * env) {
-                    static_assert(sizeof...(I) == 1, "To use this function as setter, you need to have exactly one parameter");
-                    return JNITypes<typename Function::template Parameter<sizeof...(EnvOrObjOrClass)>>::GetJNISignature(env);
-                }
-            };
-            template<size_t...I> struct StaticBase<false, std::index_sequence<I...>> {
-                static constexpr auto StaticInvoke(Funk& funk, ENV * env, Class* clazz, const jvalue* values) {
-                    return funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrClass(env, clazz)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
-                }
-                static constexpr auto StaticSet(Funk& funk, ENV * env, Class* clazz, const jvalue* values) {
-                    return funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrClass(env, clazz)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
-                }
-                static std::string GetJNIStaticInvokeSignature(ENV * env) {
-                    return "(" + UnfoldJNISignature<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
-                }
-                static std::string GetJNIStaticGetterSignature(ENV * env) {
-                    static_assert(sizeof...(I) == 0, "To use this function as setter, you need to have exactly zero parameter");
-                    return "(" + UnfoldJNISignature<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
-                }
-                static std::string GetJNIStaticSetterSignature(ENV * env) {
-                    static_assert(sizeof...(I) == 1, "To use this function as setter, you need to have exactly one parameter");
-                    return JNITypes<typename Function::template Parameter<sizeof...(EnvOrObjOrClass)>>::GetJNISignature(env);
-                }
-            };
-        };
         
-        template<> class BaseWrapper<FunctionType::Instance> : public Obj<>::template InstanceBase<std::make_integer_sequence<size_t,Function::plength>> {
+        template<> class BaseWrapper<FunctionType::Instance> : public Obj<Funk>::template InstanceBase<std::make_integer_sequence<size_t,Function::plength>> {
             Funk handle;
-            using BaseClass = typename Obj<>::template InstanceBase<std::make_integer_sequence<size_t,Function::plength>>;
+            using BaseClass = typename Obj<Funk>::template InstanceBase<std::make_integer_sequence<size_t,Function::plength>>;
         public:
             BaseWrapper(Funk handle) : handle(handle) {}
 
@@ -277,10 +278,10 @@ namespace jnivm {
             }
         };
 
-        template<> class BaseWrapper<FunctionType::None> : public Obj<>::template StaticBase<true, std::make_integer_sequence<size_t,Function::plength>>, public Obj<>::template StaticBase<false, std::make_integer_sequence<size_t,Function::plength>> {
+        template<> class BaseWrapper<FunctionType::None> : public Obj<Funk>::template StaticBase<true, std::make_integer_sequence<size_t,Function::plength>>, public Obj<Funk>::template StaticBase<false, std::make_integer_sequence<size_t,Function::plength>> {
             Funk handle;
             template<bool b>
-            using BaseClass = typename Obj<>::template StaticBase<b, std::make_integer_sequence<size_t,Function::plength>>;
+            using BaseClass = typename Obj<Funk>::template StaticBase<b, std::make_integer_sequence<size_t,Function::plength>>;
         public:
             BaseWrapper(Funk handle) : handle(handle) {}
 
