@@ -21,7 +21,8 @@ namespace jnivm {
     class Object : public std::enable_shared_from_this<Object> {
     public:
         std::weak_ptr<Class> clazz;
-        using ArrayBaseType = impl::ArrayBase<Object>;
+        template<class T>
+        using ArrayBaseType = impl::ArrayBase<T, Object>;
         ObjectMutexWrapper lock;
 
         virtual std::shared_ptr<Class> getClassInternal(ENV* env);

@@ -136,5 +136,8 @@ int main(int argc, char** argv) {
     CDerivedClass->getMethod("(D)V", "exampleStaticFunction")->invoke(frame.getJniEnv(), CDerivedClass.get(), 3.4);
 
     frame.getJniEnv().GetStaticFieldID(frame.getJniEnv().GetObjectClass(ref), "staticstringfield", "Ljava/lang/String;");
+
+    auto args = std::make_shared<JArray<JString>>(1);
+	(*args)[0] = std::make_shared<JString>("main");
     return 0;
 }

@@ -1355,4 +1355,65 @@ TEST(Baron, DeniedFabrication) {
     ASSERT_EQ(f.getJniEnv().GetFieldID(f.getJniEnv().FindClass("java/lang/String"), "somethingelseAgain2", "Ljava/lang/Object;"), (jfieldID)0);
 
     jvm.printStatistics();
+
+{
+    jnivm::VM vm;
+    class Y : public jnivm::Extends<> {
+    public:
+        virtual void Gamma() {}
+    };
+    class X : public jnivm::Extends<Y> {
+    public:
+        void Gamma() override {}
+    };
+    vm.GetEnv()->GetClass<Y>("Y")->Hook(vm.GetEnv().get(), "Gamma", &Y::Gamma);
+    vm.GetEnv()->GetClass<X>("X")->Hook(vm.GetEnv().get(), "Gamma", &X::Gamma);
+
+    auto c = vm.GetJNIEnv()->FindClass("X");
+    auto m = vm.GetJNIEnv()->GetMethodID(c, "<init>", "()V");
+    auto o = vm.GetJNIEnv()->NewObject(c, m);
+    auto m2 = vm.GetJNIEnv()->GetMethodID(c, "Gamma", "()V");
+    vm.GetJNIEnv()->CallNonvirtualVoidMethod(o, c, m2);
+    // X y;
+    // Y* x = &y; 
+    // void (Y::*gamma)() = &Y::Gamma;
+    // (x->*gamma)();
+
+}
+}
+
+TEST(JNIVM, Wrapper) {
+    jnivm::VM vm;
+    auto env = vm.GetEnv().get();
+    class Testclass : public jnivm::Extends<> {
+
+    };
+    auto testclass = env->GetClass<Testclass>("Testclass");
+    bool success = false;
+    testclass->HookInstanceFunction(env, "A", [&success, e2=env](jnivm::ENV* env) {
+        success = (e2 == env);
+    });
+    testclass->HookInstanceFunction(env, "B", [&success, e2=env](jnivm::ENV* env, jnivm::Object* obj) {
+        success = (e2 == env) && obj != nullptr;
+    });
+    testclass->HookInstanceFunction(env, "C", [&success, e2=env](jnivm::ENV* env, Testclass* obj) {
+        success = (e2 == env) && obj != nullptr;
+    });
+    testclass->HookInstanceFunction(env, "D", "(Ljava/lang/String;)V", [&success, e2=env](JNIEnv* env, jobject obj, jvalue* val) {
+        return val[0];
+    });
+    auto nenv = env->GetJNIEnv();
+    auto nc = nenv->FindClass("Testclass");
+    auto no = nenv->NewObject(nc, nenv->GetMethodID(nc, "<init>", "()V"));
+    nenv->CallVoidMethod(no, nenv->GetMethodID(nc, "A", "()V"));
+    ASSERT_TRUE(success);
+    success = false;
+    nenv->CallVoidMethod(no, nenv->GetMethodID(nc, "B", "()V"));
+    ASSERT_TRUE(success);
+    success = false;
+    nenv->CallVoidMethod(no, nenv->GetMethodID(nc, "C", "()V"));
+    ASSERT_TRUE(success);
+    success = false;
+    nenv->CallVoidMethod(no, nenv->GetMethodID(nc, "D", "(Ljava/lang/String;)V"), nenv->NewStringUTF("Test"));
+
 }

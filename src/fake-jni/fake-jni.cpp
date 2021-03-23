@@ -113,7 +113,7 @@ FakeJni::LibraryOptions::LibraryOptions() : LibraryOptions(
 	}
 	int size = MultiByteToWideChar(CP_UTF8, 0, name, -1, NULL, 0);
 	std::vector<wchar_t> wd(size + 1);
-	(void)MultiByteToWideChar(CP_UTF8, 0, name, -1, wd.data(), wd.size());
+	(void)MultiByteToWideChar(CP_UTF8, 0, name, -1, wd.data(), size + 1);
 	wd[size] = L'\0';
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP) && !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	auto ret = LoadPackagedLibrary(wd.data(), 0);

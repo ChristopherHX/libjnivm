@@ -199,7 +199,7 @@ template<class T> T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jobject ob
         LOG("JNIVM", "Call Member Function Class=`%s` Method=`%s` Signature=`%s`", cl ? cl->nativeprefix.data() : "???", mid->name.data(), mid->signature.data());
 #endif
         try {
-            return (*(std::function<T(ENV*, jobject, const jvalue *)>*)mid->nativehandle.get())(ENV::FromJNIEnv(env), obj, param);
+            return static_cast<jnivm::impl::MethodHandleBase<T>*>(mid->nativehandle.get())->InstanceInvoke(ENV::FromJNIEnv(env), obj, param, jnivm::impl::MethodHandleBase<T>{});
         } catch (...) {
             auto cur = std::make_shared<Throwable>();
             cur->except = std::current_exception();
@@ -261,7 +261,7 @@ template<class T> T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jobject ob
 #endif
         mid = findNonVirtualOverload(clz.get(), mid);
         try {
-            return (*(std::function<T(ENV*, jobject, const jvalue *)>*)mid->nativehandle.get())(ENV::FromJNIEnv(env), obj, param);
+            return static_cast<jnivm::impl::MethodHandleBase<T>*>(mid->nativehandle.get())->NonVirtualInstanceInvoke(ENV::FromJNIEnv(env), obj, param, jnivm::impl::MethodHandleBase<T>{});
         } catch (...) {
             auto cur = std::make_shared<Throwable>();
             cur->except = std::current_exception();
@@ -294,7 +294,8 @@ template<class T> T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jclass _cl
         LOG("JNIVM", "Call Static Function Class=`%s` Method=`%s` Signature=`%s`", cl ? cl->nativeprefix.data() : "???", mid->name.data(), mid ? mid->signature.data() : "???");
 #endif
         try {
-            return (*(std::function<T(ENV*, Class*, const jvalue *)>*)mid->nativehandle.get())(ENV::FromJNIEnv(env), cl.get(), param);
+             return static_cast<jnivm::impl::MethodHandleBase<T>*>(mid->nativehandle.get())->StaticInvoke(ENV::FromJNIEnv(env), cl.get(), param, jnivm::impl::MethodHandleBase<T>{});
+            // return mid->nativehandle->StaticInvoke(ENV::FromJNIEnv(env), cl.get(), param, jnivm::impl::MethodHandleBase<T>{});
         } catch (...) {
             auto cur = std::make_shared<Throwable>();
             cur->except = std::current_exception();
@@ -315,111 +316,15 @@ template<class T> T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jclass _cl
 template jmethodID jnivm::GetMethodID<true>(JNIEnv *env, jclass cl, const char *str0, const char *str1);
 template jmethodID jnivm::GetMethodID<false>(JNIEnv *env, jclass cl, const char *str0, const char *str1);
 
-#define DeclareTemplate(T) template T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jobject obj, jmethodID id, jvalue *param)
-DeclareTemplate(jboolean);
-DeclareTemplate(jbyte);
-DeclareTemplate(jshort);
-DeclareTemplate(jint);
-DeclareTemplate(jlong);
-DeclareTemplate(jfloat);
-DeclareTemplate(jdouble);
-DeclareTemplate(jchar);
-DeclareTemplate(jobject);
-DeclareTemplate(void);
-#undef DeclareTemplate
-
-#define DeclareTemplate(T) template T jnivm::MDispatchBase<T, jobject>::CallMethod(JNIEnv *env, jobject obj, jmethodID id, va_list param)
-DeclareTemplate(jboolean);
-DeclareTemplate(jbyte);
-DeclareTemplate(jshort);
-DeclareTemplate(jint);
-DeclareTemplate(jlong);
-DeclareTemplate(jfloat);
-DeclareTemplate(jdouble);
-DeclareTemplate(jchar);
-DeclareTemplate(jobject);
-DeclareTemplate(void);
-#undef DeclareTemplate
-
-#define DeclareTemplate(T) template T jnivm::MDispatch<T, jobject>::CallMethod(JNIEnv *env, jobject obj, jmethodID id, ...)
-DeclareTemplate(jboolean);
-DeclareTemplate(jbyte);
-DeclareTemplate(jshort);
-DeclareTemplate(jint);
-DeclareTemplate(jlong);
-DeclareTemplate(jfloat);
-DeclareTemplate(jdouble);
-DeclareTemplate(jchar);
-DeclareTemplate(jobject);
-DeclareTemplate(void);
-#undef DeclareTemplate
-
-#define DeclareTemplate(T) template T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jclass obj, jmethodID id, jvalue *param)
-DeclareTemplate(jboolean);
-DeclareTemplate(jbyte);
-DeclareTemplate(jshort);
-DeclareTemplate(jint);
-DeclareTemplate(jlong);
-DeclareTemplate(jfloat);
-DeclareTemplate(jdouble);
-DeclareTemplate(jchar);
-DeclareTemplate(jobject);
-DeclareTemplate(void);
-#undef DeclareTemplate
-
-#define DeclareTemplate(T) template T jnivm::MDispatchBase<T, jclass>::CallMethod(JNIEnv *env, jclass obj, jmethodID id, va_list param)
-DeclareTemplate(jboolean);
-DeclareTemplate(jbyte);
-DeclareTemplate(jshort);
-DeclareTemplate(jint);
-DeclareTemplate(jlong);
-DeclareTemplate(jfloat);
-DeclareTemplate(jdouble);
-DeclareTemplate(jchar);
-DeclareTemplate(jobject);
-DeclareTemplate(void);
-#undef DeclareTemplate
-
-#define DeclareTemplate(T) template T jnivm::MDispatch<T, jclass>::CallMethod(JNIEnv *env, jclass obj, jmethodID id, ...)
-DeclareTemplate(jboolean);
-DeclareTemplate(jbyte);
-DeclareTemplate(jshort);
-DeclareTemplate(jint);
-DeclareTemplate(jlong);
-DeclareTemplate(jfloat);
-DeclareTemplate(jdouble);
-DeclareTemplate(jchar);
-DeclareTemplate(jobject);
-DeclareTemplate(void);
-#undef DeclareTemplate
-
-#define DeclareTemplate(T) template T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jobject obj, jclass c, jmethodID id, jvalue *param)
-DeclareTemplate(jboolean);
-DeclareTemplate(jbyte);
-DeclareTemplate(jshort);
-DeclareTemplate(jint);
-DeclareTemplate(jlong);
-DeclareTemplate(jfloat);
-DeclareTemplate(jdouble);
-DeclareTemplate(jchar);
-DeclareTemplate(jobject);
-DeclareTemplate(void);
-#undef DeclareTemplate
-
-#define DeclareTemplate(T) template T jnivm::MDispatchBase<T, jobject, jclass>::CallMethod(JNIEnv *env, jobject obj, jclass c, jmethodID id, va_list param)
-DeclareTemplate(jboolean);
-DeclareTemplate(jbyte);
-DeclareTemplate(jshort);
-DeclareTemplate(jint);
-DeclareTemplate(jlong);
-DeclareTemplate(jfloat);
-DeclareTemplate(jdouble);
-DeclareTemplate(jchar);
-DeclareTemplate(jobject);
-DeclareTemplate(void);
-#undef DeclareTemplate
-
-#define DeclareTemplate(T) template T jnivm::MDispatch<T, jobject, jclass>::CallMethod(JNIEnv *env, jobject obj, jclass c, jmethodID id, ...)
+#define DeclareTemplate(T) template T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jobject obj, jmethodID id, jvalue *param);\
+                           template T jnivm::MDispatchBase<T, jobject>::CallMethod(JNIEnv *env, jobject obj, jmethodID id, va_list param);\
+                           template T jnivm::MDispatch<T, jobject>::CallMethod(JNIEnv *env, jobject obj, jmethodID id, ...);\
+                           template T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jclass obj, jmethodID id, jvalue *param);\
+                           template T jnivm::MDispatchBase<T, jclass>::CallMethod(JNIEnv *env, jclass obj, jmethodID id, va_list param);\
+                           template T jnivm::MDispatch<T, jclass>::CallMethod(JNIEnv *env, jclass obj, jmethodID id, ...);\
+                           template T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jobject obj, jclass c, jmethodID id, jvalue *param);\
+                           template T jnivm::MDispatchBase<T, jobject, jclass>::CallMethod(JNIEnv *env, jobject obj, jclass c, jmethodID id, va_list param);\
+                           template T jnivm::MDispatch<T, jobject, jclass>::CallMethod(JNIEnv *env, jobject obj, jclass c, jmethodID id, ...)
 DeclareTemplate(jboolean);
 DeclareTemplate(jbyte);
 DeclareTemplate(jshort);

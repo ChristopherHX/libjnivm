@@ -98,6 +98,16 @@ namespace jnivm {
     template<> struct JNITypes<jclass> : JNITypesObjectBase<Class, jclass> {};
     template<class orgtype> struct JNITypes<Throwable, orgtype> : JNITypesObjectBase<Throwable, jthrowable, orgtype> {};
     template<> struct JNITypes<jthrowable> : JNITypesObjectBase<Throwable, jthrowable> {};
+    template<> struct JNITypes<jvalue, jvalue*> {
+        static jvalue* JNICast(ENV* env, jvalue& v) {
+            return &v;
+        }
+    };
+    template<> struct JNITypes<jvalue> {
+        static jvalue ToJNIType(ENV* env, jvalue& v) {
+            return v;
+        }
+    };
 
     template<class T> struct ___JNIType {
         static T ToJNIType(ENV* env, T v) {

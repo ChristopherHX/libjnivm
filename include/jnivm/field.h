@@ -2,6 +2,8 @@
 #include "object.h"
 #include <string>
 
+#include "methodhandlebase.h"
+
 namespace jnivm {
 
     class Field : public Object {
@@ -9,9 +11,8 @@ namespace jnivm {
         std::string name;
         std::string type;
         bool _static = false;
-        // Unspecified Wrapper Types
-        std::shared_ptr<void> getnativehandle;
-        std::shared_ptr<void> setnativehandle;
+        std::shared_ptr<MethodHandle> getnativehandle;
+        std::shared_ptr<MethodHandle> setnativehandle;
 #ifdef JNI_DEBUG
         std::string GenerateHeader();
         std::string GenerateStubs(std::string scope, const std::string &cname);

@@ -5,12 +5,13 @@
 #include <vector>
 #include <jni.h>
 #include "arrayBase.h"
+#include <type_traits>
+#include "removeshared.h"
 
 namespace jnivm {
 
     namespace impl {
-
-        template<class T, bool primitive = !std::is_class<T>::value && /* !std::is_base_of<Object, T>::value && */ !std::is_same<Object, T>::value>
+        template<class T, class OrgType = void, bool primitive=!std::is_class<T>::value>
         class Array;
 
         template<> class Array<void> : public Object {
@@ -18,6 +19,7 @@ namespace jnivm {
             jsize length = 0;
             void* data = nullptr;
         protected:
+            Array() {}
             Array(void* data, jsize length) : data(data), length(length) {}
         public:
             using Type = void;
@@ -35,7 +37,7 @@ namespace jnivm {
             }
         };
 
-        template<class T, bool primitive>
+        template<class T, class OrgType, bool primitive>
         class Array : public Array<void> {
         public:
             using Type = T;
@@ -65,103 +67,176 @@ namespace jnivm {
                 return getArray()[i];
             }
         };
+        template<class> struct array_type_t {};
+
+        template<class T, bool isconst>
+        struct Arrayguard {
+            Array<T,void,false> & ref;
+            jint i;
+            template<class Z>
+            operator std::shared_ptr<Z>() const {
+                return ref.Get(i, array_type_t<T>{});
+            }
+            operator T*() const {
+                return ref.Get(i, array_type_t<T>{}).get();
+            }
+            operator bool() const {
+                return ref.Get(i, array_type_t<T>{}).get() != nullptr;
+            }
+            T& operator*() const {
+                return *ref.Get(i, array_type_t<T>{}).get();
+            }
+            T* operator->() const {
+                return ref.Get(i, array_type_t<T>{}).get();
+            }
+            template<class Z>
+            Arrayguard &operator=(std::shared_ptr<Z> other) {
+                static_assert(std::is_base_of<T, Z>::value, "Invalid Assignment");
+                ref.Set(i, other);
+                return *this;
+            }
+
+            template<class Z>
+            Arrayguard &operator=(Z* p) {
+                static_assert(std::is_base_of<T, Z>::value, "Invalid Assignment");
+                if(p) {
+                    auto val = p->weak_from_this().lock();
+                    ref.Set(i, val ? std::shared_ptr<Z>(val, p) : std::make_shared<Z>(*p));
+                } else {
+                    ref.Set(i, nullptr);
+                }
+                return *this;
+            }
+            template<class Z>
+            Arrayguard &operator=(Z& p) {
+                static_assert(std::is_base_of<T, Z>::value, "Invalid Assignment");
+                auto val = p.weak_from_this().lock();
+                ref.Set(i, val ? std::shared_ptr<Z>(val, &p) : std::make_shared<Z>(p));
+                return *this;
+            }
+        };
+
+        template<class T>
+        struct Arrayguard<T, true> {
+            const Array<T,void,false> & ref;
+            jint i;
+            operator std::shared_ptr<T>() const {
+                return ref.Get(i, array_type_t<T>{});
+            }
+            operator T*() const {
+                return ref.Get(i, array_type_t<T>{}).get();
+            }
+            operator bool() const {
+                return ref.Get(i, array_type_t<T>{}).get() != nullptr;
+            }
+            T& operator*() const {
+                return *ref.Get(i, array_type_t<T>{}).get();
+            }
+            T* operator->() const {
+                return ref.Get(i, array_type_t<T>{}).get();
+            }
+        };
 
         template<>
-        class Array<Object, false> : public Array<std::shared_ptr<Object>, true> {
+        class Array<Object> : public virtual Array<void> {
         public:
-            using Array<std::shared_ptr<Object>, true>::Array;
+            virtual std::shared_ptr<Object> Get(jint i, array_type_t<Object>) const {
+                return ((std::shared_ptr<Object>*) getArray())[i];
+            }
+            virtual void Set(jint i, const std::shared_ptr<Object>& val) {
+                ((std::shared_ptr<Object>*) getArray())[i] = val;
+            }
+        public:
+            Array() : Array<void>(nullptr, 0) {}
+            Array(jsize size) : Array<void>(new std::shared_ptr<Object>[size], size) {}
+            inline Arrayguard<Object, false> operator[](jint i) {
+                return { *this, i };
+            }
+            inline const Arrayguard<Object, true> operator[](jint i) const {
+                return { *this, i };
+            }
         };
 
         template<class Y>
-        class Array<Y, false> : public Y::ArrayBaseType {
+        class Array<Y, void, false> : public virtual Y::template ArrayBaseType<Y> {
         public:
-            using T = std::shared_ptr<Y>;
-            using Type = T;
-            Array(jsize length) : Array<Object>(length) {}
-            Array() : Array<Object>(nullptr, 0) {}
-
-            struct guard {
-                std::shared_ptr<Object>& ref;
-                operator std::shared_ptr<Object>&() {
-                    return ref;
-                }
-                operator const std::shared_ptr<Object>&() const {
-                    return ref;
-                }
-                template<class Z>
-                operator std::shared_ptr<Z>() const {
-                    static_assert(std::is_base_of<Z, Y>::value, "Invalid conversion");
-                    return std::shared_ptr<Z>(ref, dynamic_cast<Y*>(ref.get()));
-                }
-                template<class Z>
-                operator Z*() {
-                    static_assert(std::is_base_of<Z, Y>::value, "Invalid conversion");
-                    return dynamic_cast<Y*>(ref.get());
-                }
-                operator bool() const {
-                    return ref != nullptr;
-                }
-                // template<class Z>
-                // operator Z&() {
-                //     static_assert(std::is_base_of<Z, Y>::value, "Invalid conversion");
-                //     return *dynamic_cast<Y*>(ref.get());
-                // }
-                Y& operator*() {
-                    return *dynamic_cast<Y*>(ref.get());
-                }
-                Y* operator->() {
-                    return dynamic_cast<Y*>(ref.get());
-                }
-                template<class Z>
-                guard &operator=(std::shared_ptr<Z> other) {
-                    static_assert(std::is_base_of<Y, Z>::value, "Invalid Assignment");
-                    ref = other;
-                    return *this;
-                }
-
-                template<class Z>
-                guard &operator=(Z* p) {
-                    static_assert(std::is_base_of<Y, Z>::value, "Invalid Assignment");
-                    if(p) {
-                        auto val = p->weak_from_this().lock();
-                        ref = val ? std::shared_ptr<Z>(val, p) : std::make_shared<Z>(*p);
-                    } else {
-                        ref = nullptr;
-                    }
-                    return *this;
-                }
-                template<class Z>
-                guard &operator=(Z& p) {
-                    static_assert(std::is_base_of<Y, Z>::value, "Invalid Assignment");
-                    auto val = p.weak_from_this().lock();
-                    ref = val ? std::shared_ptr<Z>(val, &p) : std::make_shared<Z>(p);
-                    return *this;
-                }
-            };
-
-            inline guard operator[](jint i) {
-                return { Array<Object>::operator[](i) };
-                // return static_cast<T&>(Array<Object>::operator[](i));
+            virtual std::shared_ptr<Y> Get(jint i, array_type_t<Y>) const {
+                return ((std::shared_ptr<Y>*) getArray())[i];
             }
-            inline const guard operator[](jint i) const {
-                return { Array<Object>::operator[](i) };
-                // return static_cast<T&>(Array<Object>::operator[](i));
+            virtual void Set(jint i, const std::shared_ptr<Y>& val) {
+                ((std::shared_ptr<Y>*) getArray())[i] = val;
+            }
+        public:
+            //using T = std::shared_ptr<Y>;
+            //using Type = T;
+            Array(jsize length) : Array<void>(new std::shared_ptr<Y>[length], length) {}
+            Array() : Array<void>(nullptr, 0) {}
+
+            inline Arrayguard<Y, false> operator[](jint i) {
+                return { *this, i };
+            }
+            inline const Arrayguard<Y, true> operator[](jint i) const {
+                return { *this, i };
             }
         };
 
-        template<class...T> class ArrayBase : public virtual Array<T>... {
-
+        template<class Y, class Z>
+        class Array<Y, Z, false> : public virtual Array<Y, void, false>/* , public virtual Y::template ArrayBaseType<Z> */ {
+        public:
+            virtual std::shared_ptr<Y> Get(jint i, array_type_t<Y>) const override {
+                return ((std::shared_ptr<Z>*) getArray())[i];
+            }
+            virtual void Set(jint i, const std::shared_ptr<Y>& val) override {
+                std::shared_ptr<Z> nval(val, dynamic_cast<Z*>(val.get()));
+                if(val && !nval) {
+                    throw std::runtime_error("Class Type Exception");
+                }
+                ((std::shared_ptr<Z>*) getArray())[i] = nval;
+            }
         };
+
+        template<class T, class Base, class...others> class ArrayBaseImpl;
+
+        template<class T, class...Base>
+        class ArrayBaseImpl<T, std::tuple<Base...>> : public virtual Array<Base, void>... {
+            
+        };
+
+        template<class Z, class Base, class Y, class...others> class ArrayBaseImpl<Z, Base, Y, others...> : public ArrayBaseImpl<Z, Base, others...> {
+            virtual std::shared_ptr<Y> Get(jint i, array_type_t<Y>) const override {
+                return ((std::shared_ptr<Z>*) getArray())[i];
+            }
+            virtual void Set(jint i, const std::shared_ptr<Y>& val) override {
+                std::shared_ptr<Z> nval(val, dynamic_cast<Z*>(val.get()));
+                if(val && !nval) {
+                    throw std::runtime_error("Class Type Exception");
+                }
+                ((std::shared_ptr<Z>*) getArray())[i] = nval;
+            }
+        };
+
+        template<class T, class...Y> class ArrayBase : public ArrayBaseImpl<T, std::tuple<Y...>, Y...> {
+            
+        };
+
+        // template<class T, class...Y> class ArrayBase : public virtual Array<Y, T>... {
+            
+        // };
+
+        // template<class Z> class ArrayBase<Z, jnivm::Object> : public virtual Array<Object> {
+        // public:
+        //     virtual std::shared_ptr<Object> Get(jint i, array_type_t<Object>) const override {
+        //         return ((std::shared_ptr<Z>*) getArray())[i];
+        //     }
+        //     virtual void Set(jint i, const std::shared_ptr<Object>& val) override {
+        //         std::shared_ptr<Z> nval(val, dynamic_cast<Z*>(val.get()));
+        //         if(val && !nval) {
+        //             throw std::runtime_error("Class Type Exception");
+        //         }
+        //         ((std::shared_ptr<Z>*) getArray())[i] = nval;
+        //     }
+        // };
     }
-    template<class T> struct remove_shared {
-        using Type = T;
-    };
-    template<class T> struct remove_shared<std::shared_ptr<T>> {
-        using Type = T;
-    };
-    template<class T> struct remove_shared<T*> {
-        using Type = T;
-    };
 
     template<class T> using Array = impl::Array<typename remove_shared<T>::Type>;
 }

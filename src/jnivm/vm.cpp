@@ -52,7 +52,7 @@ jobject ToReflectedMethod(JNIEnv * env, jclass c, jmethodID mid, jboolean isStat
 	return 0;
 };
 jclass GetSuperclass(JNIEnv * env, jclass c) {
-	auto cl = (Class*) c;
+	auto&& cl = JNITypes<std::shared_ptr<jnivm::Class>>::JNICast(ENV::FromJNIEnv(env), c);
 	return cl->baseclasses ? (jclass)(cl->baseclasses(ENV::FromJNIEnv(env))[0]).get() : nullptr;
 };
 bool HasBaseClass(JNIEnv *env, Class* cl, Class* c2) {
@@ -69,7 +69,7 @@ bool HasBaseClass(JNIEnv *env, Class* cl, Class* c2) {
 	return false;
 }
 jboolean IsAssignableFrom(JNIEnv *env, jclass c1, jclass c2) {
-	return HasBaseClass(env, (Class*)c1, (Class*)c2);
+	return HasBaseClass(env, JNITypes<std::shared_ptr<jnivm::Class>>::JNICast(ENV::FromJNIEnv(env), c1).get(), JNITypes<std::shared_ptr<jnivm::Class>>::JNICast(ENV::FromJNIEnv(env), c2).get());
 };
 jobject ToReflectedField(JNIEnv * env, jclass c, jfieldID fid, jboolean isStatic) {
 	auto field = (Field*)fid;
@@ -79,8 +79,8 @@ jobject ToReflectedField(JNIEnv * env, jclass c, jfieldID fid, jboolean isStatic
 	return 0;
 };
 jint Throw(JNIEnv *env, jthrowable ex) {
-	auto except = (Throwable*) ex;
-	(ENV::FromJNIEnv(env))->current_exception = except ? std::shared_ptr<Throwable>(except->shared_from_this(), except) : nullptr;
+	auto except = JNITypes<std::shared_ptr<jnivm::Throwable>>::JNICast(ENV::FromJNIEnv(env), ex);
+	(ENV::FromJNIEnv(env))->current_exception = except ? except : nullptr;
 	return 0;
 };
 jint ThrowNew(JNIEnv *env, jclass c, const char * message) {
@@ -130,9 +130,11 @@ jint PushLocalFrame(JNIEnv * env, jint cap) {
 #endif
 	return 0;
 };
-jobject PopLocalFrame(JNIEnv * env, jobject previousframe) {
+jobject PopLocalFrame(JNIEnv * env, jobject result) {
 #ifdef EnableJNIVMGC
 	auto&& nenv = *ENV::FromJNIEnv(env);
+	// save reference on stack
+	auto res = JNITypes<std::shared_ptr<Object>>::JNICast(&nenv, result);
 	// Clear current Frame and move to freelist
 	nenv.localframe.front().clear();
 	nenv.freeframes.splice_after(nenv.freeframes.before_begin(), nenv.localframe, nenv.localframe.before_begin());
@@ -140,8 +142,12 @@ jobject PopLocalFrame(JNIEnv * env, jobject previousframe) {
 		LOG("JNIVM", "Freed top level frame of this ENV, recreate it");
 		nenv.localframe.emplace_front();
 	}
+	// Add result to previous frame
+	if(res) {
+		return JNITypes<std::shared_ptr<Object>>::ToJNIType(&nenv, res);
+	}
 #endif
-	return 0;
+	return result;
 };
 jobject NewGlobalRef(JNIEnv * env, std::shared_ptr<Object> obj) {
 #ifdef EnableJNIVMGC
@@ -247,7 +253,7 @@ jboolean IsInstanceOf(JNIEnv *env, jobject jo, jclass cl) {
 #include "internal/array.hpp"
 
 jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method, jint i) {
-	auto&& clazz = (Class*)c;
+	auto&& clazz = JNITypes<std::shared_ptr<jnivm::Class>>::JNICast(ENV::FromJNIEnv(env), c);
 	if(!clazz) {
 		LOG("JNIVM", "RegisterNatives failed, class is nullptr");
 	} else {
@@ -257,9 +263,7 @@ jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method, jint 
 			auto m = std::make_shared<Method>();
 			m->name = method->name;
 			m->signature = method->signature;
-			m->native = true;
-			using Funk = std::function<void(ENV*, Object*, const jvalue *)>;
-			m->nativehandle = std::shared_ptr<void>(method->fnPtr, [](void * v) { });
+			m->native = method->fnPtr;
 			clazz->methods.push_back(m);
 			method++;
 		}
@@ -267,22 +271,28 @@ jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method, jint 
 	return 0;
 };
 jint UnregisterNatives(JNIEnv *env, jclass c) {
-	auto&& clazz = (Class*)c;
+	auto&& clazz = JNITypes<std::shared_ptr<jnivm::Class>>::JNICast(ENV::FromJNIEnv(env), c);
 	if(!clazz) {
 		LOG("JNIVM", "UnRegisterNatives failed, class is nullptr");
 	} else {
 		std::lock_guard<std::mutex> lock(clazz->mtx);
-		((Class*)c)->natives.clear();
+		clazz->natives.clear();
+		for(size_t i = 0; i < clazz->methods.size(); ++i) {
+			if(clazz->methods[i]->native) {
+				clazz->methods.erase(clazz->methods.begin() + i);
+				--i;
+			}
+		}
 	}
 	return 0;
 };
 
-jint MonitorEnter(JNIEnv *, jobject o) {
-	((Object*)o)->lock.lock.lock();
+jint MonitorEnter(JNIEnv *env, jobject o) {
+	JNITypes<std::shared_ptr<jnivm::Object>>::JNICast(ENV::FromJNIEnv(env), o)->lock.lock.lock();
 	return 0;
 };
-jint MonitorExit(JNIEnv *, jobject o) {
-	((Object*)o)->lock.lock.unlock();
+jint MonitorExit(JNIEnv *env, jobject o) {
+	JNITypes<std::shared_ptr<jnivm::Object>>::JNICast(ENV::FromJNIEnv(env), o)->lock.lock.unlock();
 	return 0;
 }
 
@@ -330,7 +340,6 @@ jobjectRefType GetObjectRefType(JNIEnv *env, jobject obj) {
 template<class ...jnitypes> struct JNINativeInterfaceCompose;
 template<class X, class ...jnitypes> struct JNINativeInterfaceCompose<X, jnitypes...> {
 	using Type = decltype(std::tuple_cat(std::declval<std::tuple<X, X, X>>(), std::declval<typename JNINativeInterfaceCompose<jnitypes...>::Type>()));
-	template<class Y> struct index : std::conditional_t<std::is_same<X,Y>::value, std::integral_constant<size_t, 0>, std::integral_constant<size_t, 1 + JNINativeInterfaceCompose<jnitypes...>::template index<Y>::value>> {};
 };
 template<> struct JNINativeInterfaceCompose<> {
 	using Type = std::tuple<>;
@@ -442,7 +451,7 @@ template<bool ReturnNull> const JNINativeInterface &jnivm::VM::GetNativeInterfac
 	return InterfaceFactory<ReturnNull, jobject, jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble, void>::Type::Interface2;
 }
 
-jnivm::VM::VM(bool skipInit, bool ReturnNull) : ninterface(ReturnNull ? GetNativeInterfaceTemplate<true>() : GetNativeInterfaceTemplate<false>()/* GetInterface<true, jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble>() : GetInterface<false, jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble>() */), iinterface({
+jnivm::VM::VM(bool skipInit, bool ReturnNull) : ninterface(ReturnNull ? GetNativeInterfaceTemplate<true>() : GetNativeInterfaceTemplate<false>()), iinterface({
 			this,
 			NULL,
 			NULL,
@@ -518,8 +527,6 @@ void VM::initialize() {
 	env->GetClass<Field>("java/lang/reflect/Field");
 	env->GetClass<Weak>("java/lang/ref/WeakReference");
 	env->GetClass<Global>("internal/lang/Global");
-	// auto val = InterfaceFactory<false, jobject, jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble, void>::Type::Interface;
-	// auto val2 = InterfaceFactory<false, jobject, jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble, void>::Type::Interface2;
 }
 
 JavaVM *VM::GetJavaVM() {

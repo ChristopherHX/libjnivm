@@ -21,7 +21,7 @@ jobjectArray jnivm::NewObjectArray(JNIEnv * env, jsize length, jclass c, jobject
     return JNITypes<std::shared_ptr<Array<Object>>>::ToJNIType(ENV::FromJNIEnv(env), arr);
 }
 jobject jnivm::GetObjectArrayElement(JNIEnv *env, jobjectArray a, jsize i ) {
-    return JNITypes<std::shared_ptr<Object>>::ToJNIType(ENV::FromJNIEnv(env), (*JNITypes<std::shared_ptr<Array<Object>>>::JNICast(ENV::FromJNIEnv(env), a))[i]);
+    return JNITypes<std::shared_ptr<Object>>::ToJNIType(ENV::FromJNIEnv(env), (std::shared_ptr<Object>) (*JNITypes<std::shared_ptr<Array<Object>>>::JNICast(ENV::FromJNIEnv(env), a))[i]);
 }
 void jnivm::SetObjectArrayElement(JNIEnv *env, jobjectArray a, jsize i, jobject v) {
     (*JNITypes<std::shared_ptr<Array<Object>>>::JNICast(ENV::FromJNIEnv(env), a))[i] = v ? JNITypes<std::shared_ptr<Object>>::JNICast(ENV::FromJNIEnv(env), v) : nullptr;

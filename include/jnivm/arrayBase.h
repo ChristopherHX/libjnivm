@@ -3,6 +3,6 @@ namespace jnivm {
 
     namespace impl {
 
-        template<class...T> class ArrayBase;
+        template<class T, class...Y> class ArrayBase;
     }
 }
