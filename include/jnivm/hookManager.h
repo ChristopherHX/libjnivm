@@ -88,7 +88,7 @@ namespace jnivm {
                 field->type = std::move(ssig);
                 cl->fields.push_back(field);
             }
-            field.get()->*handle = std::make_shared<W>(w::Wrapper {t});
+            field.get()->*handle = std::make_shared<W>(typename w::Wrapper {t});
         }
 
         template<class T> static void install(ENV* env, Class * cl, const std::string& id, const std::string& signature, T&& t) {
@@ -109,7 +109,7 @@ namespace jnivm {
                 field->type = std::move(ssig);
                 cl->fields.push_back(field);
             }
-            field.get()->*handle = std::make_shared<W>(w::Wrapper {t});
+            field.get()->*handle = std::make_shared<W>(typename w::Wrapper {t});
         }
     };
 
