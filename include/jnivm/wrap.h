@@ -125,7 +125,7 @@ namespace jnivm {
     };
     template<class Funk>
     class Property {
-    using Function = Function<Funk>;
+        using Function = jnivm::Function<Funk>;
     public:
         static std::string GetJNIInstanceGetterSignature(ENV * env) {
             return JNITypes<typename Function::Return>::GetJNISignature(env);
