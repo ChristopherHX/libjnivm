@@ -7,7 +7,7 @@
 #include <functional>
 
 namespace jnivm {
-    template<class w, bool isStatic, class Func_t, Func_t Func> struct FunctionBase {
+    template<class w, class W, bool isStatic> struct FunctionBase {
         template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
             auto ssig = w::Wrapper::GetJNIInvokeSignature(env);
             auto ccl =
@@ -25,26 +25,19 @@ namespace jnivm {
                 method->signature = std::move(ssig);
                 cl->methods.push_back(method);
             }
-            using Funk = std::function<typename Function<decltype(Func)>::Return(ENV* env, std::conditional_t<isStatic, Class*, jobject> obj, const jvalue* values)>;
-            method->nativehandle = std::shared_ptr<void>(new Funk(std::bind(Func, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [/* oldhandle=method->nativehandle */](void * v) {
-                delete (Funk*)v;
-            });
+            method->nativehandle = std::make_shared<W>(w::Wrapper {t});
         }
     };
 
-    template<class w> struct HookManager<FunctionType::None, w> : FunctionBase<w, true, decltype(&w::Wrapper::StaticInvoke), &w::Wrapper::StaticInvoke> {
+    template<class w> struct HookManager<FunctionType::None, w> : FunctionBase<w, typename w::template WrapperClasses<w::Wrapper>::StaticFunction, true> {
         
     };
 
-    template<class w> struct HookManager<FunctionType::Functional, w> : HookManager<FunctionType::None, w> {
-
-    };
-
-    template<class w> struct HookManager<FunctionType::Instance, w> : FunctionBase<w, false, decltype(&w::Wrapper::InstanceInvoke), &w::Wrapper::InstanceInvoke> {
+    template<class w> struct HookManager<FunctionType::Instance, w> : FunctionBase<w, typename w::template WrapperClasses<w::Wrapper>::InstanceFunction, false> {
         
     };
 
-    template<class w, bool isStatic, class Func_t, Func_t Func, std::string(*getSig)(ENV*), class handle_t, handle_t handle> struct PropertyBase {
+    template<class w, class W, bool isStatic, std::string(*getSig)(ENV*), class handle_t, handle_t handle> struct PropertyBase {
         template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
             auto ssig = getSig(env);
             auto ccl =
@@ -62,33 +55,30 @@ namespace jnivm {
                 field->type = std::move(ssig);
                 cl->fields.push_back(field);
             }
-            using Funk = std::function<typename Function<decltype(Func)>::Return(ENV* env, std::conditional_t<isStatic, Class*, jobject> obj, const jvalue* values)>;
-            field.get()->*handle = std::shared_ptr<void>(new Funk(std::bind(Func, typename w::Wrapper {t}, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)), [/* oldhandle=field.get()->*handle */](void * v) {
-                delete (Funk*)v;
-            });
+            field.get()->*handle = std::make_shared<W>(w::Wrapper {t});
         }
     };
 
-    template<class w, bool isStatic, class Func_t, Func_t Func> struct GetterBase : PropertyBase<w, isStatic, Func_t, Func, w::Wrapper::GetJNIGetterSignature, decltype(&Field::getnativehandle), &Field::getnativehandle> {
+    template<class w, class W, bool isStatic> struct GetterBase : PropertyBase<w, W, isStatic, w::Wrapper::GetJNIGetterSignature, decltype(&Field::getnativehandle), &Field::getnativehandle> {
 
     };
 
-    template<class w, bool isStatic, class Func_t, Func_t Func> struct SetterBase : PropertyBase<w, isStatic, Func_t, Func, w::Wrapper::GetJNISetterSignature, decltype(&Field::setnativehandle), &Field::setnativehandle> {
+    template<class w, class W, bool isStatic> struct SetterBase : PropertyBase<w, W, isStatic, w::Wrapper::GetJNISetterSignature, decltype(&Field::setnativehandle), &Field::setnativehandle> {
     };
 
-    template<class w> struct HookManager<FunctionType::Getter, w> : GetterBase<w, true, decltype(&w::Wrapper::StaticGet), &w::Wrapper::StaticGet> {
+    template<class w> struct HookManager<FunctionType::Getter, w> : GetterBase<w, typename w::template WrapperClasses<w::Wrapper>::StaticGetter, true> {
 
     };
 
-    template<class w> struct HookManager<FunctionType::Setter, w> : SetterBase<w, true, decltype(&w::Wrapper::StaticSet), &w::Wrapper::StaticSet> {
+    template<class w> struct HookManager<FunctionType::Setter, w> : SetterBase<w, typename w::template WrapperClasses<w::Wrapper>::StaticSetter, true> {
         
     };
 
-    template<class w> struct HookManager<FunctionType::InstanceGetter, w> : GetterBase<w, false, decltype(&w::Wrapper::InstanceGet), &w::Wrapper::InstanceGet> {
+    template<class w> struct HookManager<FunctionType::InstanceGetter, w> : GetterBase<w, typename w::template WrapperClasses<w::Wrapper>::InstanceGetter, false> {
 
     };
 
-    template<class w> struct HookManager<FunctionType::InstanceSetter, w> : SetterBase<w, false, decltype(&w::Wrapper::InstanceSet), &w::Wrapper::InstanceSet> {
+    template<class w> struct HookManager<FunctionType::InstanceSetter, w> : SetterBase<w, typename w::template WrapperClasses<w::Wrapper>::InstanceSetter, false> {
         
     };
 

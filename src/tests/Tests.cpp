@@ -758,6 +758,7 @@ public:
         std::shared_ptr<jnivm::Array<TestClass>> test = (*o)[0];
         std::shared_ptr<jnivm::Array<Object>> test2 = (*o)[0];
         std::shared_ptr<TestClass> tc = (*test)[0], ty = (*(*o)[0])[0];
+        ASSERT_ANY_THROW((*test2)[0] = o);
     }
 };
 
@@ -786,7 +787,7 @@ public:
 // }
 
 // DISABLED: getMethod is a exclusive feature of FakeJni::Jvm and throws an exception
-TEST(JNIVM, DISABLED_Hooking) {
+TEST(JNIVM, Hooking) {
     jnivm::VM vm;
     auto env = vm.GetEnv().get();
     auto c = env->GetClass<TestClass>("TestClass");
@@ -797,10 +798,10 @@ TEST(JNIVM, DISABLED_Hooking) {
     auto mid = env->GetJNIEnv()->GetStaticMethodID((jclass)c.get(), "Instatiate", "()LTestClass;");
     auto obj = env->GetJNIEnv()->CallStaticObjectMethod((jclass)c.get(), mid);
     auto jenv = vm.GetJNIEnv();
-    ASSERT_TRUE(c->getMethod("(Z)Z", "Test")->invoke(*jenv, (jnivm::Object*)obj, false).z);
-    ASSERT_FALSE(c->getMethod("(Z)Z", "Test")->invoke(*jenv, (jnivm::Object*)obj, true).z);
-    c->getMethod("()Z", "Test2")->invoke(*jenv, (jnivm::Object*)obj);
-    c->getMethod("(Ljava/lang/Class;LTestClass;)V", "Test2")->invoke(*jenv, c.get(), c, obj);
+    // ASSERT_TRUE(c->getMethod("(Z)Z", "Test")->invoke(*jenv, (jnivm::Object*)obj, false).z);
+    // ASSERT_FALSE(c->getMethod("(Z)Z", "Test")->invoke(*jenv, (jnivm::Object*)obj, true).z);
+    // c->getMethod("()Z", "Test2")->invoke(*jenv, (jnivm::Object*)obj);
+    // c->getMethod("(Ljava/lang/Class;LTestClass;)V", "Test2")->invoke(*jenv, c.get(), c, obj);
     JNINativeMethod methods[] = {
         { "NativeTest3", "(LTestClass;)V", (void*)&TestClass::NativeTest3 },
         { "NativeTest4", "(Ljava/lang/Class;)V", (void*)&TestClass::NativeTest4 },
@@ -808,9 +809,9 @@ TEST(JNIVM, DISABLED_Hooking) {
     };
     env->GetJNIEnv()->RegisterNatives((jclass)c.get(), methods, sizeof(methods) / sizeof(*methods));
     ASSERT_EQ(c->natives.size(), sizeof(methods) / sizeof(*methods));
-    c->getMethod("(LTestClass;)V", "NativeTest3")->invoke(*jenv, c.get(), obj);
-    c->getMethod("(Ljava/lang/Class;)V", "NativeTest4")->invoke(*jenv, (jnivm::Object*)obj, c);
-    c->getMethod("(Ljava/lang/Class;)Ljava/lang/Class;", "NativeTest5")->invoke(*jenv, (jnivm::Object*)obj, c);
+    // c->getMethod("(LTestClass;)V", "NativeTest3")->invoke(*jenv, c.get(), obj);
+    // c->getMethod("(Ljava/lang/Class;)V", "NativeTest4")->invoke(*jenv, (jnivm::Object*)obj, c);
+    // c->getMethod("(Ljava/lang/Class;)Ljava/lang/Class;", "NativeTest5")->invoke(*jenv, (jnivm::Object*)obj, c);
     // c->InstantiateArray = [](jnivm::ENV *jenv, jsize length) {
     //     return std::make_shared<jnivm::Array<TestClass>>(length);
     // };
@@ -820,7 +821,8 @@ TEST(JNIVM, DISABLED_Hooking) {
     //     return std::make_shared<jnivm::Array<jnivm::Array<TestClass>>>(length);
     // };
     auto outerArray = env->GetJNIEnv()->NewObjectArray(20, env->GetJNIEnv()->GetObjectClass(innerArray), innerArray);
-    c->getMethod("([Ljava/lang/Class;[[LTestClass;)V", "Test4")->invoke(*jenv, c.get(), (jobject)nullptr, (jobject)outerArray);
+    // c->getMethod("([Ljava/lang/Class;[[LTestClass;)V", "Test4")->invoke(*jenv, c.get(), (jobject)nullptr, (jobject)outerArray);
+    env->GetJNIEnv()->CallStaticVoidMethod((jclass)c.get(), env->GetJNIEnv()->GetStaticMethodID((jclass)c.get(), "Test4", "([Ljava/lang/Class;[[LTestClass;)V"), (jobject)nullptr, (jobject)outerArray);
 
 
     std::shared_ptr<jnivm::Array<TestClass>> specArray;
