@@ -144,12 +144,15 @@ namespace FakeJni {
     };
 
 #ifdef __cpp_nontype_template_parameter_auto
-    template<auto T> struct Field {
+    struct DescriptorBase {
+
+    };
+    template<auto T> struct Field : DescriptorBase {
         using Type = decltype(T);
         static constexpr Type handle = T;
         static constexpr bool isFunction = false;
     };
-    template<auto T> struct Function {
+    template<auto T> struct Function : DescriptorBase {
         using Type = decltype(T);
         static constexpr Type handle = T;
         static constexpr bool isFunction = true;
@@ -232,22 +235,51 @@ namespace FakeJni {
         };
 
         std::function<void(jnivm::ENV*env, jnivm::Class* cl)> registre;
-        template<class U> Descriptor(U && d, const char* name) {
-            registre = Helper<U::isFunction, U>::Get(name);
-        }
-        template<class U> Descriptor(U && d, const char* name, JMethodID::Modifiers ty) {
-            static_assert(U::isFunction, "JMethodID::Type requires that this is a Function registration");
-            registre = Helper3<U::isFunction, U>::Get(name, ty);
-        }
-        template<class U> Descriptor(U && d, const char* name, JFieldID::Modifiers ty) {
-            static_assert(!U::isFunction, "JMethodID::Type requires that this is a field registration");
-            registre = Helper3<U::isFunction, U>::Get(name, ty);
-        }
-        template<class U> Descriptor(U && d, const char* name, int flags) {
-            registre = Helper3<U::isFunction, U>::Get(name, flags);
+
+        template<class U,bool isInstance, class ID> struct Helper5;
+        template<class U, class ID> struct Helper5<U, true, ID> {
+            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(U && d, const char* name, int ty) {
+                if((ty & (int)ID::Modifiers::STATIC) != 0) {
+                    throw std::runtime_error("Fatal: Tried to link instance function as static");
+                } else {
+                    return [name, d](jnivm::ENV*env, jnivm::Class* cl) {
+                        cl->HookInstance(env, name, d);
+                    };
+                }
+            }
+        };
+
+        template<class U, class ID> struct Helper5<U, false, ID> {
+            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(U && d, const char* name, int ty) {
+                if((ty & (int)ID::Modifiers::STATIC) != 0) {
+                        return [name, d](jnivm::ENV*env, jnivm::Class* cl) {
+                            cl->Hook(env, name, d);
+                        };
+                    } else {
+                    return [name, d](jnivm::ENV*env, jnivm::Class* cl) {
+                        cl->HookInstance(env, name, d);
+                    };
+                }
+            }
+        };
+
+        template<class U,bool o = std::is_base_of<DescriptorBase, U>::value> struct Helper4 : Helper5<U, (int)jnivm::Function<U>::type & (int)jnivm::FunctionType::Instance, std::conditional_t<(bool)((int)jnivm::Function<U>::type & (int)jnivm::FunctionType::Property), JFieldID, JMethodID>> {
+            
+        };
+
+        template<class U>
+        struct Helper4<U, true> {
+            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(U && d, const char* name, int ty) {
+                return Helper3<U::isFunction, U>::Get(name, ty);
+            }
+        };
+
+        
+        template<class U> Descriptor(U && d, const char* name, int flags = 0) {
+            registre = Helper4<U>::Get(std::move(d), name, flags);
         }
 #endif
-        template<class U> Descriptor(U && d) {
+        template<class U> Descriptor(U && d, int flags = 0) {
             registre = [](jnivm::ENV*env, jnivm::Class* cl) {
                 cl->Hook(env, "<init>", U::ctr);
             };

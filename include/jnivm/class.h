@@ -41,6 +41,7 @@ namespace jnivm {
         }
 
         template<class T> void Hook(ENV* env, const std::string& method, T&& t);
+        template<class T> void HookInstance(ENV* env, const std::string& id, T&& t);
         template<class T> void HookInstanceFunction(ENV* env, const std::string& id, T&& t);
         template<class T> void HookInstanceGetterFunction(ENV* env, const std::string& id, T&& t);
         template<class T> void HookInstanceSetterFunction(ENV* env, const std::string& id, T&& t);
@@ -72,6 +73,11 @@ namespace jnivm {
     template<class T> void Class::Hook(ENV* env, const std::string& id, T&& t) {
         using w = Wrap<T>;
         HookManager<w::Function::type, w>::install(env, this, id, std::move(t));
+    }
+
+    template<class T> void Class::HookInstance(ENV * env, const std::string & id, T && t) {
+        using w = Wrap<T>;
+        HookManager<(FunctionType)((int)w::Function::type | (int)FunctionType::Instance), w>::install(env, this, id, std::move(t));
     }
 
     template<class T> void Class::HookInstanceFunction(ENV* env, const std::string& id, T&& t) {

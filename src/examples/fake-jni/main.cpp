@@ -62,6 +62,8 @@ BEGIN_NATIVE_DESCRIPTOR(SampleClass)
 { Field<&SampleClass::shortarrayfield>{}, "shortarrayfield" },
 { Field<&SampleClass::intarrayfield>{}, "intarrayfield" },
 { Field<&SampleClass::longarrayfield>{}, "longarrayfield" },
+// exampleStaticFunction explicitly as static function (old / new syntax)
+{ &SampleClass::longarrayfield, "longarrayfield2" },
 // staticbooleanfield explicitly as static field
 { Field<&staticbooleanfield>{}, "staticbooleanfield", JFieldID::PUBLIC | JFieldID::STATIC },
 // staticbooleanfield as member field
@@ -75,6 +77,9 @@ BEGIN_NATIVE_DESCRIPTOR(SampleClass)
 { Function<&exampleStaticFunction>{}, "exampleStaticMemberFunction2", JMethodID::PUBLIC },
 // exampleStaticFunction explicitly as static function
 { Function<&exampleStaticFunction>{}, "exampleStaticFunction", JMethodID::PUBLIC | JMethodID::STATIC },
+
+// exampleStaticFunction explicitly as static function (old / new syntax)
+{ &exampleStaticFunction, "exampleStaticFunction2", JMethodID::PUBLIC | JMethodID::STATIC },
 END_NATIVE_DESCRIPTOR
 
 BEGIN_NATIVE_DESCRIPTOR(DerivedClass)
@@ -139,5 +144,14 @@ int main(int argc, char** argv) {
 
     auto args = std::make_shared<JArray<JString>>(1);
 	(*args)[0] = std::make_shared<JString>("main");
+
+    {
+        jfieldID fieldid = frame.getJniEnv().GetFieldID(frame.getJniEnv().GetObjectClass(ref), "longarrayfield2", "[J");
+        jobject value = frame.getJniEnv().GetObjectField(ref, fieldid);
+        frame.getJniEnv().SetObjectField(ref, fieldid, frame.getJniEnv().NewLongArray(100));
+
+        jobject value2 = frame.getJniEnv().GetObjectField(ref, fieldid);
+        frame.getJniEnv().GetArrayLength((jarray)value2);
+    }
     return 0;
 }
