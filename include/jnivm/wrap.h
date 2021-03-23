@@ -317,6 +317,6 @@ namespace jnivm {
         
 
         
-        using Wrapper = typename BaseWrapper<Funk, Function::type>;
+        using Wrapper = BaseWrapper<Funk, Function::type>;
     };
 }
