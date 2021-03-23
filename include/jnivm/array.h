@@ -184,14 +184,14 @@ namespace jnivm {
         class Array<Y, Z, false> : public virtual Array<Y, void, false>/* , public virtual Y::template ArrayBaseType<Z> */ {
         public:
             virtual std::shared_ptr<Y> Get(jint i, array_type_t<Y>) const override {
-                return ((std::shared_ptr<Z>*) getArray())[i];
+                return ((std::shared_ptr<Z>*) Array<void>::getArray())[i];
             }
             virtual void Set(jint i, const std::shared_ptr<Y>& val) override {
                 std::shared_ptr<Z> nval(val, dynamic_cast<Z*>(val.get()));
                 if(val && !nval) {
                     throw std::runtime_error("Class Type Exception");
                 }
-                ((std::shared_ptr<Z>*) getArray())[i] = nval;
+                ((std::shared_ptr<Z>*) Array<void>::getArray())[i] = nval;
             }
         };
 
@@ -204,14 +204,14 @@ namespace jnivm {
 
         template<class Z, class Base, class Y, class...others> class ArrayBaseImpl<Z, Base, Y, others...> : public ArrayBaseImpl<Z, Base, others...> {
             virtual std::shared_ptr<Y> Get(jint i, array_type_t<Y>) const override {
-                return ((std::shared_ptr<Z>*) getArray())[i];
+                return ((std::shared_ptr<Z>*) Array<void>::getArray())[i];
             }
             virtual void Set(jint i, const std::shared_ptr<Y>& val) override {
                 std::shared_ptr<Z> nval(val, dynamic_cast<Z*>(val.get()));
                 if(val && !nval) {
                     throw std::runtime_error("Class Type Exception");
                 }
-                ((std::shared_ptr<Z>*) getArray())[i] = nval;
+                ((std::shared_ptr<Z>*) Array<void>::getArray())[i] = nval;
             }
         };
 
