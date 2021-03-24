@@ -226,7 +226,7 @@ namespace jnivm {
 
     // = Obj<Funk, EnvOrObjOrClass...>::template StaticBase<false, std::make_index_sequence<Function<Funk>::plength - sizeof...(EnvOrObjOrClass)>>
     // = Obj<Funk, EnvOrObjOrClass...>::template StaticBase<true, std::make_index_sequence<Function<Funk>::plength - sizeof...(EnvOrObjOrClass)>>
-    template<class Funk, class ...EnvOrObjOrClass> class BaseWrapper<Funk, FunctionType::None, EnvOrObjOrClass...> : public WrapperUtil<Funk, std::remove_reference_t<decltype(std::declval<typename Obj<Funk>::StaticBase<true, std::make_index_sequence<Function<Funk>::plength - sizeof...(EnvOrObjOrClass)>>>())>, std::remove_reference_t<decltype(std::declval<typename Obj<Funk, EnvOrObjOrClass...>::StaticBase<false, std::make_index_sequence<Function<Funk>::plength - sizeof...(EnvOrObjOrClass)>>>())>>{
+    template<class Funk, class ...EnvOrObjOrClass> class BaseWrapper<Funk, FunctionType::None, EnvOrObjOrClass...> : public WrapperUtil<Funk, std::remove_reference_t<decltype(std::declval<typename Obj<Funk, EnvOrObjOrClass...>::StaticBase<true, std::make_index_sequence<Function<Funk>::plength - sizeof...(EnvOrObjOrClass)>>>())>, std::remove_reference_t<decltype(std::declval<typename Obj<Funk, EnvOrObjOrClass...>::StaticBase<false, std::make_index_sequence<Function<Funk>::plength - sizeof...(EnvOrObjOrClass)>>>())>>{
 
     };
 
@@ -320,6 +320,6 @@ namespace jnivm {
             using StaticSetter = typename WrapperClasses<T, void>::StaticSetter;
         };
         
-        using Wrapper = BaseWrapper<Funk, Function::type/* , EnvOrObjOrClass... */>;
+        using Wrapper = BaseWrapper<Funk, Function::type , EnvOrObjOrClass...>;
     };
 }
