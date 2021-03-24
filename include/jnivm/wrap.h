@@ -232,7 +232,7 @@ namespace jnivm {
 
         template<class T> 
         using __ReturnType = std::conditional_t<std::is_same<bool, typename Function::Return>::value, jboolean, std::conditional_t<std::is_class<typename Function::Return>::value, jobject, typename Function::Return>>;
-        template<class T, class ReturnType = __ReturnType<T>> struct WrapperClasses;
+        template<class T, class ReturnType> struct WrapperClasses;
 
         template<class T> struct WrapperClasses<T, void> {
             using ReturnType = void;
@@ -273,7 +273,7 @@ namespace jnivm {
             };
         };
 
-        template<class T, class ReturnType> struct WrapperClasses {
+        template<class T, class ReturnType = __ReturnType<T>> struct WrapperClasses {
             struct StaticFunction : public MethodHandle {
             public:
                 StaticFunction(T&&t) : t(t) {}
