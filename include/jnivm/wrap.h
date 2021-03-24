@@ -212,7 +212,7 @@ namespace jnivm {
         constexpr auto InstanceSet(ENV * env, jobject obj, const jvalue* values) {
             return Base1::InstanceSet(handle, env, obj, values);
         }
-        typename auto StaticInvoke(ENV * env, Class* c, const jvalue* values) {
+        auto StaticInvoke(ENV * env, Class* c, const jvalue* values) {
             static_assert(!std::is_same<Base2, Base1>::value, "What happend");
             return Base2::StaticInvoke(handle, env, c, values);
         }
@@ -226,7 +226,7 @@ namespace jnivm {
 
     // = Obj<Funk, EnvOrObjOrClass...>::template StaticBase<false, std::make_index_sequence<Function<Funk>::plength - sizeof...(EnvOrObjOrClass)>>
     // = Obj<Funk, EnvOrObjOrClass...>::template StaticBase<true, std::make_index_sequence<Function<Funk>::plength - sizeof...(EnvOrObjOrClass)>>
-    template<class Funk, class ...EnvOrObjOrClass> class BaseWrapper<Funk, FunctionType::None, EnvOrObjOrClass...> : public WrapperUtil<Funk, std::remove_reference_t<decltype(std::declval<typename Obj<Funk, EnvOrObjOrClass...>::StaticBase<true, std::make_index_sequence<Function<Funk>::plength - sizeof...(EnvOrObjOrClass)>>>())>, std::remove_reference_t<decltype(std::declval<typename Obj<Funk, EnvOrObjOrClass...>::StaticBase<false, std::make_index_sequence<Function<Funk>::plength - sizeof...(EnvOrObjOrClass)>>>())>>{
+    template<class Funk, class ...EnvOrObjOrClass> class BaseWrapper<Funk, FunctionType::None, EnvOrObjOrClass...> : public WrapperUtil<Funk, std::remove_reference_t<decltype(std::declval<typename Obj<Funk, EnvOrObjOrClass...>::template StaticBase<true, std::make_index_sequence<Function<Funk>::plength - sizeof...(EnvOrObjOrClass)>>>())>, std::remove_reference_t<decltype(std::declval<typename Obj<Funk, EnvOrObjOrClass...>::template StaticBase<false, std::make_index_sequence<Function<Funk>::plength - sizeof...(EnvOrObjOrClass)>>>())>>{
 
     };
 

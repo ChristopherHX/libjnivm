@@ -71,18 +71,18 @@ namespace jnivm {
 
 namespace jnivm {
     template<class T> void Class::Hook(ENV* env, const std::string& id, T&& t) {
-        if constexpr(std::is_same<Function<T>::template Parameter<0>, JNIEnv*>::value || std::is_same<Function<T>::template Parameter<0>, ENV*>::value) {
-            using w = Wrap<T, Function<T>::template Parameter<0>>;
+        if constexpr(std::is_same<typename Function<T>::template Parameter<0>, JNIEnv*>::value || std::is_same<typename Function<T>::template Parameter<0>, ENV*>::value) {
+            using w = Wrap<T, typename Function<T>::template Parameter<0>>;
             HookManager<w::Function::type, w>::install(env, this, id, std::move(t));
-            if constexpr(std::is_base_of<Object*, Function<T>::template Parameter<1>>::value) {
-                using w = Wrap<T, Function<T>::template Parameter<0>, Function<T>::template Parameter<1>>;
+            if constexpr(std::is_base_of<Object*, typename Function<T>::template Parameter<1>>::value) {
+                using w = Wrap<T, typename Function<T>::template Parameter<0>, typename Function<T>::template Parameter<1>>;
                 HookManager<w::Function::type, w>::install(env, this, id, std::move(t));
             }
         } else {
             using w = Wrap<T>;
             HookManager<w::Function::type, w>::install(env, this, id, std::move(t));
-            if constexpr(std::is_base_of<Object*, Function<T>::template Parameter<0>>::value) {
-                using w = Wrap<T, Function<T>::template Parameter<0>>;
+            if constexpr(std::is_base_of<Object*, typename Function<T>::template Parameter<0>>::value) {
+                using w = Wrap<T, typename Function<T>::template Parameter<0>>;
                 HookManager<w::Function::type, w>::install(env, this, id, std::move(t));
             }
         }
