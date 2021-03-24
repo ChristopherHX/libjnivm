@@ -11,25 +11,37 @@ namespace jnivm {
         static std::string Get(ENV* env) {
             return Wrapper::GetJNIInstanceInvokeSignature(env);
         }
-        static std::string GetGetter(ENV* env) {
-            return Wrapper::GetJNIInstanceGetterSignature(env);
-        }
-        static std::string GetSetter(ENV* env) {
-            return Wrapper::GetJNIInstanceSetterSignature(env);
-        }
     };
     template<class Wrapper> struct InvokeSignature<true, Wrapper> {
         static std::string Get(ENV* env) {
             return Wrapper::GetJNIStaticInvokeSignature(env);
         }
-        static std::string GetGetter(ENV* env) {
+    };
+
+    template<bool isStatic, bool isGetter, class Wrapper> struct PropertySignature;
+    template<class Wrapper> struct PropertySignature<true, true, Wrapper> {
+        static std::string Get(ENV* env) {
             return Wrapper::GetJNIStaticGetterSignature(env);
         }
-        static std::string GetSetter(ENV* env) {
+    };
+
+    template<class Wrapper> struct PropertySignature<true, false, Wrapper> {
+        static std::string Get(ENV* env) {
             return Wrapper::GetJNIStaticSetterSignature(env);
         }
     };
 
+    template<class Wrapper> struct PropertySignature<false, true, Wrapper> {
+        static std::string Get(ENV* env) {
+            return Wrapper::GetJNIInstanceGetterSignature(env);
+        }
+    };
+
+    template<class Wrapper> struct PropertySignature<false, false, Wrapper> {
+        static std::string Get(ENV* env) {
+            return Wrapper::GetJNIInstanceSetterSignature(env);
+        }
+    };
 
     template<class w, class W, bool isStatic> struct FunctionBase {
         template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
@@ -84,9 +96,9 @@ namespace jnivm {
         }
     };
 
-    template<class w, class W, bool isStatic, class handle_t, handle_t handle> struct PropertyBase {
+    template<class w, class W, bool isStatic, bool isGetter, class handle_t, handle_t handle> struct PropertyBase {
         template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
-            auto ssig = InvokeSignature<isStatic, typename w::Wrapper>::Get(env);
+            auto ssig = PropertySignature<isStatic, isGetter, typename w::Wrapper>::Get(env);
             auto ccl =
                     std::find_if(cl->fields.begin(), cl->fields.end(),
                                             [&id, &ssig](std::shared_ptr<Field> &f) {
@@ -127,11 +139,11 @@ namespace jnivm {
         }
     };
 
-    template<class w, class W, bool isStatic> struct GetterBase : PropertyBase<w, W, isStatic, decltype(&Field::getnativehandle), &Field::getnativehandle> {
+    template<class w, class W, bool isStatic> struct GetterBase : PropertyBase<w, W, isStatic, true, decltype(&Field::getnativehandle), &Field::getnativehandle> {
 
     };
 
-    template<class w, class W, bool isStatic> struct SetterBase : PropertyBase<w, W, isStatic, decltype(&Field::setnativehandle), &Field::setnativehandle> {
+    template<class w, class W, bool isStatic> struct SetterBase : PropertyBase<w, W, isStatic, false, decltype(&Field::setnativehandle), &Field::setnativehandle> {
     };
 
     template<class w> struct HookManager<FunctionType::Getter, w> : GetterBase<w, typename w::template WrapperClasses<typename w::Wrapper>::StaticGetter, true> {
