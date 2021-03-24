@@ -121,7 +121,7 @@ namespace jnivm {
 
     template<class Funk, FunctionType type, class I> class OldWrapper;
     template<class Funk, FunctionType type, class...EnvOrObjOrClass> class BaseWrapper : public OldWrapper<Funk, type, std::make_index_sequence<jnivm::Function<Funk>::plength>> {
-
+        using OldWrapper<Funk, type, std::make_index_sequence<jnivm::Function<Funk>::plength>>::OldWrapper;
     };
     template<class Funk>
     class Property {
