@@ -119,18 +119,22 @@ TEST(JNIVM, ModifiedUtf8Null) {
 }
 
 TEST(JNIVM, ObjectArray) {
-    jnivm::VM vm;
-    auto env = vm.GetJNIEnv();
-    jclass js = env->FindClass("java/lang/String");
-    jobjectArray arr = env->NewObjectArray(100, js, env->NewStringUTF("Hi"));
-    ASSERT_EQ(env->GetObjectClass(arr), env->FindClass("[Ljava/lang/String;"));
-    ASSERT_EQ(env->GetArrayLength(arr), 100);
-    for (jsize i = 0; i < env->GetArrayLength(arr); i++) {
-        auto el = env->GetObjectArrayElement(arr, i);
-        ASSERT_TRUE(el);
-        ASSERT_EQ(env->GetObjectClass(el), js);
-        ASSERT_EQ(env->GetStringLength((jstring)el), 2);
-        ASSERT_EQ(env->GetStringUTFLength((jstring)el), 2);
+    std::weak_ptr<jnivm::Object> o;
+    {
+        jnivm::VM vm;
+        auto env = vm.GetJNIEnv();
+        jclass js = env->FindClass("java/lang/String");
+        jobjectArray arr = env->NewObjectArray(100, js, env->NewStringUTF("Hi"));
+        o = ((jnivm::Object*)arr)->weak_from_this();
+        ASSERT_EQ(env->GetObjectClass(arr), env->FindClass("[Ljava/lang/String;"));
+        ASSERT_EQ(env->GetArrayLength(arr), 100);
+        for (jsize i = 0; i < env->GetArrayLength(arr); i++) {
+            auto el = env->GetObjectArrayElement(arr, i);
+            ASSERT_TRUE(el);
+            ASSERT_EQ(env->GetObjectClass(el), js);
+            ASSERT_EQ(env->GetStringLength((jstring)el), 2);
+            ASSERT_EQ(env->GetStringUTFLength((jstring)el), 2);
+        }
     }
 }
 
@@ -304,9 +308,9 @@ TEST(JNIVM, Excepts) {
     jnivm::VM vm;
     auto env = vm.GetEnv();
     auto _Class2 = env->GetClass<Class2>("Class2");
-    // _Class2->HookInstanceFunction(env.get(), "test", [](jnivm::ENV*, jnivm::Object *) {
-    //     throw std::runtime_error("Test");
-    // });
+    _Class2->HookInstanceFunction(env.get(), "test", [](jnivm::ENV*, jnivm::Object *) {
+        throw std::runtime_error("Test");
+    });
     auto o = std::make_shared<Class2>();
     auto obj = jnivm::JNITypes<decltype(o)>::ToJNIReturnType(env.get(), o);
     auto c = jnivm::JNITypes<decltype(_Class2)>::ToJNIType(env.get(), _Class2);
@@ -326,9 +330,9 @@ TEST(JNIVM, Monitor) {
     jnivm::VM vm;
     auto env = vm.GetEnv();
     auto _Class2 = env->GetClass<Class2>("Class2");
-    // _Class2->HookInstanceFunction(env.get(), "test", [](jnivm::ENV*, jnivm::Object *) {
-    //     throw std::runtime_error("Test");
-    // });
+    _Class2->HookInstanceFunction(env.get(), "test", [](jnivm::ENV*, jnivm::Object *) {
+        throw std::runtime_error("Test");
+    });
     auto o = std::make_shared<Class2>();
     auto obj = jnivm::JNITypes<decltype(o)>::ToJNIReturnType(env.get(), o);
     auto c = jnivm::JNITypes<decltype(_Class2)>::ToJNIType(env.get(), _Class2);
@@ -606,10 +610,10 @@ TEST(JNIVM, ExternalFuncs) {
     auto x = env->GetJNIEnv()->FindClass("TestClass");
     auto m = env->GetJNIEnv()->GetStaticMethodID(x, "factory", "()LTestClass;");
     auto o = env->GetJNIEnv()->CallStaticObjectMethod(x, m);
-    // c->HookInstanceFunction(env.get(), "test", [&succeded, src = jnivm::JNITypes<std::shared_ptr<jnivm::Object>>::JNICast(env.get(), o)](jnivm::ENV*env, jnivm::Object*obj) {
-    //     ASSERT_EQ(src.get(), obj);
-    //     succeded = true;
-    // });
+    c->HookInstanceFunction(env.get(), "test", [&succeded, src = jnivm::JNITypes<std::shared_ptr<jnivm::Object>>::JNICast(env.get(), o)](jnivm::ENV*env, jnivm::Object*obj) {
+        ASSERT_EQ(src.get(), obj);
+        succeded = true;
+    });
     auto m2 = env->GetJNIEnv()->GetMethodID(x, "test", "()V");
     env->GetJNIEnv()->CallVoidMethod(o, m2);
     ASSERT_TRUE(succeded);
@@ -627,10 +631,10 @@ TEST(JNIVM, ExternalFuncs) {
 
     // static
     succeded = false;
-    // c->Hook(env.get(), "test", [&succeded, &c](jnivm::ENV*env, jnivm::Class*obj) {
-    //     ASSERT_EQ(c.get(), obj);
-    //     succeded = true;
-    // });
+    c->Hook(env.get(), "test", [&succeded, &c](jnivm::ENV*env, jnivm::Class*obj) {
+        ASSERT_EQ(c.get(), obj);
+        succeded = true;
+    });
     m2 = env->GetJNIEnv()->GetStaticMethodID(x, "test", "()V");
     env->GetJNIEnv()->CallStaticVoidMethod(x, m2);
     ASSERT_TRUE(succeded);
@@ -867,22 +871,25 @@ TEST(JNIVM, VirtualFunction) {
     auto c2 = env->GetClass<TestClass2>("TestClass2");
     c->Hook(env, "Test", &TestClass::Test);
     c2->Hook(env, "Test", &TestClass2::Test);
-    // c->HookInstanceFunction(env, "Test2", [](jnivm::ENV*, TestClass2*o) {
-    //     return o->TestClass::Test2();
-    // });
-    // c2->HookInstanceFunction(env, "Test2",[](jnivm::ENV*, TestClass2*o) {
-    //     return o->TestClass2::Test2();
-    // });
+    c->HookInstanceFunction(env, "Test2", [](jnivm::ENV*, TestClass2*o) {
+        return o->TestClass::Test2();
+    });
+    c2->HookInstanceFunction(env, "Test2",[](jnivm::ENV*, TestClass2*o) {
+        return o->TestClass2::Test2();
+    });
     auto val = std::make_shared<TestClass2>();
     auto ptr = jnivm::JNITypes<decltype(val)>::ToJNIReturnType(env, val);
     auto _c2 = jnivm::JNITypes<decltype(c2)>::ToJNIType(env, c2);
     auto _c = jnivm::JNITypes<decltype(c)>::ToJNIType(env, c);
+
     ASSERT_EQ(env->GetJNIEnv()->CallIntMethod(ptr, env->GetJNIEnv()->GetMethodID(_c, "Test", "()I")), (int)TestEnum::B);
     ASSERT_EQ(env->GetJNIEnv()->CallIntMethod(ptr, env->GetJNIEnv()->GetMethodID(_c2, "Test", "()I")), (int)TestEnum::B);
-    ASSERT_EQ(env->GetJNIEnv()->CallNonvirtualIntMethod(ptr, _c2, env->GetJNIEnv()->GetMethodID(_c, "Test", "()I")), (int)TestEnum::B);
-    ASSERT_EQ(env->GetJNIEnv()->CallNonvirtualIntMethod(ptr, _c2, env->GetJNIEnv()->GetMethodID(_c2, "Test", "()I")), (int)TestEnum::B);
-    ASSERT_EQ(env->GetJNIEnv()->CallNonvirtualIntMethod(ptr, _c, env->GetJNIEnv()->GetMethodID(_c, "Test", "()I")), (int)TestEnum::A);
-    ASSERT_EQ(env->GetJNIEnv()->CallNonvirtualIntMethod(ptr, _c, env->GetJNIEnv()->GetMethodID(_c2, "Test", "()I")), (int)TestEnum::A);
+
+    // This part is disabled, because this isn't save and is not supported anymore
+    // ASSERT_EQ(env->GetJNIEnv()->CallNonvirtualIntMethod(ptr, _c2, env->GetJNIEnv()->GetMethodID(_c, "Test", "()I")), (int)TestEnum::B);
+    // ASSERT_EQ(env->GetJNIEnv()->CallNonvirtualIntMethod(ptr, _c2, env->GetJNIEnv()->GetMethodID(_c2, "Test", "()I")), (int)TestEnum::B);
+    // ASSERT_EQ(env->GetJNIEnv()->CallNonvirtualIntMethod(ptr, _c, env->GetJNIEnv()->GetMethodID(_c, "Test", "()I")), (int)TestEnum::A);
+    // ASSERT_EQ(env->GetJNIEnv()->CallNonvirtualIntMethod(ptr, _c, env->GetJNIEnv()->GetMethodID(_c2, "Test", "()I")), (int)TestEnum::A);
 
     ASSERT_EQ(env->GetJNIEnv()->CallIntMethod(ptr, env->GetJNIEnv()->GetMethodID(_c, "Test2", "()I")), (int)TestEnum::B);
     ASSERT_EQ(env->GetJNIEnv()->CallIntMethod(ptr, env->GetJNIEnv()->GetMethodID(_c2, "Test2", "()I")), (int)TestEnum::B);
@@ -1390,18 +1397,15 @@ TEST(JNIVM, Wrapper) {
     };
     auto testclass = env->GetClass<Testclass>("Testclass");
     bool success = false;
-    // testclass->HookInstanceFunction(env, "A", [&success, e2=env](jnivm::ENV* env) {
-    //     success = (e2 == env);
-    // });
-    // testclass->HookInstanceFunction(env, "B", [&success, e2=env](jnivm::ENV* env, jnivm::Object* obj) {
-    //     success = (e2 == env) && obj != nullptr;
-    // });
-    // testclass->HookInstanceFunction(env, "C", [&success, e2=env](jnivm::ENV* env, Testclass* obj) {
-    //     success = (e2 == env) && obj != nullptr;
-    // });
-    // testclass->HookInstanceFunction(env, "D", "(Ljava/lang/String;)V", [&success, e2=env](JNIEnv* env, jobject obj, jvalue* val) {
-    //     return val[0];
-    // });
+    testclass->HookInstanceFunction(env, "A", [&success, e2=env](jnivm::ENV* env) {
+        success = (e2 == env);
+    });
+    testclass->HookInstanceFunction(env, "B", [&success, e2=env](jnivm::ENV* env, jnivm::Object* obj) {
+        success = (e2 == env) && obj != nullptr;
+    });
+    testclass->HookInstanceFunction(env, "C", [&success, e2=env](jnivm::ENV* env, Testclass* obj) {
+        success = (e2 == env) && obj != nullptr;
+    });
     auto nenv = env->GetJNIEnv();
     auto nc = nenv->FindClass("Testclass");
     auto no = nenv->NewObject(nc, nenv->GetMethodID(nc, "<init>", "()V"));
