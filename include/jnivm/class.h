@@ -74,7 +74,7 @@ namespace jnivm {
         if constexpr(std::is_same<typename Function<T>::template Parameter<0>, JNIEnv*>::value || std::is_same<typename Function<T>::template Parameter<0>, ENV*>::value) {
             using w = Wrap<T, typename Function<T>::template Parameter<0>>;
             HookManager<w::Function::type, w>::install(env, this, id, std::move(t));
-            if constexpr(std::is_base_of<Object*, typename Function<T>::template Parameter<1>>::value) {
+            if constexpr(std::is_base_of<Object, std::remove_pointer_t<typename Function<T>::template Parameter<1>>>::value) {
                 using w = Wrap<T, typename Function<T>::template Parameter<0>, typename Function<T>::template Parameter<1>>;
                 HookManager<w::Function::type, w>::install(env, this, id, std::move(t));
             }
