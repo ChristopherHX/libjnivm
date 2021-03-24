@@ -11,10 +11,22 @@ namespace jnivm {
         static std::string Get(ENV* env) {
             return Wrapper::GetJNIInstanceInvokeSignature(env);
         }
+        static std::string GetGetter(ENV* env) {
+            return Wrapper::GetJNIInstanceGetterSignature(env);
+        }
+        static std::string GetSetter(ENV* env) {
+            return Wrapper::GetJNIInstanceSetterSignature(env);
+        }
     };
     template<class Wrapper> struct InvokeSignature<true, Wrapper> {
         static std::string Get(ENV* env) {
             return Wrapper::GetJNIStaticInvokeSignature(env);
+        }
+        static std::string GetGetter(ENV* env) {
+            return Wrapper::GetJNIStaticGetterSignature(env);
+        }
+        static std::string GetSetter(ENV* env) {
+            return Wrapper::GetJNIStaticSetterSignature(env);
         }
     };
 
@@ -72,9 +84,9 @@ namespace jnivm {
         }
     };
 
-    template<class w, class W, bool isStatic, std::string(*getSig)(ENV*), class handle_t, handle_t handle> struct PropertyBase {
+    template<class w, class W, bool isStatic, class handle_t, handle_t handle> struct PropertyBase {
         template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
-            auto ssig = getSig(env);
+            auto ssig = InvokeSignature<isStatic, typename w::Wrapper>::Get(env);
             auto ccl =
                     std::find_if(cl->fields.begin(), cl->fields.end(),
                                             [&id, &ssig](std::shared_ptr<Field> &f) {
@@ -115,11 +127,11 @@ namespace jnivm {
         }
     };
 
-    template<class w, class W, bool isStatic> struct GetterBase : PropertyBase<w, W, isStatic, isStatic ? w::Wrapper::GetJNIStaticGetterSignature : w::Wrapper::GetJNIInstanceGetterSignature, decltype(&Field::getnativehandle), &Field::getnativehandle> {
+    template<class w, class W, bool isStatic> struct GetterBase : PropertyBase<w, W, isStatic, decltype(&Field::getnativehandle), &Field::getnativehandle> {
 
     };
 
-    template<class w, class W, bool isStatic> struct SetterBase : PropertyBase<w, W, isStatic, isStatic ? w::Wrapper::GetJNIStaticSetterSignature : w::Wrapper::GetJNIInstanceSetterSignature, decltype(&Field::setnativehandle), &Field::setnativehandle> {
+    template<class w, class W, bool isStatic> struct SetterBase : PropertyBase<w, W, isStatic, decltype(&Field::setnativehandle), &Field::setnativehandle> {
     };
 
     template<class w> struct HookManager<FunctionType::Getter, w> : GetterBase<w, typename w::template WrapperClasses<typename w::Wrapper>::StaticGetter, true> {
