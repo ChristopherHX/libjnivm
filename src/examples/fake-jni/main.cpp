@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
     frame.getJniEnv().CallVoidMethod(ref, exampleStaticMemberFunction, 7.9);
 
     jmethodID exampleStaticFunction = frame.getJniEnv().GetMethodID(frame.getJniEnv().GetObjectClass(ref), "exampleStaticMemberFunction", "(D)V");
-    frame.getJniEnv().CallStaticVoidMethod(frame.getJniEnv().GetObjectClass(ref), exampleStaticFunction, 3.8);
+    frame.getJniEnv().CallVoidMethod(frame.getJniEnv().GetObjectClass(ref), exampleStaticFunction, 3.8);
 
     jfieldID fieldid2 = frame.getJniEnv().GetFieldID(frame.getJniEnv().GetObjectClass(ref), "booleanfield2", "Z");
     value = frame.getJniEnv().GetBooleanField(ref, fieldid2);
