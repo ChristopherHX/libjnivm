@@ -194,42 +194,43 @@ namespace jnivm {
         }
     };
 
-    template<class Funk, class...EnvOrObjOrClass> class BaseWrapper<Funk, FunctionType::None, EnvOrObjOrClass...> : public Obj<Funk, EnvOrObjOrClass...>::template StaticBase<true, std::make_index_sequence<Function<Funk>::plength - sizeof...(EnvOrObjOrClass)>>, public Obj<Funk, EnvOrObjOrClass...>::template StaticBase<false, std::make_index_sequence<Function<Funk>::plength - sizeof...(EnvOrObjOrClass)>> {
+    template<class Funk, class Base1, class Base2> class WrapperUtil : public Base1, public Base2 {
         Funk handle;
         using Function = jnivm::Function<Funk>;
-        template<bool b>
-        using BaseClass = typename Obj<Funk, EnvOrObjOrClass...>::template StaticBase<b, std::make_index_sequence<Function::plength - sizeof...(EnvOrObjOrClass)>>;
     public:
-        BaseWrapper(Funk handle) : handle(handle) {}
+        WrapperUtil(Funk handle) : handle(handle) {}
 
         constexpr auto InstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
-            return BaseClass<true>::template InstanceInvoke(handle, env, obj, values);
+            return Base1::InstanceInvoke(handle, env, obj, values);
         }
         constexpr auto NonVirtualInstanceInvoke(ENV * env, jobject obj, const jvalue* values) {
-            return BaseClass<true>::template NonVirtualInstanceInvoke(handle, env, obj, values);
+            return Base1::NonVirtualInstanceInvoke(handle, env, obj, values);
         }
         constexpr auto InstanceGet(ENV * env, jobject obj, const jvalue* values) {
-            return BaseClass<true>::template InstanceGet(handle, env, obj, values);
+            return Base1::InstanceGet(handle, env, obj, values);
         }
         constexpr auto InstanceSet(ENV * env, jobject obj, const jvalue* values) {
-            return BaseClass<true>::template InstanceSet(handle, env, obj, values);
+            return Base1::InstanceSet(handle, env, obj, values);
         }
         typename auto StaticInvoke(ENV * env, Class* c, const jvalue* values) {
-            return BaseClass<false>::template StaticInvoke(handle, env, c, values);
+            static_assert(!std::is_same<Base2, Base1>::value, "What happend");
+            return Base2::StaticInvoke(handle, env, c, values);
         }
         constexpr auto StaticGet(ENV * env, Class* c, const jvalue* values) {
-            return BaseClass<false>::template StaticGet(handle, env, c, values);
+            return Base2::StaticGet(handle, env, c, values);
         }
         constexpr auto StaticSet(ENV * env, Class* c, const jvalue* values) {
-            return BaseClass<false>::template StaticSet(handle, env, c, values);
+            return Base2::StaticSet(handle, env, c, values);
         }
     };
 
-    template<class T> struct Assert {
-        static void assert_() {
-            static_assert(std::is_void<T>::value, "Fail");
-        }
+    // = Obj<Funk, EnvOrObjOrClass...>::template StaticBase<false, std::make_index_sequence<Function<Funk>::plength - sizeof...(EnvOrObjOrClass)>>
+    // = Obj<Funk, EnvOrObjOrClass...>::template StaticBase<true, std::make_index_sequence<Function<Funk>::plength - sizeof...(EnvOrObjOrClass)>>
+    template<class Funk, class ...EnvOrObjOrClass> class BaseWrapper<Funk, FunctionType::None, EnvOrObjOrClass...> : public WrapperUtil<Funk, std::remove_reference_t<decltype(std::declval<typename Obj<Funk>::StaticBase<true, std::make_index_sequence<Function<Funk>::plength - sizeof...(EnvOrObjOrClass)>>>())>, std::remove_reference_t<decltype(std::declval<typename Obj<Funk, EnvOrObjOrClass...>::StaticBase<false, std::make_index_sequence<Function<Funk>::plength - sizeof...(EnvOrObjOrClass)>>>())>>{
+
     };
+
+    
 
     template<class Funk, class ...EnvOrObjOrClass> struct Wrap {
         using T = Funk;

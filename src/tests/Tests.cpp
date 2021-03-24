@@ -304,9 +304,9 @@ TEST(JNIVM, Excepts) {
     jnivm::VM vm;
     auto env = vm.GetEnv();
     auto _Class2 = env->GetClass<Class2>("Class2");
-    _Class2->HookInstanceFunction(env.get(), "test", [](jnivm::ENV*, jnivm::Object *) {
-        throw std::runtime_error("Test");
-    });
+    // _Class2->HookInstanceFunction(env.get(), "test", [](jnivm::ENV*, jnivm::Object *) {
+    //     throw std::runtime_error("Test");
+    // });
     auto o = std::make_shared<Class2>();
     auto obj = jnivm::JNITypes<decltype(o)>::ToJNIReturnType(env.get(), o);
     auto c = jnivm::JNITypes<decltype(_Class2)>::ToJNIType(env.get(), _Class2);
@@ -326,9 +326,9 @@ TEST(JNIVM, Monitor) {
     jnivm::VM vm;
     auto env = vm.GetEnv();
     auto _Class2 = env->GetClass<Class2>("Class2");
-    _Class2->HookInstanceFunction(env.get(), "test", [](jnivm::ENV*, jnivm::Object *) {
-        throw std::runtime_error("Test");
-    });
+    // _Class2->HookInstanceFunction(env.get(), "test", [](jnivm::ENV*, jnivm::Object *) {
+    //     throw std::runtime_error("Test");
+    // });
     auto o = std::make_shared<Class2>();
     auto obj = jnivm::JNITypes<decltype(o)>::ToJNIReturnType(env.get(), o);
     auto c = jnivm::JNITypes<decltype(_Class2)>::ToJNIType(env.get(), _Class2);
@@ -606,10 +606,10 @@ TEST(JNIVM, ExternalFuncs) {
     auto x = env->GetJNIEnv()->FindClass("TestClass");
     auto m = env->GetJNIEnv()->GetStaticMethodID(x, "factory", "()LTestClass;");
     auto o = env->GetJNIEnv()->CallStaticObjectMethod(x, m);
-    c->HookInstanceFunction(env.get(), "test", [&succeded, src = jnivm::JNITypes<std::shared_ptr<jnivm::Object>>::JNICast(env.get(), o)](jnivm::ENV*env, jnivm::Object*obj) {
-        ASSERT_EQ(src.get(), obj);
-        succeded = true;
-    });
+    // c->HookInstanceFunction(env.get(), "test", [&succeded, src = jnivm::JNITypes<std::shared_ptr<jnivm::Object>>::JNICast(env.get(), o)](jnivm::ENV*env, jnivm::Object*obj) {
+    //     ASSERT_EQ(src.get(), obj);
+    //     succeded = true;
+    // });
     auto m2 = env->GetJNIEnv()->GetMethodID(x, "test", "()V");
     env->GetJNIEnv()->CallVoidMethod(o, m2);
     ASSERT_TRUE(succeded);
@@ -627,10 +627,10 @@ TEST(JNIVM, ExternalFuncs) {
 
     // static
     succeded = false;
-    c->Hook(env.get(), "test", [&succeded, &c](jnivm::ENV*env, jnivm::Class*obj) {
-        ASSERT_EQ(c.get(), obj);
-        succeded = true;
-    });
+    // c->Hook(env.get(), "test", [&succeded, &c](jnivm::ENV*env, jnivm::Class*obj) {
+    //     ASSERT_EQ(c.get(), obj);
+    //     succeded = true;
+    // });
     m2 = env->GetJNIEnv()->GetStaticMethodID(x, "test", "()V");
     env->GetJNIEnv()->CallStaticVoidMethod(x, m2);
     ASSERT_TRUE(succeded);
@@ -867,12 +867,12 @@ TEST(JNIVM, VirtualFunction) {
     auto c2 = env->GetClass<TestClass2>("TestClass2");
     c->Hook(env, "Test", &TestClass::Test);
     c2->Hook(env, "Test", &TestClass2::Test);
-    c->HookInstanceFunction(env, "Test2", [](jnivm::ENV*, TestClass2*o) {
-        return o->TestClass::Test2();
-    });
-    c2->HookInstanceFunction(env, "Test2",[](jnivm::ENV*, TestClass2*o) {
-        return o->TestClass2::Test2();
-    });
+    // c->HookInstanceFunction(env, "Test2", [](jnivm::ENV*, TestClass2*o) {
+    //     return o->TestClass::Test2();
+    // });
+    // c2->HookInstanceFunction(env, "Test2",[](jnivm::ENV*, TestClass2*o) {
+    //     return o->TestClass2::Test2();
+    // });
     auto val = std::make_shared<TestClass2>();
     auto ptr = jnivm::JNITypes<decltype(val)>::ToJNIReturnType(env, val);
     auto _c2 = jnivm::JNITypes<decltype(c2)>::ToJNIType(env, c2);
@@ -1390,18 +1390,18 @@ TEST(JNIVM, Wrapper) {
     };
     auto testclass = env->GetClass<Testclass>("Testclass");
     bool success = false;
-    testclass->HookInstanceFunction(env, "A", [&success, e2=env](jnivm::ENV* env) {
-        success = (e2 == env);
-    });
-    testclass->HookInstanceFunction(env, "B", [&success, e2=env](jnivm::ENV* env, jnivm::Object* obj) {
-        success = (e2 == env) && obj != nullptr;
-    });
-    testclass->HookInstanceFunction(env, "C", [&success, e2=env](jnivm::ENV* env, Testclass* obj) {
-        success = (e2 == env) && obj != nullptr;
-    });
-    testclass->HookInstanceFunction(env, "D", "(Ljava/lang/String;)V", [&success, e2=env](JNIEnv* env, jobject obj, jvalue* val) {
-        return val[0];
-    });
+    // testclass->HookInstanceFunction(env, "A", [&success, e2=env](jnivm::ENV* env) {
+    //     success = (e2 == env);
+    // });
+    // testclass->HookInstanceFunction(env, "B", [&success, e2=env](jnivm::ENV* env, jnivm::Object* obj) {
+    //     success = (e2 == env) && obj != nullptr;
+    // });
+    // testclass->HookInstanceFunction(env, "C", [&success, e2=env](jnivm::ENV* env, Testclass* obj) {
+    //     success = (e2 == env) && obj != nullptr;
+    // });
+    // testclass->HookInstanceFunction(env, "D", "(Ljava/lang/String;)V", [&success, e2=env](JNIEnv* env, jobject obj, jvalue* val) {
+    //     return val[0];
+    // });
     auto nenv = env->GetJNIEnv();
     auto nc = nenv->FindClass("Testclass");
     auto no = nenv->NewObject(nc, nenv->GetMethodID(nc, "<init>", "()V"));

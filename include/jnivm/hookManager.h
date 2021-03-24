@@ -66,8 +66,10 @@ namespace jnivm {
         
     };
 
-    template<class w> struct HookManager<FunctionType::Instance, w> : FunctionBase<w, typename w::template WrapperClasses<typename w::Wrapper>::InstanceFunction, false> {
-        
+    template<class w> struct HookManager<FunctionType::Instance, w> {
+        template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
+            FunctionBase<w, typename w::template WrapperClasses<typename w::Wrapper>::InstanceFunction, false>::install(env, cl, id, t);
+        }
     };
 
     template<class w, class W, bool isStatic, std::string(*getSig)(ENV*), class handle_t, handle_t handle> struct PropertyBase {
