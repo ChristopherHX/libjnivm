@@ -104,12 +104,12 @@ namespace FakeJni {
         void destroy() {}
     };
 
-    class Env : public JNIEnv, protected jnivm::ENV {
+    class Env : public JNIEnv, public jnivm::ENV {
         Jvm& jvm;
     public:
         Env(Jvm& jvm, jnivm::VM *vm, const JNINativeInterface& interface) : jvm(jvm), jnivm::ENV(vm, interface) {
             functions = GetJNIEnv()->functions;
-            if(FakeJni::JniEnvContext::env != nullptr) throw std::runtime_error("Multiple Jvm's in one thread are unsupported, use jnivm::VM for this feature");        
+            if(FakeJni::JniEnvContext::env != nullptr) throw std::runtime_error("Multiple Jvm's in one thread are unsupported, use jnivm::VM for this feature");
                 FakeJni::JniEnvContext::env = this;
         }
         ~Env() {
