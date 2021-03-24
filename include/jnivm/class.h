@@ -49,13 +49,6 @@ namespace jnivm {
         template<class T> void HookSetterFunction(ENV* env, const std::string& id, T&& t);
         template<class T> void HookInstanceProperty(ENV* env, const std::string& id, T&& t);
 
-        template<class T> void Hook(ENV* env, const std::string& method, const std::string& signature, T&& t);
-        template<class T> void HookInstanceFunction(ENV* env, const std::string& id, const std::string& signature, T&& t);
-        template<class T> void HookInstanceGetterFunction(ENV* env, const std::string& id, const std::string& signature, T&& t);
-        template<class T> void HookInstanceSetterFunction(ENV* env, const std::string& id, const std::string& signature, T&& t);
-        template<class T> void HookGetterFunction(ENV* env, const std::string& id, const std::string& signature, T&& t);
-        template<class T> void HookSetterFunction(ENV* env, const std::string& id, const std::string& signature, T&& t);
-        template<class T> void HookInstanceProperty(ENV* env, const std::string& id, const std::string& signature, T&& t);
 #ifdef JNI_DEBUG
         std::string GenerateHeader(std::string scope);
         std::string GeneratePreDeclaration();
