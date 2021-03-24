@@ -21,6 +21,9 @@ namespace jnivm {
         protected:
             Array() {}
             Array(void* data, jsize length) : data(data), length(length) {}
+            void setArray(void* data) {
+                this->data = data;
+            }
         public:
             using Type = void;
             inline void* getArray() {
@@ -155,6 +158,12 @@ namespace jnivm {
             inline const Arrayguard<Object, true> operator[](jint i) const {
                 return { *this, i };
             }
+            virtual ~Array() {
+                if(Array<void>::getArray()) {
+                    delete[] (std::shared_ptr<Object>*)Array<void>::getArray();
+                    Array<void>::setArray(nullptr);
+                }
+            }
         };
 
         template<class Y>
@@ -177,6 +186,12 @@ namespace jnivm {
             }
             inline const Arrayguard<Y, true> operator[](jint i) const {
                 return { *this, i };
+            }
+            virtual ~Array() {
+                if(Array<void>::getArray()) {
+                    delete[] (std::shared_ptr<Y>*)Array<void>::getArray();
+                    Array<void>::setArray(nullptr);
+                }
             }
         };
 
