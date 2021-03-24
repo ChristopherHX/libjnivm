@@ -70,79 +70,59 @@ namespace jnivm {
 #include "wrap.h"
 
 namespace jnivm {
-    template<class T> void Class::Hook(ENV* env, const std::string& id, T&& t) {
-        if constexpr(std::is_same<typename Function<T>::template Parameter<0>, JNIEnv*>::value || std::is_same<typename Function<T>::template Parameter<0>, ENV*>::value) {
-            using w = Wrap<T, typename Function<T>::template Parameter<0>>;
-            HookManager<w::Function::type, w>::install(env, this, id, std::move(t));
-            if constexpr(std::is_base_of<Object, std::remove_pointer_t<typename Function<T>::template Parameter<1>>>::value) {
+    namespace impl {
+        template<class T, FunctionType bind, size_t offset, bool b = (int)bind & (int)FunctionType::Instance ? (std::is_base_of<Object, std::remove_pointer_t<typename Function<T>::template Parameter<offset>>>::value || std::is_same<jobject, typename Function<T>::template Parameter<offset>>::value) : (std::is_same<Class*, typename Function<T>::template Parameter<offset>>::value || std::is_same<jclass, typename Function<T>::template Parameter<offset>>::value)> struct HookManagerHelper {
+            static void install(ENV* env, Class* cl, const std::string& id, T&& t) {}
+        };
+
+        template<class T, FunctionType bind> struct HookManagerHelper<T, bind, 1, true> {
+            static void install(ENV* env, Class* cl, const std::string& id, T&& t) {
                 using w = Wrap<T, typename Function<T>::template Parameter<0>, typename Function<T>::template Parameter<1>>;
-                HookManager<w::Function::type, w>::install(env, this, id, std::move(t));
+                HookManager<bind, w>::install(env, cl, id, std::move(t));
             }
-        } else {
-            using w = Wrap<T>;
-            HookManager<w::Function::type, w>::install(env, this, id, std::move(t));
-            if constexpr(std::is_base_of<Object*, typename Function<T>::template Parameter<0>>::value) {
+        };
+        template<class T, FunctionType bind> struct HookManagerHelper<T, bind, 0, true> {
+            static void install(ENV* env, Class* cl, const std::string& id, T&& t) {
                 using w = Wrap<T, typename Function<T>::template Parameter<0>>;
-                HookManager<w::Function::type, w>::install(env, this, id, std::move(t));
+                HookManager<bind, w>::install(env, cl, id, std::move(t));
             }
-        }
-        // using w = Wrap<T>;
-        // HookManager<w::Function::type, w>::install(env, this, id, std::move(t));
+        };
+
+        template<class T, FunctionType bind> struct HookManagerHelper2 {
+            static constexpr bool EnvArg = std::is_same<typename Function<T>::template Parameter<0>, JNIEnv*>::value || std::is_same<typename Function<T>::template Parameter<0>, ENV*>::value;
+            using w = std::conditional_t<EnvArg, Wrap<T, typename Function<T>::template Parameter<0>>, Wrap<T>>;
+            static void install(ENV* env, Class* cl, const std::string& id, T&& t) {
+                HookManager<bind, w>::install(env, cl, id, t);
+                impl::HookManagerHelper<T, bind, EnvArg ? 1 : 0>::install(env, cl, id, std::move(t));
+            }
+        };
+    }
+
+    template<class T> void Class::Hook(ENV* env, const std::string& id, T&& t) {
+        impl::HookManagerHelper2<T, Function<T>::type>::install(env, this, id, std::move(t));
     }
 
     template<class T> void Class::HookInstance(ENV * env, const std::string & id, T && t) {
-        using w = Wrap<T>;
-        HookManager<(FunctionType)((int)w::Function::type | (int)FunctionType::Instance), w>::install(env, this, id, std::move(t));
+        impl::HookManagerHelper2<T, (FunctionType)((int)Function<T>::type | (int)FunctionType::Instance)>::install(env, this, id, std::move(t));
     }
 
     template<class T> void Class::HookInstanceFunction(ENV* env, const std::string& id, T&& t) {
-        using w = Wrap<T>;
-        HookManager<FunctionType::Instance, w>::install(env, this, id, std::move(t));
+        impl::HookManagerHelper2<T, FunctionType::Instance>::install(env, this, id, std::move(t));
     }
 
     template<class T> void Class::HookInstanceGetterFunction(ENV* env, const std::string& id, T&& t) {
-        using w = Wrap<T>;
-        HookManager<FunctionType::InstanceGetter, w>::install(env, this, id, std::move(t));
+        impl::HookManagerHelper2<T, FunctionType::InstanceGetter>::install(env, this, id, std::move(t));
     }
     template<class T> void Class::HookInstanceSetterFunction(ENV* env, const std::string& id, T&& t) {
-        using w = Wrap<T>;
-        HookManager<FunctionType::InstanceSetter, w>::install(env, this, id, std::move(t));
+        impl::HookManagerHelper2<T, FunctionType::InstanceSetter>::install(env, this, id, std::move(t));
     }
     template<class T> void Class::HookGetterFunction(ENV* env, const std::string& id, T&& t) {
-        using w = Wrap<T>;
-        HookManager<FunctionType::Getter, w>::install(env, this, id, std::move(t));
+        impl::HookManagerHelper2<T, FunctionType::Getter>::install(env, this, id, std::move(t));
     }
     template<class T> void Class::HookSetterFunction(ENV* env, const std::string& id, T&& t) {
-        using w = Wrap<T>;
-        HookManager<FunctionType::Setter, w>::install(env, this, id, std::move(t));
+        impl::HookManagerHelper2<T, FunctionType::Setter>::install(env, this, id, std::move(t));
     }
     template<class T> void jnivm::Class::HookInstanceProperty(jnivm::ENV *env, const std::string &id, T &&t) {
-        using w = Wrap<T>;
-        HookManager<FunctionType::InstanceProperty, w>::install(env, this, id, std::move(t));
-    }
-
-    template<class T> void Class::Hook(ENV* env, const std::string& id, const std::string& signature, T&& t) {
-        using w = Wrap<T>;
-        HookManager<w::Function::type, w>::install(env, this, id, signature, std::move(t));
-    }
-    template<class T> void Class::HookInstanceFunction(ENV* env, const std::string& id, const std::string& signature, T&& t) {
-        using w = Wrap<T>;
-        HookManager<FunctionType::Instance, w>::install(env, this, id, signature, std::move(t));
-    }
-    template<class T> void Class::HookInstanceGetterFunction(ENV* env, const std::string& id, const std::string& signature, T&& t) {
-        using w = Wrap<T>;
-        HookManager<FunctionType::InstanceGetter, w>::install(env, this, id, signature, std::move(t));
-    }
-    template<class T> void Class::HookInstanceSetterFunction(ENV* env, const std::string& id, const std::string& signature, T&& t) {
-        using w = Wrap<T>;
-        HookManager<FunctionType::InstanceSetter, w>::install(env, this, id, signature, std::move(t));
-    }
-    template<class T> void Class::HookGetterFunction(ENV* env, const std::string& id, const std::string& signature, T&& t) {
-        using w = Wrap<T>;
-        HookManager<FunctionType::Getter, w>::install(env, this, id, signature, std::move(t));
-    }
-    template<class T> void Class::HookSetterFunction(ENV* env, const std::string& id, const std::string& signature, T&& t) {
-        using w = Wrap<T>;
-        HookManager<FunctionType::Setter, w>::install(env, this, id, signature, std::move(t));
+        impl::HookManagerHelper2<T, FunctionType::InstanceProperty>::install(env, this, id, std::move(t));
     }
 }
