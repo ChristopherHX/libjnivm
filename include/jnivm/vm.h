@@ -46,7 +46,7 @@ namespace jnivm {
         const JNINativeInterface& GetNativeInterfaceTemplate();
     public:
         template<bool ReturnNull>
-        static const JNINativeInterface& GetNativeInterfaceTemplate();
+        static JNINativeInterface GetNativeInterfaceTemplate();
 #ifdef JNI_DEBUG
         // For Generating Stub header files out of captured jni usage
         Namespace np;
