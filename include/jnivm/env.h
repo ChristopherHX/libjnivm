@@ -48,6 +48,7 @@ namespace jnivm {
 #include <functional>
 #include <memory>
 #include "class.h"
+#include "cpp_void_t.h"
 
 namespace jnivm {
     template<class T, bool isDefaultConstructable = std::is_default_constructible<T>::value> struct Factory {
@@ -76,7 +77,7 @@ namespace jnivm {
         }
     };
 
-    template<class T> struct IsClass<T, std::void_t<decltype(T::GetBaseClasses(std::declval<ENV*>()))>> {
+    template<class T> struct IsClass<T, void_t<decltype(T::GetBaseClasses(std::declval<ENV*>()))>> {
         static void AddInherience(std::shared_ptr<jnivm::Class> &c, ENV*env) {
             c->baseclasses = &T::GetBaseClasses;
         }

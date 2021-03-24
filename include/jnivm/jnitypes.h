@@ -7,6 +7,7 @@
 #include "array.h"
 #include <type_traits>
 #include "internal/findclass.h"
+#include "cpp_void_t.h"
 
 namespace jnivm {
     class Class;
@@ -19,11 +20,9 @@ namespace jnivm {
 
     };
 
-#ifdef __cpp_lib_void_t
-    template<class T> struct hasname<T, std::void_t<decltype(T::getClassName())>> : std::true_type{
+    template<class T> struct hasname<T, void_t<decltype(T::getClassName())>> : std::true_type{
 
     };
-#endif
 
     template<class T, class B = jobject, class orgtype = std::shared_ptr<T>> struct JNITypesObjectBase {
         JNITypesObjectBase() {
