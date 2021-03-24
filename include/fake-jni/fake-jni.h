@@ -143,10 +143,12 @@ namespace FakeJni {
         }
     };
 
-#ifdef __cpp_nontype_template_parameter_auto
     struct DescriptorBase {
 
     };
+
+#ifdef __cpp_nontype_template_parameter_auto
+
     template<auto T> struct Field : DescriptorBase {
         using Type = decltype(T);
         static constexpr Type handle = T;
@@ -157,7 +159,9 @@ namespace FakeJni {
         static constexpr Type handle = T;
         static constexpr bool isFunction = true;
     };
+
 #endif
+
     template<class U, class... T> struct Constructor {
         using Type = U;
         using args = std::tuple<T...>;
@@ -166,8 +170,8 @@ namespace FakeJni {
         }
         static constexpr bool isFunction = true;
     };
+
     struct Descriptor {
-#ifdef __cpp_nontype_template_parameter_auto
         template<bool, class U> struct Helper;
 #ifdef JNIVM_FAKE_JNI_MINECRAFT_LINUX_COMPAT
         template<bool, class U> struct Helper {
@@ -193,18 +197,7 @@ namespace FakeJni {
             }
         };
 #endif
-        template<bool, class U> struct Helper2 {
-            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name) {
-                throw std::runtime_error("Invalid modifier for this field");
-            }
-        };
-        template<class U> struct Helper2<true, U> {
-            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name) {
-                return [name](jnivm::ENV*env, jnivm::Class* cl) {
-                    cl->HookInstanceProperty(env, name, U::handle);
-                };
-            }
-        };
+
         template<bool, class U> struct Helper3;
         template<class U> struct Helper3<false, U> {
             static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name, int ty) {
@@ -212,7 +205,6 @@ namespace FakeJni {
                     return [name](jnivm::ENV*env, jnivm::Class* cl) {
                         cl->HookInstanceProperty(env, name, U::handle);
                     };
-                    // return Helper2<(jnivm::Function<typename U::Type>::type == jnivm::FunctionType::Property), U>::Get(name);
                 } else {
                     return [name](jnivm::ENV*env, jnivm::Class* cl) {
                         cl->Hook(env, name, U::handle);
@@ -274,18 +266,16 @@ namespace FakeJni {
             }
         };
 
-        
         template<class U> Descriptor(U && d, const char* name, int flags = 0) {
             registre = Helper4<U>::Get(std::move(d), name, flags);
         }
-#endif
+
         template<class U> Descriptor(U && d, int flags = 0) {
             registre = [](jnivm::ENV*env, jnivm::Class* cl) {
                 cl->Hook(env, "<init>", U::ctr);
             };
         }
     };
-    
 }
 
 namespace FakeJni {
