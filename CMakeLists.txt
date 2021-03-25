@@ -43,7 +43,7 @@ endif()
 
 option(JNIVM_FAKE_JNI_MINECRAFT_LINUX_COMPAT "Enable minecraft-linux fake-jni compat, this prevents implicit promoting of static functions to instance functions in FAKE_JNI Descriptors" OFF)
 if(JNIVM_FAKE_JNI_MINECRAFT_LINUX_COMPAT)
-    target_compile_definitions(jnivm JNIVM_FAKE_JNI_MINECRAFT_LINUX_COMPAT)
+    target_compile_definitions(jnivm PUBLIC JNIVM_FAKE_JNI_MINECRAFT_LINUX_COMPAT)
 endif()
 
 option(JNIVM_ENABLE_TESTS "Enable jnivm Tests via googletest" OFF)
