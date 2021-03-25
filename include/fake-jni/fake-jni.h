@@ -152,12 +152,10 @@ namespace FakeJni {
     template<auto T> struct Field : DescriptorBase {
         using Type = decltype(T);
         static constexpr Type handle = T;
-        static constexpr bool isFunction = false;
     };
     template<auto T> struct Function : DescriptorBase {
         using Type = decltype(T);
         static constexpr Type handle = T;
-        static constexpr bool isFunction = true;
     };
 
 #endif
@@ -168,63 +166,9 @@ namespace FakeJni {
         static std::shared_ptr<U> ctr(T...args) {
             return std::make_shared<U>(args...);
         }
-        static constexpr bool isFunction = true;
     };
 
     struct Descriptor {
-        template<bool, class U> struct Helper;
-#ifdef JNIVM_FAKE_JNI_MINECRAFT_LINUX_COMPAT
-        template<bool, class U> struct Helper {
-            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name) {
-                return [name](jnivm::ENV*env, jnivm::Class* cl) {
-                    cl->Hook(env, name, U::handle);
-                };
-            }
-        };
-#else
-        template<class U> struct Helper<false, U> {
-            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name) {
-                return [name](jnivm::ENV*env, jnivm::Class* cl) {
-                    cl->HookInstanceProperty(env, name, U::handle);
-                };
-            }
-        };
-        template<class U> struct Helper<true, U> {
-            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name) {
-                return [name](jnivm::ENV*env, jnivm::Class* cl) {
-                    cl->HookInstanceFunction(env, name, U::handle);
-                };
-            }
-        };
-#endif
-
-        template<bool, class U> struct Helper3;
-        template<class U> struct Helper3<false, U> {
-            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name, int ty) {
-                if((ty & (int)JFieldID::Modifiers::STATIC) == 0) {
-                    return [name](jnivm::ENV*env, jnivm::Class* cl) {
-                        cl->HookInstanceProperty(env, name, U::handle);
-                    };
-                } else {
-                    return [name](jnivm::ENV*env, jnivm::Class* cl) {
-                        cl->Hook(env, name, U::handle);
-                    };
-                }
-            }
-        };
-        template<class U> struct Helper3<true, U> {
-            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(const char* name, int ty) {
-                if((ty & (int)JMethodID::Modifiers::STATIC) == 0) {
-                    return [name](jnivm::ENV*env, jnivm::Class* cl) {
-                    cl->HookInstanceFunction(env, name, U::handle);
-                };
-                } else {
-                    return [name](jnivm::ENV*env, jnivm::Class* cl) {
-                        cl->Hook(env, name, U::handle);
-                    };
-                }
-            }
-        };
 
         std::function<void(jnivm::ENV*env, jnivm::Class* cl)> registre;
 
@@ -239,35 +183,48 @@ namespace FakeJni {
                     };
                 }
             }
+            static int GetFlags() {
+                return ID::Modifiers::PUBLIC;
+            }
         };
 
         template<class U, class ID> struct Helper5<U, false, ID> {
             static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(U && d, const char* name, int ty) {
                 if((ty & (int)ID::Modifiers::STATIC) != 0) {
-                        return [name, d](jnivm::ENV*env, jnivm::Class* cl) {
-                            cl->Hook(env, name, d);
-                        };
-                    } else {
+                    return [name, d](jnivm::ENV*env, jnivm::Class* cl) {
+                        cl->Hook(env, name, d);
+                    };
+                } else {
                     return [name, d](jnivm::ENV*env, jnivm::Class* cl) {
                         cl->HookInstance(env, name, d);
                     };
                 }
             }
-        };
-
-        template<class U,bool o = std::is_base_of<DescriptorBase, U>::value> struct Helper4 : Helper5<U, (int)jnivm::Function<U>::type & (int)jnivm::FunctionType::Instance, std::conditional_t<(bool)((int)jnivm::Function<U>::type & (int)jnivm::FunctionType::Property), JFieldID, JMethodID>> {
-            
-        };
-
-        template<class U>
-        struct Helper4<U, true> {
-            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(U && d, const char* name, int ty) {
-                return Helper3<U::isFunction, U>::Get(name, ty);
+            static int GetFlags() {
+                return ID::Modifiers::PUBLIC
+#ifdef JNIVM_FAKE_JNI_MINECRAFT_LINUX_COMPAT
+                        | ID::Modifiers::STATIC
+#endif
+                ;
             }
         };
 
-        template<class U> Descriptor(U && d, const char* name, int flags = 0) {
+        template<class U,bool o = std::is_base_of<DescriptorBase, U>::value> struct Helper4 : Helper5<U, (int)jnivm::Function<U>::type & (int)jnivm::FunctionType::Instance, std::conditional_t<(bool)((int)jnivm::Function<U>::type & (int)jnivm::FunctionType::Property), JFieldID, JMethodID>> {
+
+        };
+
+        template<class U>
+        struct Helper4<U, true> : Helper4<decltype(U::handle)> {
+            static std::function<void (jnivm::ENV *env, jnivm::Class *cl)> Get(U && d, const char* name, int ty) {
+                return Helper4<decltype(U::handle)>::Get(std::move(U::handle), name, ty);
+            }
+        };
+
+        template<class U> Descriptor(U && d, const char* name, int flags) {
             registre = Helper4<U>::Get(std::move(d), name, flags);
+        }
+
+        template<class U> Descriptor(U && d, const char* name) : Descriptor(std::move(d), name, Helper4<U>::GetFlags()) {
         }
 
         template<class U> Descriptor(U && d, int flags = 0) {
