@@ -8,7 +8,7 @@ target_link_libraries(fake-jni jnivm)
 add_library(baron src/baron/baron.cpp src/baron/jvm.cpp)
 target_link_libraries(baron fake-jni)
 target_include_directories(jnivm PUBLIC include/)
-target_link_libraries(jnivm ${CMAKE_DL_LIBS})
+target_link_libraries(jnivm PRIVATE ${CMAKE_DL_LIBS})
 set_target_properties(jnivm fake-jni baron PROPERTIES CXX_STANDARD 14 CXX_STANDARD_REQUIRED ON)
 if(TARGET logger)
     target_compile_definitions(jnivm PRIVATE HAVE_LOGGER)
@@ -71,22 +71,24 @@ if(JNIVM_ENABLE_TESTS)
         target_compile_definitions(JNIVMTests PRIVATE JNI_RETURN_NON_ZERO)
     endif()
 
-    add_executable(JNIVMTestCodeGen src/tests/CodeGen.cpp)
-    target_link_libraries(JNIVMTestCodeGen jnivm)
+    if(JNIVM_ENABLE_DEBUG)
+        add_executable(JNIVMTestCodeGen src/tests/CodeGen.cpp)
+        target_link_libraries(JNIVMTestCodeGen jnivm)
 
-    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/generated.hpp
-                    COMMAND JNIVMTestCodeGen ARGS ${CMAKE_CURRENT_BINARY_DIR}/generated.hpp
-                    DEPENDS JNIVMTestCodeGen
-                    VERBATIM)
-    add_executable(JNIVMTestCodeGenTest src/tests/CodeGen.cpp ${CMAKE_CURRENT_BINARY_DIR}/generated.hpp)
-    target_compile_definitions(JNIVMTestCodeGenTest PRIVATE EXTRA_INCLUDE="${CMAKE_CURRENT_BINARY_DIR}/generated.hpp")
-    if(JNIVM_USE_FAKE_JNI_CODEGEN)
-        target_compile_definitions(JNIVMTestCodeGenTest PRIVATE JNIVM_FAKE_JNI_SYNTAX=1)
-        target_link_libraries(JNIVMTestCodeGenTest fake-jni)
-        set_target_properties(JNIVMTestCodeGenTest PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-    else()
-        target_compile_definitions(JNIVMTestCodeGenTest PRIVATE JNIVM_FAKE_JNI_SYNTAX=0)
-        target_link_libraries(JNIVMTestCodeGenTest jnivm)
+        add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/generated.hpp
+                        COMMAND JNIVMTestCodeGen ARGS ${CMAKE_CURRENT_BINARY_DIR}/generated.hpp
+                        DEPENDS JNIVMTestCodeGen
+                        VERBATIM)
+        add_executable(JNIVMTestCodeGenTest src/tests/CodeGen.cpp ${CMAKE_CURRENT_BINARY_DIR}/generated.hpp)
+        target_compile_definitions(JNIVMTestCodeGenTest PRIVATE EXTRA_INCLUDE="${CMAKE_CURRENT_BINARY_DIR}/generated.hpp")
+        if(JNIVM_USE_FAKE_JNI_CODEGEN)
+            target_compile_definitions(JNIVMTestCodeGenTest PRIVATE JNIVM_FAKE_JNI_SYNTAX=1)
+            target_link_libraries(JNIVMTestCodeGenTest fake-jni)
+            set_target_properties(JNIVMTestCodeGenTest PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+        else()
+            target_compile_definitions(JNIVMTestCodeGenTest PRIVATE JNIVM_FAKE_JNI_SYNTAX=0)
+            target_link_libraries(JNIVMTestCodeGenTest jnivm)
+        endif()
     endif()
 endif()
 
