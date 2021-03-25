@@ -306,6 +306,7 @@ template<class T, class B, class orgtype> template<class Y> B jnivm::JNITypesObj
 #include "weak.h"
 
 template<class T> static std::shared_ptr<T> UnpackJObject(jnivm::Object* obj) {
+    if(!obj) return nullptr;
     auto weak = dynamic_cast<jnivm::Weak*>(obj);
     if(weak != nullptr) {
         auto obj = weak->wrapped.lock();
@@ -323,22 +324,24 @@ template<class T> static std::shared_ptr<T> UnpackJObject(jnivm::Object* obj) {
     if(ret != nullptr) {
         return std::shared_ptr<T>(ret->shared_from_this(), ret);
     }
-    return nullptr;
+    throw std::runtime_error("Invalid Reference, Unexpected Type");
 }
 template<> std::shared_ptr<jnivm::Weak> UnpackJObject<jnivm::Weak>(jnivm::Object* obj) {
+    if(!obj) return nullptr;
     auto ret = dynamic_cast<jnivm::Weak*>(obj);
     if(ret != nullptr) {
         return std::shared_ptr<jnivm::Weak>(ret->shared_from_this(), ret);
     } else {
-        return nullptr;
+        throw std::runtime_error("Invalid Reference, not a WeakGlobal Reference");
     }
 }
 template<> std::shared_ptr<jnivm::Global> UnpackJObject<jnivm::Global>(jnivm::Object* obj) {
+    if(!obj) return nullptr;
     auto ret = dynamic_cast<jnivm::Global*>(obj);
     if(ret != nullptr) {
         return std::shared_ptr<jnivm::Global>(ret->shared_from_this(), ret);
     } else {
-        return nullptr;
+        throw std::runtime_error("Invalid Reference, not a Global Reference");
     }
 }
 
@@ -364,21 +367,6 @@ template<class orgtype, class T> struct OrgTypeConverter<orgtype*, T> {
     }
 };
 
-template<class orgtype, bool val = std::is_assignable<orgtype, std::nullptr_t>::value> struct AnotherFactory {
-    static orgtype DefaultVal() {
-        throw std::runtime_error("This type is not assignable to null");
-    }
-};
-
-template<class orgtype> struct AnotherFactory<orgtype, true> {
-    static orgtype DefaultVal() {
-        return nullptr;
-    }
-};
-
 template<class T, class B, class orgtype> orgtype jnivm::JNITypesObjectBase<T, B, orgtype>::JNICast(jnivm::ENV *env, const jobject &o) {
-    if(!o) {
-        return AnotherFactory<orgtype>::DefaultVal();
-    }
     return OrgTypeConverter<orgtype, T>::Convert(env, UnpackJObject<T>((Object*)o));
 }
