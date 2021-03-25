@@ -1,3 +1,5 @@
+// This example won't work with the current fake-jni-oldprototype https://github.com/dukeify/fake-jni/tree/16b82688cb9a8794580293253fbe313f550eb00c and depends on https://github.com/dukeify/fake-jni/issues/62
+
 #include <fake-jni/fake-jni.h>
 #include <iostream>
 
@@ -51,30 +53,30 @@ FakeJni::JBoolean SampleClass::staticbooleanfield = false;
 
 BEGIN_NATIVE_DESCRIPTOR(SampleClass)
 // some fields as member fields, not static
-{ Field<&SampleClass::booleanfield>{}, "booleanfield" },
-{ Field<&SampleClass::bytefield>{}, "bytefield" },
-{ Field<&SampleClass::shortfield>{}, "shortfield" },
-{ Field<&SampleClass::intfield>{}, "intfield" },
-{ Field<&SampleClass::longfield>{}, "longfield" },
-{ Field<&SampleClass::floatfield>{}, "floatfield" },
-{ Field<&SampleClass::doublefield>{}, "doublefield" },
-{ Field<&SampleClass::bytearrayfield>{}, "bytearrayfield" },
-{ Field<&SampleClass::shortarrayfield>{}, "shortarrayfield" },
-{ Field<&SampleClass::intarrayfield>{}, "intarrayfield" },
-{ Field<&SampleClass::longarrayfield>{}, "longarrayfield" },
+{ &SampleClass::booleanfield, "booleanfield" },
+{ &SampleClass::bytefield, "bytefield" },
+{ &SampleClass::shortfield, "shortfield" },
+{ &SampleClass::intfield, "intfield" },
+{ &SampleClass::longfield, "longfield" },
+{ &SampleClass::floatfield, "floatfield" },
+{ &SampleClass::doublefield, "doublefield" },
+{ &SampleClass::bytearrayfield, "bytearrayfield" },
+{ &SampleClass::shortarrayfield, "shortarrayfield" },
+{ &SampleClass::intarrayfield, "intarrayfield" },
+{ &SampleClass::longarrayfield, "longarrayfield" },
 // staticbooleanfield explicitly as static field
-{ Field<&staticbooleanfield>{}, "staticbooleanfield", JFieldID::PUBLIC | JFieldID::STATIC },
+{ &staticbooleanfield, "staticbooleanfield", JFieldID::PUBLIC | JFieldID::STATIC },
 // staticbooleanfield as member field
-{ Field<&staticbooleanfield>{}, "staticbooleanfield2" },
+{ &staticbooleanfield, "staticbooleanfield2" },
 // staticbooleanfield explicitly as member field
-{ Field<&staticbooleanfield>{}, "booleanfield2", JFieldID::PUBLIC },
-{ Function<&SampleClass::JustAMemberFunction>{}, "JustAMemberFunction" },
+{ &staticbooleanfield, "booleanfield2", JFieldID::PUBLIC },
+{ &SampleClass::JustAMemberFunction, "JustAMemberFunction" },
 // exampleStaticFunction as member function, not static, this is different to fields
-{ Function<&exampleStaticFunction>{}, "exampleStaticMemberFunction" },
+{ &exampleStaticFunction, "exampleStaticMemberFunction" },
 // exampleStaticFunction explicitly as member function, not static
-{ Function<&exampleStaticFunction>{}, "exampleStaticMemberFunction2", JMethodID::PUBLIC },
+{ &exampleStaticFunction, "exampleStaticMemberFunction2", JMethodID::PUBLIC },
 // exampleStaticFunction explicitly as static function
-{ Function<&exampleStaticFunction>{}, "exampleStaticFunction", JMethodID::PUBLIC | JMethodID::STATIC },
+{ &exampleStaticFunction, "exampleStaticFunction", JMethodID::PUBLIC | JMethodID::STATIC },
 END_NATIVE_DESCRIPTOR
 
 BEGIN_NATIVE_DESCRIPTOR(DerivedClass)

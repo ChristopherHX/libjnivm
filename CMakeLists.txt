@@ -1,10 +1,7 @@
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 3.1)
 
-project(jnivm LANGUAGES CXX)
+project(jnivm LANGUAGES CXX VERSION 1.0.0)
 
-set(CMAKE_CXX_STANDARD_REQUIRED 14)
-add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
-add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
 add_library(jnivm src/jnivm/internal/array.cpp src/jnivm/internal/bytebuffer.cpp src/jnivm/internal/field.cpp src/jnivm/internal/method.cpp src/jnivm/internal/string.cpp src/jnivm/internal/stringUtil.cpp src/jnivm/internal/findclass.cpp src/jnivm/internal/jValuesfromValist.cpp src/jnivm/internal/skipJNIType.cpp src/jnivm/env.cpp src/jnivm/method.cpp src/jnivm/vm.cpp src/jnivm/object.cpp include/jni.h include/jnivm.h)
 add_library(fake-jni src/fake-jni/fake-jni.cpp src/fake-jni/jvm.cpp src/fake-jni/method.cpp)
 target_link_libraries(fake-jni jnivm)
@@ -12,6 +9,7 @@ add_library(baron src/baron/baron.cpp src/baron/jvm.cpp)
 target_link_libraries(baron fake-jni)
 target_include_directories(jnivm PUBLIC include/)
 target_link_libraries(jnivm ${CMAKE_DL_LIBS})
+set_target_properties(jnivm fake-jni baron PROPERTIES CXX_STANDARD 14 CXX_STANDARD_REQUIRED ON)
 if(TARGET logger)
     target_compile_definitions(jnivm PRIVATE HAVE_LOGGER)
     target_link_libraries(jnivm PRIVATE logger)
@@ -63,6 +61,8 @@ if(JNIVM_ENABLE_TESTS)
     FetchContent_MakeAvailable(googletest)
 
     add_executable(JNIVMTests src/tests/Tests.cpp)
+    # A test needs utf8 strings, which fails on msvc without force utf-8
+    target_compile_options(JNIVMTests PRIVATE "$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
     target_link_libraries(JNIVMTests gtest gtest_main baron)
 
     if(JNIVM_ENABLE_RETURN_NON_ZERO)
