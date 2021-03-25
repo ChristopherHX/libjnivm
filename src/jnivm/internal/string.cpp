@@ -19,9 +19,12 @@ jsize jnivm::GetStringLength(JNIEnv *env, jstring str) {
         jsize length = 0;
         auto cur = cstr->data(), end = cur + cstr->length();
         
-        while(cur != end) {
+        while(cur != end && length >= 0) {
             cur += UTFToJCharLength(cur);
             length++;
+        }
+        if(length < 0) {
+            throw std::runtime_error("String to long, to fit in jsize");
         }
         return length;
     } else {
@@ -50,7 +53,15 @@ jstring jnivm::NewStringUTF(JNIEnv * env, const char *str) {
     return JNITypes<std::shared_ptr<String>>::ToJNIType(ENV::FromJNIEnv(env), std::make_shared<String>(str ? str : ""));
 };
 jsize jnivm::GetStringUTFLength(JNIEnv *env, jstring str) {
-    return str ? JNITypes<std::shared_ptr<String>>::JNICast(ENV::FromJNIEnv(env), str)->length() : 0;
+    if(str) {
+        auto length = JNITypes<std::shared_ptr<String>>::JNICast(ENV::FromJNIEnv(env), str)->length();
+        if(length > static_cast<size_t>(std::numeric_limits<jsize>::max())) {
+            throw std::runtime_error("String to long, to fit in jsize");
+        } else {
+            return static_cast<jsize>(length);
+        }
+    }
+    return 0;
 };
 const char *jnivm::GetStringUTFChars(JNIEnv * env, jstring str, jboolean *copy) {
     if (copy)
