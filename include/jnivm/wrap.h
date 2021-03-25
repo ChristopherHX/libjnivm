@@ -234,7 +234,7 @@ namespace jnivm {
         using Function = jnivm::Function<Funk>;
 
         template<class T> 
-        using __ReturnType = std::conditional_t<std::is_same<bool, typename Function::Return>::value, jboolean, std::conditional_t<std::is_class<typename Function::Return>::value, jobject, typename Function::Return>>;
+        using __JNIType = std::conditional_t<std::is_same<bool, T>::value, jboolean, std::conditional_t<std::is_class<T>::value, jobject, T>>;
         template<class T, class ReturnType> struct WrapperClasses;
 
         template<class T> struct WrapperClasses<T, void> {
@@ -251,7 +251,7 @@ namespace jnivm {
             public:
                 StaticSetter(T&&t) : t(t) {}
                 T t;
-                virtual ReturnType StaticSet(ENV * env, Class* clazz, const jvalue* values) override {
+                virtual ReturnType StaticSet(ENV * env, Class* clazz, const jvalue* values, MethodHandleBase<std::conditional_t<Function::plength == 0, __JNIType<typename Function::Return>, __JNIType<typename Function::template Parameter<Function::plength < 1 ? 0 : Function::plength - 1>>>>) override {
                     return t.StaticSet(env, clazz, values);
                 }
             };
@@ -270,13 +270,13 @@ namespace jnivm {
             public:
                 InstanceSetter(T&&t) : t(t) {}
                 T t;
-                virtual ReturnType InstanceSet(ENV * env, jobject obj, const jvalue* values) override {
+                virtual ReturnType InstanceSet(ENV * env, jobject obj, const jvalue* values, MethodHandleBase<std::conditional_t<Function::plength == 0, __JNIType<typename Function::Return>, __JNIType<typename Function::template Parameter<Function::plength < 1 ? 0 : Function::plength - 1>>>>) override {
                     t.InstanceSet(env, obj, values);
                 }
             };
         };
 
-        template<class T, class ReturnType = __ReturnType<T>> struct WrapperClasses {
+        template<class T, class ReturnType = __JNIType<typename Function::Return>> struct WrapperClasses {
             struct StaticFunction : public MethodHandle {
             public:
                 StaticFunction(T&&t) : t(t) {}

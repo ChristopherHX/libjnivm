@@ -27,17 +27,18 @@ namespace jnivm {
             virtual T StaticGet(ENV * env, Class* clazz, const jvalue* values, MethodHandleBase<T>) {
                 throw std::runtime_error("Mismatched MethodHandle!");
             }
+            virtual void InstanceSet(ENV * env, jobject obj, const jvalue* values, MethodHandleBase<T>) {
+                throw std::runtime_error("Mismatched MethodHandle!");
+            }
+            virtual void StaticSet(ENV * env, Class* clazz, const jvalue* values, MethodHandleBase<T>) {
+                throw std::runtime_error("Mismatched MethodHandle!");
+            }
         };
 
         template<class...T>
         class MethodHandle : public MethodHandleBase<T>... {
         public:
-            virtual void InstanceSet(ENV * env, jobject obj, const jvalue* values) {
-                throw std::runtime_error("Mismatched MethodHandle!");
-            }
-            virtual void StaticSet(ENV * env, Class* clazz, const jvalue* values) {
-                throw std::runtime_error("Mismatched MethodHandle!");
-            }
+
         };
     }
     using MethodHandle = impl::MethodHandle<jobject, jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble, void>;

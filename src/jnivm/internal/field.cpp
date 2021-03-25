@@ -84,19 +84,21 @@ namespace Util {
 template<bool> struct Caller {
     template<class T>
     static T Get(jnivm::impl::MethodHandleBase<T>*p, ENV*env, jobject val) {
-        return p->InstanceGet(env, val, nullptr, jnivm::impl::MethodHandleBase<T>{});
+        return p->InstanceGet(env, val, nullptr, {});
     }
-    static void Set(jnivm::MethodHandle*p, ENV*env, jobject val, jvalue* r) {
-        return p->InstanceSet(env, val, r);
+    template<class T>
+    static void Set(jnivm::impl::MethodHandleBase<T>*p, ENV*env, jobject val, jvalue* r) {
+        return p->InstanceSet(env, val, r, {});
     }
 };
 template<> struct Caller<true> {
     template<class T>
     static T Get(jnivm::impl::MethodHandleBase<T>*p, ENV*env, jnivm::Class* val) {
-        return p->StaticGet(env, val, nullptr, jnivm::impl::MethodHandleBase<T>{});
+        return p->StaticGet(env, val, nullptr, {});
     }
-    static void Set(jnivm::MethodHandle*p, ENV*env, jnivm::Class* val, jvalue* r) {
-        return p->StaticSet(env, val, r);
+    template<class T>
+    static void Set(jnivm::impl::MethodHandleBase<T>*p, ENV*env, jnivm::Class* val, jvalue* r) {
+        return p->StaticSet(env, val, r, {});
     }
 };
 
@@ -117,7 +119,6 @@ template<bool RetNull, class T, class O> T jnivm::GetField(JNIEnv *env, O obj, j
         LOG("JNIVM", "Invoked Field Getter Class=`%s` Field=`%s` Signature=`%s`", cl ? cl->nativeprefix.data() : "???", fid->name.data(), fid->type.data());
 #endif
         return Caller<std::is_same<O, jclass>::value>::template Get<T>(fid->getnativehandle.get(), ENV::FromJNIEnv(env), Util::GetParam(ENV::FromJNIEnv(env), obj));
-        //return (*(std::function<T(ENV*, std::conditional_t<std::is_same<O, jclass>::value, Class*, jobject>, const jvalue*)>*)fid->getnativehandle.get())(ENV::FromJNIEnv(env), Util::GetParam(ENV::FromJNIEnv(env), obj), nullptr);
     } else {
 #ifdef JNI_TRACE
         auto cl = Util::GetClass(ENV::FromJNIEnv(env), obj);
@@ -146,8 +147,7 @@ template<class T, class O> void jnivm::SetField(JNIEnv *env, O obj, jfieldID id,
         jvalue val;
         memset(&val, 0, sizeof(val));
         memcpy(&val, &value, sizeof(T));
-        return Caller<std::is_same<O, jclass>::value>::Set(fid->setnativehandle.get(), ENV::FromJNIEnv(env), Util::GetParam(ENV::FromJNIEnv(env), obj), &val);
-        // (*(std::function<void(ENV*, std::conditional_t<std::is_same<O, jclass>::value, Class*, jobject>, const jvalue*)>*)fid->setnativehandle.get())(ENV::FromJNIEnv(env), Util::GetParam(ENV::FromJNIEnv(env), obj), &val);
+        return Caller<std::is_same<O, jclass>::value>::Set<T>(fid->setnativehandle.get(), ENV::FromJNIEnv(env), Util::GetParam(ENV::FromJNIEnv(env), obj), &val);
     } else {
 #ifdef JNI_TRACE
         auto cl = Util::GetClass(ENV::FromJNIEnv(env), obj);
@@ -155,9 +155,6 @@ template<class T, class O> void jnivm::SetField(JNIEnv *env, O obj, jfieldID id,
 #endif
     }
 }
-
-
-
 
 template jfieldID jnivm::GetFieldID<true>(JNIEnv *env, jclass cl, const char *name, const char *type);
 template jfieldID jnivm::GetFieldID<false>(JNIEnv *env, jclass cl, const char *name, const char *type);
