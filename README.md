@@ -19,7 +19,7 @@ Choose zero or more configuration options to change the behaviour of this librar
 - `JNIVM_USE_FAKE_JNI_CODEGEN` values `ON` or `OFF` (Default) choose to generate FakeJni compatible stubs instead of the default syntax of this library
     - depends on `JNIVM_ENABLE_DEBUG=ON` to work
     - use together with `Baron::Jvm::printStatistics()` to print the stubs to stdout
-- `JNIVM_ENABLE_RETURN_NON_ZERO` values `ON` or `OFF` (Default) contruct objects which are default_contructible with a parameterless contructor and returns these instead of returning a nullptr
+- `JNIVM_ENABLE_RETURN_NON_ZERO` values `ON` or `OFF` (Default) contruct objects which are default_contructible with a parameterless contructor or classes without an native type as empty jnivm::Object and returns these instead of returning a nullptr
     - use together with `JNIVM_ENABLE_TRACE=ON`, to see if a method wasn't found, but a return value was constructed
 - `JNIVM_FAKE_JNI_MINECRAFT_LINUX_COMPAT` values `ON` or `OFF` (Default)
     - It is unclear how the fake-jni interface should handle static functions and static fields, based on the original sample from https://github.com/dukeify/fake-jni/blob/16b82688cb9a8794580293253fbe313f550eb00c/examples/src/main.cpp it seems, it should promote them to instance functions.
