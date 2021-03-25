@@ -3,28 +3,6 @@
 
 using namespace jnivm;
 
-// class MethodProxy {
-// 	Class* cl;
-// 	std::string name;
-// 	std::string signature;
-// public:
-// 	MethodProxy(Class* cl, const char *name, const char *sig) {
-// 		this->cl = cl;
-// 		this->name = name;
-// 		this->signature = sig;
-// 	}
-// 	operator Method*() {
-
-// 		return nullptr;
-// 	}
-// };
-
-#include <fake-jni/fake-jni.h>
-#include "internal/method.h"
-MethodProxy Class::getMethod(const char *sig, const char *name) {
-    return { GetMethodID<false, true>(FakeJni::JniEnv::getCurrentEnv(), (jclass)(Object*)this, name, sig), GetMethodID<true, true>(FakeJni::JniEnv::getCurrentEnv(), (jclass)(Object*)this, name, sig) };
-}
-
 template<class T> jvalue toJValue(T val) {
 	jvalue ret;
 	static_assert(sizeof(T) <= sizeof(jvalue), "jvalue cannot hold the specified type!");

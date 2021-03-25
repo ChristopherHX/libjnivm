@@ -447,8 +447,6 @@ template<bool ReturnNull, class ...jnitypes> struct InterfaceFactory {
 	using Type = typename Impl<Seq>::template Impl2<SeqM2>::template Impl3<SeqM1>;
 };
 
-#include <fake-jni/fake-jni.h>
-
 template<bool ReturnNull> JNINativeInterface jnivm::VM::GetNativeInterfaceTemplate() {
 	return InterfaceFactory<ReturnNull, jobject, jboolean, jbyte, jchar, jshort, jint, jlong, jfloat, jdouble, void>::Type::Get();
 }
