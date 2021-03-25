@@ -141,7 +141,7 @@ int main(int argc, char** argv) {
 	(*args)[0] = std::make_shared<JString>("main");
 
     {
-        jfieldID fieldid = frame.getJniEnv().GetFieldID(frame.getJniEnv().GetObjectClass(ref), "longarrayfield2", "[J");
+        jfieldID fieldid = frame.getJniEnv().GetFieldID(frame.getJniEnv().GetObjectClass(ref), "longarrayfield", "[J");
         jobject value = frame.getJniEnv().GetObjectField(ref, fieldid);
         frame.getJniEnv().SetObjectField(ref, fieldid, frame.getJniEnv().NewLongArray(100));
 
