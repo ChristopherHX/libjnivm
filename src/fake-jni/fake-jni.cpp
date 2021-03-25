@@ -4,12 +4,19 @@
 #endif
 
 FakeJni::JniEnvContext::JniEnvContext(FakeJni::Jvm &vm) {
-    if (!env) {
+	env2 = env.env.lock();
+    if (!env2) {
 		this->vm = &vm;
         vm.AttachCurrentThread(nullptr, nullptr);
+		env2 = env.env.lock();
     } else {
 		this->vm = nullptr;
 	}
+}
+
+FakeJni::JniEnvContext::JniEnvContext() {
+	env2 = env.env.lock();
+	this->vm = nullptr;
 }
 
 FakeJni::JniEnvContext::~JniEnvContext() {
@@ -18,13 +25,24 @@ FakeJni::JniEnvContext::~JniEnvContext() {
 	}
 }
 
-thread_local FakeJni::Env* FakeJni::JniEnvContext::env = nullptr;
+FakeJni::ThreadContext::~ThreadContext() {
+	auto _env = env.lock();
+	if(_env) {
+		_env->getVM().DetachCurrentThread();
+		_env = nullptr;
+		if(env.lock()) {
+			abort();
+		}
+	}
+}
+
+thread_local FakeJni::ThreadContext FakeJni::JniEnvContext::env = {};
 
 FakeJni::Env &FakeJni::JniEnvContext::getJniEnv() {
-    if (env == nullptr) {
+    if (env2 == nullptr) {
         throw std::runtime_error("No Env in this thread");
     }
-    return *env;
+    return *env2;
 }
 
 std::shared_ptr<jnivm::Class> FakeJni::Jvm::findClass(const char *name) {

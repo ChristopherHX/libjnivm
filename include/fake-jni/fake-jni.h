@@ -8,15 +8,6 @@
 namespace FakeJni {
     class Jvm;
     class Env;
-    class JniEnvContext {
-        FakeJni::Jvm* vm;
-    public:
-        JniEnvContext(Jvm& vm);
-        JniEnvContext() : vm(nullptr) {}
-        ~JniEnvContext();
-        static thread_local Env* env;
-        Env& getJniEnv();
-    };
 
     using JObject = jnivm::Object;
     using JString = jnivm::String;
@@ -109,11 +100,6 @@ namespace FakeJni {
     public:
         Env(Jvm& jvm, jnivm::VM *vm, const JNINativeInterface& interface) : jvm(jvm), jnivm::ENV(vm, interface) {
             functions = GetJNIEnv()->functions;
-            if(FakeJni::JniEnvContext::env != nullptr) throw std::runtime_error("Multiple Jvm's in one thread are unsupported, use jnivm::VM for this feature");
-                FakeJni::JniEnvContext::env = this;
-        }
-        ~Env() {
-            FakeJni::JniEnvContext::env = nullptr;
         }
 
         std::shared_ptr<JObject> resolveReference(jobject obj);
@@ -122,6 +108,21 @@ namespace FakeJni {
             return jnivm::JNITypes<std::shared_ptr<JObject>>::ToJNIReturnType(this, obj);
         }
         Jvm& getVM();
+    };
+
+    struct ThreadContext {
+        std::weak_ptr<Env> env;
+        ~ThreadContext();
+    };
+    class JniEnvContext {
+        FakeJni::Jvm* vm;
+        std::shared_ptr<Env> env2;
+    public:
+        JniEnvContext(Jvm& vm);
+        JniEnvContext();
+        ~JniEnvContext();
+        static thread_local ThreadContext env;
+        Env& getJniEnv();
     };
 
     struct LocalFrame : public JniEnvContext {
@@ -139,7 +140,7 @@ namespace FakeJni {
     class JniEnv {
     public:
         static auto getCurrentEnv() {
-            return JniEnvContext::env;
+            return JniEnvContext::env.env.lock().get();
         }
     };
 

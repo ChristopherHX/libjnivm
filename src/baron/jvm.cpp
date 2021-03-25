@@ -8,6 +8,9 @@ Baron::Jvm::Jvm() : FakeJni::Jvm(true, false) {
 }
 
 std::shared_ptr<jnivm::ENV> Baron::Jvm::CreateEnv() {
+    if(FakeJni::JniEnvContext::env.env.lock()) {
+        throw std::runtime_error("Attempt to initialize a FakeJni::Env twice in one thread!");
+    }
     auto tmpl = GetNativeInterfaceTemplate();
     tmpl.FindClass = [](JNIEnv *env, const char *name) -> jclass {
         jclass ret = GetNativeInterfaceTemplate<true>().FindClass(env, name);
@@ -61,6 +64,7 @@ std::shared_ptr<jnivm::ENV> Baron::Jvm::CreateEnv() {
     };
     
     auto ret = std::make_shared<FakeJni::Env>(*this, static_cast<jnivm::VM*>(this), tmpl);
+    FakeJni::JniEnvContext::env.env = ret;
     return std::shared_ptr<jnivm::ENV>(ret, jnivm::ENV::FromJNIEnv(ret.get()));
 }
 
