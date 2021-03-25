@@ -43,7 +43,5 @@ int main(int argc, char** argv) {
     jclass sc = env->FindClass("SampleClass");
     jmethodID id = env->GetStaticMethodID(sc, "Test", "()V");
     env->CallStaticVoidMethod(sc, id);
-    vm.GenerateClassDump("C:\\Users\\Christopher\\Documents\\classdump.txt");
-
     return 0;
 }
