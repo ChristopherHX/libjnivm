@@ -127,7 +127,7 @@ template<> jobject jnivm::defaultVal(ENV* env, std::string signature) {
 #endif
                 return JNITypes<std::shared_ptr<Object>>::ToJNIReturnType(env, c->Instantiate(env));
             } else {
-                std::lock_guard guard(env->GetVM()->mtx);
+                std::lock_guard<std::mutex> guard(env->GetVM()->mtx);
                 bool safetocreatedummy = true;
                 for(auto&& ty : env->GetVM()->typecheck) {
                     if(ty.second == c) {
