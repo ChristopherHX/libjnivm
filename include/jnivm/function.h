@@ -64,4 +64,8 @@ namespace jnivm {
     };
     template<class T, class R> struct Function<R(T::*const&)> : Function<R(T::*)> {
     };
+    template<class R> struct Function<R*const> : Function<R*> {
+    };
+    template<class T, class R> struct Function<R(T::*const)> : Function<R(T::*)> {
+    };
 }
