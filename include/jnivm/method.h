@@ -36,26 +36,28 @@ namespace jnivm {
     class MethodProxy {
         jmethodID _member;
         jmethodID _static;
+        jmethodID _native;
     public:
-        MethodProxy(jmethodID _member, jmethodID _static) {
+        MethodProxy(jmethodID _member, jmethodID _static, jmethodID _native) {
             this->_member = _member;
             this->_static = _static;
+            this->_native = _native;
         }
         template<class... param>
         jvalue invoke(JNIEnv& env, jnivm::Class* cl, param... params) {
-            if(!_static) throw std::runtime_error("No such Method!");
-            return ((Method*) _static)->invoke(env, cl, params...);
+            if(!_static && !_native) throw std::runtime_error("No such Method!");
+            return ((Method*) (_static ? _static : _native))->invoke(env, cl, params...);
         }
         template<class... param>
         jvalue invoke(JNIEnv& env, jnivm::Object* obj, param... params) {
-            if(!_member) throw std::runtime_error("No such Method!");
-            return ((Method*) _member)->invoke(env, obj, params...);
+            if(!_member && !_native) throw std::runtime_error("No such Method!");
+            return ((Method*) (_member ? _member : _native))->invoke(env, obj, params...);
         }
         MethodProxy* operator->() {
             return this;
         }
         operator bool() const {
-            return (bool)_member ^ (bool)_static;
+            return (bool)_member ^ (bool)_static || (bool)_native;
         }
         operator Method*() {
             if(_member && _static) {
@@ -66,6 +68,9 @@ namespace jnivm {
             }
             if(_static) {
                 return (Method*) _static;
+            }
+            if(_native) {
+                return (Method*) _native;
             }
             return nullptr;
         }

@@ -4,7 +4,7 @@
 
 using namespace jnivm;
 
-template<bool isStatic, bool ReturnNull>
+template<bool isStatic, bool ReturnNull, bool AllowNative>
 jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const char *str1) {
     std::shared_ptr<Method> next;
     std::string sname = str0 ? str0 : "";
@@ -29,7 +29,7 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
             auto ccl =
                     std::find_if(cur->methods.begin(), cur->methods.end(),
                                             [&sname, &ssig](std::shared_ptr<Method> &namesp) {
-                                                return namesp->_static == isStatic && !namesp->native && namesp->name == sname && namesp->signature == ssig;
+                                                return namesp->_static == isStatic && AllowNative == (bool)namesp->native && namesp->name == sname && namesp->signature == ssig;
                                             });
             if (ccl != cur->methods.end()) {
                 next = *ccl;
@@ -314,6 +314,7 @@ template<class T> T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jclass _cl
 
 template jmethodID jnivm::GetMethodID<true>(JNIEnv *env, jclass cl, const char *str0, const char *str1);
 template jmethodID jnivm::GetMethodID<false>(JNIEnv *env, jclass cl, const char *str0, const char *str1);
+template jmethodID jnivm::GetMethodID<false, true, true>(JNIEnv *env, jclass cl, const char *str0, const char *str1);
 
 #define DeclareTemplate(T) template T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jobject obj, jmethodID id, jvalue *param);\
                            template T jnivm::MDispatchBase<T, jobject>::CallMethod(JNIEnv *env, jobject obj, jmethodID id, va_list param);\
