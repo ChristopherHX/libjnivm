@@ -61,6 +61,8 @@ if(JNIVM_ENABLE_TESTS)
     FetchContent_MakeAvailable(googletest)
 
     add_executable(JNIVMTests src/tests/Tests.cpp)
+    set_target_properties(JNIVMTests PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+
     # A test needs utf8 strings, which fails on msvc without force utf-8
     target_compile_options(JNIVMTests PRIVATE "$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
     target_link_libraries(JNIVMTests gtest gtest_main baron)
@@ -81,6 +83,7 @@ if(JNIVM_ENABLE_TESTS)
     if(JNIVM_USE_FAKE_JNI_CODEGEN)
         target_compile_definitions(JNIVMTestCodeGenTest PRIVATE JNIVM_FAKE_JNI_SYNTAX=1)
         target_link_libraries(JNIVMTestCodeGenTest fake-jni)
+        set_target_properties(JNIVMTestCodeGenTest PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
     else()
         target_compile_definitions(JNIVMTestCodeGenTest PRIVATE JNIVM_FAKE_JNI_SYNTAX=0)
         target_link_libraries(JNIVMTestCodeGenTest jnivm)
