@@ -53,13 +53,21 @@ namespace jnivm {
         template<class Y>
         static B ToJNIType(ENV* env, Y*const &p) {
             if(!p) return nullptr;
+#if defined(__cpp_lib_enable_shared_from_this) && __cpp_lib_enable_shared_from_this >= 201603
             auto val = p->weak_from_this().lock();
             return ToJNIType(env, val ? std::shared_ptr<Y>(val, p) : std::make_shared<Y>(*p));
+#else
+            return ToJNIType(env, std::make_shared<Y>(*p));
+#endif
         }
         template<class Y>
         static B ToJNIType(ENV* env, Y& p) {
+#if defined(__cpp_lib_enable_shared_from_this) && __cpp_lib_enable_shared_from_this >= 201603
             auto val = p.weak_from_this().lock();
             return ToJNIType(env, val ? std::shared_ptr<Y>(val, &p) : std::make_shared<Y>(p));
+#else
+            return ToJNIType(env, std::make_shared<Y>(p));
+#endif
         }
         template<class Y>
         static B ToJNIType(ENV* env, const Y& p) {

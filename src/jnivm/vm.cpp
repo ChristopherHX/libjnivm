@@ -310,7 +310,7 @@ jweak NewWeakGlobalRef(JNIEnv *env, jobject obj) {
 		return (jweak)nullptr;
 	}
 	auto weak = std::make_shared<Weak>();
-	weak->wrapped = strong->weak_from_this();
+	weak->wrapped = strong;
 	weak->clazz = InternalFindClass(ENV::FromJNIEnv(env), "java/lang/ref/WeakReference");
 
 	return (jweak) NewGlobalRef(env, weak);

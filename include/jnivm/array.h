@@ -103,8 +103,12 @@ namespace jnivm {
             Arrayguard &operator=(Z* p) {
                 static_assert(std::is_base_of<T, Z>::value, "Invalid Assignment");
                 if(p) {
+#if defined(__cpp_lib_enable_shared_from_this) && __cpp_lib_enable_shared_from_this >= 201603
                     auto val = p->weak_from_this().lock();
                     ref.Set(i, val ? std::shared_ptr<Z>(val, p) : std::make_shared<Z>(*p));
+#else
+                    ref.Set(i, std::make_shared<Z>(*p));
+#endif
                 } else {
                     ref.Set(i, nullptr);
                 }
@@ -113,8 +117,12 @@ namespace jnivm {
             template<class Z>
             Arrayguard &operator=(Z& p) {
                 static_assert(std::is_base_of<T, Z>::value, "Invalid Assignment");
+#if defined(__cpp_lib_enable_shared_from_this) && __cpp_lib_enable_shared_from_this >= 201603
                 auto val = p.weak_from_this().lock();
                 ref.Set(i, val ? std::shared_ptr<Z>(val, &p) : std::make_shared<Z>(p));
+#else
+                ref.Set(i, std::make_shared<Z>(p));
+#endif
                 return *this;
             }
         };
