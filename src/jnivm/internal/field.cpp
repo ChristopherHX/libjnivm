@@ -147,7 +147,7 @@ template<class T, class O> void jnivm::SetField(JNIEnv *env, O obj, jfieldID id,
         jvalue val;
         memset(&val, 0, sizeof(val));
         memcpy(&val, &value, sizeof(T));
-        return Caller<std::is_same<O, jclass>::value>::Set<T>(fid->setnativehandle.get(), ENV::FromJNIEnv(env), Util::GetParam(ENV::FromJNIEnv(env), obj), &val);
+        return Caller<std::is_same<O, jclass>::value>::template Set<T>(fid->setnativehandle.get(), ENV::FromJNIEnv(env), Util::GetParam(ENV::FromJNIEnv(env), obj), &val);
     } else {
 #ifdef JNI_TRACE
         auto cl = Util::GetClass(ENV::FromJNIEnv(env), obj);
