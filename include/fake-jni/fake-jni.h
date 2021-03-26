@@ -91,6 +91,8 @@ namespace FakeJni {
 
         virtual std::shared_ptr<JClass> findClass(const char * name);
 
+        std::vector<std::shared_ptr<FakeJni::JClass>> getClasses();
+
         // compatibility stub
         void destroy() {}
     };
@@ -241,6 +243,9 @@ namespace FakeJni {
         cl::registerClass();
     }
 
+    void createMainMethod(FakeJni::Jvm &jvm, std::function<void (std::shared_ptr<FakeJni::JArray<FakeJni::JString>> args)>&& callback);
+    // Deprecated: only provided for compatibility with original baron / fake-jni https://github.com/dukeify/baron/blob/old_prototype/README.md#how-do-i-use-it
+    void createMainMethod(FakeJni::Jvm &jvm, std::function<void (FakeJni::JArray<FakeJni::JString>* args)>&& callback);
 }
 
 #define DEFINE_CLASS_NAME(cname, ...)   static std::vector<std::shared_ptr<jnivm::Class>> GetBaseClasses(jnivm::ENV *env) {\

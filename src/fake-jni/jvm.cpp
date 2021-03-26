@@ -30,3 +30,11 @@ std::shared_ptr<jnivm::ENV> FakeJni::Jvm::CreateEnv() {
     FakeJni::JniEnvContext::env.env = ret;
     return std::shared_ptr<jnivm::ENV>(ret, jnivm::ENV::FromJNIEnv(ret.get()));
 }
+
+std::vector<std::shared_ptr<jnivm::Class>> FakeJni::Jvm::getClasses() {
+    std::vector<std::shared_ptr<jnivm::Class>> ret;
+    for(auto&& c : classes) {
+        ret.emplace_back(c.second);
+    }
+    return ret;
+}

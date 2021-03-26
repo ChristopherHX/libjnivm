@@ -84,14 +84,6 @@ void Jvm::printStatistics() {
 #endif
 }
 
-std::vector<std::shared_ptr<jnivm::Class>> Baron::Jvm::getClasses() {
-    std::vector<std::shared_ptr<jnivm::Class>> ret;
-    for(auto&& c : classes) {
-        ret.emplace_back(c.second);
-    }
-    return ret;
-}
-
 bool Baron::Jvm::isClassDenied(const char *name) const {
     return denyClasses.find(name) != denyClasses.end();
 }

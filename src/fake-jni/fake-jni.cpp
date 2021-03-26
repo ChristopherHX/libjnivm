@@ -166,3 +166,15 @@ jnivm::Class &jnivm::Object::getClass() {
     }
     return *ret.get();
 }
+
+void FakeJni::createMainMethod(FakeJni::Jvm &jvm, std::function<void (std::shared_ptr<FakeJni::JArray<FakeJni::JString>> args)>&& callback) {
+    std::shared_ptr<JClass> createMainMethod = jvm.findClass("fakejni/impl/createMainMethod");
+    createMainMethod->Hook(jnivm::VM::FromJavaVM(&jvm)->GetEnv().get(), "main", std::move(callback));
+}
+
+void FakeJni::createMainMethod(FakeJni::Jvm &jvm, std::function<void (FakeJni::JArray<FakeJni::JString>* args)>&& callback) {
+    std::shared_ptr<JClass> createMainMethod = jvm.findClass("fakejni/impl/createMainMethod");
+    createMainMethod->Hook(jnivm::VM::FromJavaVM(&jvm)->GetEnv().get(), "main", [callback](std::shared_ptr<FakeJni::JArray<FakeJni::JString>> args) {
+        callback(args.get());
+    });
+}

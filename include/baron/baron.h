@@ -15,7 +15,6 @@ namespace Baron {
     public:
         Jvm();
         void printStatistics();
-        std::vector<std::shared_ptr<FakeJni::JClass>> getClasses();
         bool isClassDenied(const char * name) const;
         bool isMethodDenied(const char * name, const char * sig, const char * clazz = "") const;
         bool isFieldDenied(const char * name, const char * sig, const char * clazz = "") const;
@@ -43,7 +42,4 @@ namespace Baron {
         }
         std::shared_ptr<FakeJni::JClass> findClass(const char * name) override;
     };
-    void createMainMethod(FakeJni::Jvm &jvm, std::function<void (std::shared_ptr<FakeJni::JArray<FakeJni::JString>> args)>&& callback);
-    // Deprecated: only provided for compatibility with original baron https://github.com/dukeify/baron/blob/old_prototype/README.md#how-do-i-use-it
-    void createMainMethod(FakeJni::Jvm &jvm, std::function<void (FakeJni::JArray<FakeJni::JString>* args)>&& callback);
 }
