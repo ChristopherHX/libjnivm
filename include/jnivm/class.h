@@ -37,7 +37,7 @@ namespace jnivm {
         MethodProxy getMethod(const char* sig, const char* name);
 
         std::string getName() const {
-            return name;
+            return nativeprefix;
         }
 
         template<class T> void Hook(ENV* env, const std::string& method, T&& t);

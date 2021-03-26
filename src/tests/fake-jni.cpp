@@ -86,3 +86,11 @@ TEST(FakeJni, InheritStaticField) {
     ASSERT_EQ(env.GetStaticIntField(c, staticIntField), 42);
     ASSERT_EQ(env.GetIntField(o, intField), 43);
 }
+
+TEST(FakeJni, GetNameReturnsFakeJniOldPrototypeLikeValue) {
+    Jvm vm;
+    vm.registerClass<ClassWithNatives>();
+    vm.registerClass<ClassWithSuperClassNatives>();
+    auto c = vm.findClass("com/sample/ClassWithSuperClassNatives");
+    ASSERT_EQ(c->getName(), "com/sample/ClassWithSuperClassNatives");
+}

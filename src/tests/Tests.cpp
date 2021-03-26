@@ -466,7 +466,7 @@ TEST(Baron, Test) {
     ASSERT_EQ(t1, "");
     ASSERT_EQ(s3->asStdString(), "Test");
 
-    ASSERT_EQ(jvm.findClass("FakeJniTest")->getClass().getName(), "Class");
+    ASSERT_EQ(jvm.findClass("FakeJniTest")->getClass().getName(), "java/lang/Class");
 }
 
 template<char...ch> struct TemplateString {
