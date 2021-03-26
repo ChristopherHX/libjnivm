@@ -32,3 +32,28 @@ TEST(FakeJni, GetAndCallNativeMethod) {
     jm->invoke(f.getJniEnv(), cobj.get());
     ASSERT_TRUE(called);
 }
+
+class ClassWithSuperClassNatives : public ClassWithNatives {
+public:
+    DEFINE_CLASS_NAME("com/sample/ClassWithSuperClassNatives", ClassWithNatives)
+};
+
+BEGIN_NATIVE_DESCRIPTOR(ClassWithSuperClassNatives)
+END_NATIVE_DESCRIPTOR
+
+TEST(FakeJni, GetAndCallSuperClassNativeMethod) {
+    Jvm vm;
+    vm.registerClass<ClassWithNatives>();
+    vm.registerClass<ClassWithSuperClassNatives>();
+    LocalFrame f;
+    auto c = f.getJniEnv().FindClass("com/sample/ClassWithNatives");
+    char name[] = "NativeMethod";
+    char sig[] = "()V";
+    JNINativeMethod m {name, sig, static_cast<void*>(&ClassWithNatives_Native_Method)};
+    f.getJniEnv().RegisterNatives(c, &m, 1);
+    called = false;
+    auto cobj = vm.findClass("com/sample/ClassWithSuperClassNatives");
+    auto jm = cobj->getMethod(sig, name);
+    jm->invoke(f.getJniEnv(), cobj.get());
+    ASSERT_TRUE(called);
+}
