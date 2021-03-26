@@ -60,7 +60,7 @@ if(JNIVM_ENABLE_TESTS)
     # will be defined and available to the rest of the build
     FetchContent_MakeAvailable(googletest)
 
-    add_executable(JNIVMTests src/tests/Tests.cpp)
+    add_executable(JNIVMTests src/tests/Tests.cpp src/tests/fake-jni.cpp)
     set_target_properties(JNIVMTests PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 
     # A test needs utf8 strings, which fails on msvc without force utf-8
