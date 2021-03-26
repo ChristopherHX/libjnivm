@@ -53,15 +53,19 @@ jobject FakeJni::Jvm::createGlobalReference(std::shared_ptr<jnivm::Object> obj) 
     return jnivm::VM::GetEnv()->GetJNIEnv()->NewGlobalRef((jobject)obj.get());
 }
 
+#ifndef RTLD_LAZY
+#define RTLD_LAZY 0
+#endif
+
 FakeJni::Jvm::libinst::libinst(const std::string &rpath, JavaVM *javaVM, FakeJni::LibraryOptions loptions) : loptions(loptions), javaVM(javaVM) {
-	handle = loptions.dlopen(rpath.c_str(), 0);
+	handle = loptions.dlopen(rpath.c_str(), RTLD_LAZY);
 	if(handle) {
 		auto JNI_OnLoad = (jint (*)(JavaVM* vm, void* reserved))loptions.dlsym(handle, "JNI_OnLoad");
 		if (JNI_OnLoad) {
 			JNI_OnLoad(javaVM, nullptr);
 		}
 	} else if(!rpath.empty() && rpath.find("/") == std::string::npos && rpath.find(".") == std::string::npos) {
-		handle = loptions.dlopen(nullptr, 0);
+		handle = loptions.dlopen(nullptr, RTLD_LAZY);
 		if(handle) {
 			path = rpath;
 			auto JNI_OnLoad = (jint (*)(JavaVM* vm, void* reserved))loptions.dlsym(handle, ("JNI_OnLoad_" + rpath).data());

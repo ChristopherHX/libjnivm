@@ -29,7 +29,7 @@ TEST(FakeJni, GetAndCallNativeMethod) {
     auto c = f.getJniEnv().FindClass("com/sample/ClassWithNatives");
     char name[] = "NativeMethod";
     char sig[] = "()V";
-    JNINativeMethod m {name, sig, static_cast<void*>(&ClassWithNatives_Native_Method)};
+    JNINativeMethod m {name, sig, reinterpret_cast<void*>(&ClassWithNatives_Native_Method)};
     f.getJniEnv().RegisterNatives(c, &m, 1);
     called = false;
     auto cobj = vm.findClass("com/sample/ClassWithNatives");
@@ -57,7 +57,7 @@ TEST(FakeJni, GetAndCallSuperClassNativeMethod) {
     auto c = f.getJniEnv().FindClass("com/sample/ClassWithNatives");
     char name[] = "NativeMethod";
     char sig[] = "()V";
-    JNINativeMethod m {name, sig, static_cast<void*>(&ClassWithNatives_Native_Method)};
+    JNINativeMethod m {name, sig, reinterpret_cast<void*>(&ClassWithNatives_Native_Method)};
     f.getJniEnv().RegisterNatives(c, &m, 1);
     called = false;
     auto cobj = vm.findClass("com/sample/ClassWithSuperClassNatives");
