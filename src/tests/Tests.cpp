@@ -924,11 +924,13 @@ TEST(JNIVM, VM) {
 
 TEST(FakeJni, VM) {
     FakeJni::Jvm vm;
+    ASSERT_NO_THROW(FakeJni::JniEnvContext().getJniEnv());
     std::thread([&jni = vm]() {
         ASSERT_THROW(FakeJni::JniEnvContext().getJniEnv(), std::runtime_error);
         FakeJni::LocalFrame f(jni);
         auto& env = f.getJniEnv();
     }).join();
+    ASSERT_NO_THROW(FakeJni::JniEnvContext().getJniEnv());
 }
 
 
