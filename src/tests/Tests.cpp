@@ -119,22 +119,18 @@ TEST(JNIVM, ModifiedUtf8Null) {
 }
 
 TEST(JNIVM, ObjectArray) {
-    std::weak_ptr<jnivm::Object> o;
-    {
-        jnivm::VM vm;
-        auto env = vm.GetJNIEnv();
-        jclass js = env->FindClass("java/lang/String");
-        jobjectArray arr = env->NewObjectArray(100, js, env->NewStringUTF("Hi"));
-        o = ((jnivm::Object*)arr)->weak_from_this();
-        ASSERT_EQ(env->GetObjectClass(arr), env->FindClass("[Ljava/lang/String;"));
-        ASSERT_EQ(env->GetArrayLength(arr), 100);
-        for (jsize i = 0; i < env->GetArrayLength(arr); i++) {
-            auto el = env->GetObjectArrayElement(arr, i);
-            ASSERT_TRUE(el);
-            ASSERT_EQ(env->GetObjectClass(el), js);
-            ASSERT_EQ(env->GetStringLength((jstring)el), 2);
-            ASSERT_EQ(env->GetStringUTFLength((jstring)el), 2);
-        }
+    jnivm::VM vm;
+    auto env = vm.GetJNIEnv();
+    jclass js = env->FindClass("java/lang/String");
+    jobjectArray arr = env->NewObjectArray(100, js, env->NewStringUTF("Hi"));
+    ASSERT_EQ(env->GetObjectClass(arr), env->FindClass("[Ljava/lang/String;"));
+    ASSERT_EQ(env->GetArrayLength(arr), 100);
+    for (jsize i = 0; i < env->GetArrayLength(arr); i++) {
+        auto el = env->GetObjectArrayElement(arr, i);
+        ASSERT_TRUE(el);
+        ASSERT_EQ(env->GetObjectClass(el), js);
+        ASSERT_EQ(env->GetStringLength((jstring)el), 2);
+        ASSERT_EQ(env->GetStringUTFLength((jstring)el), 2);
     }
 }
 
