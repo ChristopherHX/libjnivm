@@ -21,7 +21,7 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
                 ssig.append(cur->nativeprefix);
                 ssig.append(";");
             }
-            return GetMethodID<true, ReturnNull>(env, cl, str0, ssig.data());
+            return GetMethodID<true, ReturnNull, AllowNative>(env, cl, str0, ssig.data());
         }
         else {
             std::lock_guard<std::mutex> lock(cur->mtx);
@@ -44,7 +44,7 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
         if(cur && cur->baseclasses) {
             for(auto&& i : cur->baseclasses(ENV::FromJNIEnv(env))) {
                 if(i) {
-                    auto id = GetMethodID<isStatic, true>(env, (jclass)i.get(), str0, str1);
+                    auto id = GetMethodID<isStatic, true, AllowNative>(env, (jclass)i.get(), str0, str1);
                     if(id) {
                         return id;
                     }
