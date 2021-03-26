@@ -94,3 +94,23 @@ TEST(FakeJni, GetNameReturnsFakeJniOldPrototypeLikeValue) {
     auto c = vm.findClass("com/sample/ClassWithSuperClassNatives");
     ASSERT_EQ(c->getName(), "com/sample/ClassWithSuperClassNatives");
 }
+
+extern "C" JNIEXPORT jint JNI_OnLoad_jnistatic(JavaVM*vm, void*reserved) {
+    called = true;
+    return JNI_VERSION_1_8;
+}
+
+extern "C" JNIEXPORT void JNI_OnUnload_jnistatic(JavaVM*vm, void*reserved) {
+    called = true;
+}
+
+TEST(FakeJni, LoadStaticLibrary) {
+    {
+        Jvm vm;
+        called = false;
+        vm.attachLibrary("jnistatic");
+        ASSERT_TRUE(called);
+        called = false;
+    }
+    ASSERT_TRUE(called);
+}

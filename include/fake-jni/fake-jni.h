@@ -59,6 +59,7 @@ namespace FakeJni {
             void* handle;
             LibraryOptions loptions;
             JavaVM* javaVM;
+            std::string path;
         public:
             libinst(const std::string& rpath, JavaVM* javaVM, LibraryOptions loptions);
             ~libinst();

@@ -60,12 +60,21 @@ FakeJni::Jvm::libinst::libinst(const std::string &rpath, JavaVM *javaVM, FakeJni
 		if (JNI_OnLoad) {
 			JNI_OnLoad(javaVM, nullptr);
 		}
+	} else if(!rpath.empty() && rpath.find("/") == std::string::npos && rpath.find(".") == std::string::npos) {
+		handle = loptions.dlopen(nullptr, 0);
+		if(handle) {
+			path = rpath;
+			auto JNI_OnLoad = (jint (*)(JavaVM* vm, void* reserved))loptions.dlsym(handle, ("JNI_OnLoad_" + rpath).data());
+			if (JNI_OnLoad) {
+				JNI_OnLoad(javaVM, nullptr);
+			}
+		}
 	}
 }
 
 FakeJni::Jvm::libinst::~libinst() {
 	if(handle) {
-		auto JNI_OnUnload = (jint (*)(JavaVM* vm, void* reserved))loptions.dlsym(handle, "JNI_OnUnload");
+		auto JNI_OnUnload = (void (*)(JavaVM* vm, void* reserved))loptions.dlsym(handle, path.empty() ? "JNI_OnUnload" : ("JNI_OnUnload_" + path).data() );
 		if (JNI_OnUnload) {
 			JNI_OnUnload(javaVM, nullptr);
 		}
