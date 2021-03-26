@@ -6,9 +6,14 @@ using namespace FakeJni;
 class ClassWithNatives : public JObject {
 public:
     DEFINE_CLASS_NAME("com/sample/ClassWithNatives")
+
+    static JInt intField;
 };
 
+JInt ClassWithNatives::intField = 0;
+
 BEGIN_NATIVE_DESCRIPTOR(ClassWithNatives)
+{Field<&ClassWithNatives::intField>{}, "intField", JFieldID::PUBLIC | JFieldID::STATIC}
 END_NATIVE_DESCRIPTOR
 
 bool called;
@@ -36,9 +41,12 @@ TEST(FakeJni, GetAndCallNativeMethod) {
 class ClassWithSuperClassNatives : public ClassWithNatives {
 public:
     DEFINE_CLASS_NAME("com/sample/ClassWithSuperClassNatives", ClassWithNatives)
+    jint intField;
 };
 
 BEGIN_NATIVE_DESCRIPTOR(ClassWithSuperClassNatives)
+{Constructor<ClassWithSuperClassNatives>{}},
+{Field<&ClassWithSuperClassNatives::intField>{}, "intField"}
 END_NATIVE_DESCRIPTOR
 
 TEST(FakeJni, GetAndCallSuperClassNativeMethod) {
@@ -56,4 +64,25 @@ TEST(FakeJni, GetAndCallSuperClassNativeMethod) {
     auto jm = cobj->getMethod(sig, name);
     jm->invoke(f.getJniEnv(), cobj.get());
     ASSERT_TRUE(called);
+}
+
+TEST(FakeJni, InheritStaticField) {
+    Jvm vm;
+    vm.registerClass<ClassWithNatives>();
+    vm.registerClass<ClassWithSuperClassNatives>();
+    LocalFrame f;
+    auto& env = f.getJniEnv();
+    auto c = env.FindClass("com/sample/ClassWithSuperClassNatives");
+    ASSERT_TRUE(c);
+    auto intField = env.GetFieldID(c, "intField", "I");
+    ASSERT_TRUE(intField);
+    auto staticIntField = env.GetStaticFieldID(c, "intField", "I");
+    ASSERT_TRUE(staticIntField);
+    ASSERT_NE(intField, staticIntField);
+    env.SetStaticIntField(c, staticIntField, 42);
+    auto ctr = env.GetMethodID(c, "<init>", "()V");
+    auto o = env.NewObject(c, ctr);
+    env.SetIntField(o, intField, 43);
+    ASSERT_EQ(env.GetStaticIntField(c, staticIntField), 42);
+    ASSERT_EQ(env.GetIntField(o, intField), 43);
 }
