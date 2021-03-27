@@ -867,7 +867,7 @@ TEST(JNIVM, VirtualFunction) {
     auto c2 = env->GetClass<TestClass2>("TestClass2");
     c->Hook(env, "Test", &TestClass::Test);
     c2->Hook(env, "Test", &TestClass2::Test);
-    c->HookInstanceFunction(env, "Test2", [](jnivm::ENV*, TestClass2*o) {
+    c->HookInstanceFunction(env, "Test2", [](jnivm::ENV*, TestClass*o) {
         return o->TestClass::Test2();
     });
     c2->HookInstanceFunction(env, "Test2",[](jnivm::ENV*, TestClass2*o) {
@@ -1415,4 +1415,23 @@ TEST(JNIVM, Wrapper) {
     success = false;
     nenv->CallVoidMethod(no, nenv->GetMethodID(nc, "D", "(Ljava/lang/String;)V"), nenv->NewStringUTF("Test"));
 
+}
+
+TEST(JNIVM, FilterFalsePositives) {
+    using namespace jnivm;
+    VM vm(false, true);
+    auto&& env = vm.GetEnv();
+    env->GetClass<TestInterface>("TestInterface");
+    bool success = false;
+    env->GetClass<TestClass>("TestClass")->HookInstance(env.get(), "Test", [&success](TestInterface* interface) {
+        success = true;
+    });
+    auto jenv = env->GetJNIEnv();
+    auto c = jenv->FindClass("TestClass");
+    ASSERT_FALSE(jenv->GetMethodID(c, "Test", "()V"));
+    auto id = jenv->GetMethodID(c, "Test", "(LTestInterface;)V");
+    ASSERT_TRUE(id);
+    auto tc = std::make_shared<TestClass>();
+    jenv->CallVoidMethod((jobject)(Object*)tc.get(), id, nullptr);
+    ASSERT_TRUE(success);
 }
