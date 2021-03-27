@@ -102,9 +102,9 @@ namespace jnivm {
     template<> struct JNITypes<jstring> : JNITypesObjectBase<String, jstring> {};
     // template<> struct JNITypes<std::string> : JNITypesObjectBase<String, jstring, String> {};
     template<class orgtype> struct JNITypes<Class, orgtype> : JNITypesObjectBase<Class, jclass, orgtype> {};
-    template<> struct JNITypes<jclass> : JNITypesObjectBase<Class, jclass> {};
+    template<> struct JNITypes<jclass> : JNITypesObjectBase<Class, jclass, jclass> {};
     template<class orgtype> struct JNITypes<Throwable, orgtype> : JNITypesObjectBase<Throwable, jthrowable, orgtype> {};
-    template<> struct JNITypes<jthrowable> : JNITypesObjectBase<Throwable, jthrowable> {};
+    template<> struct JNITypes<jthrowable> : JNITypesObjectBase<Throwable, jthrowable, jthrowable> {};
     template<> struct JNITypes<jvalue, jvalue*> {
         static jvalue* JNICast(ENV* env, jvalue& v) {
             return &v;
@@ -137,7 +137,7 @@ namespace jnivm {
 
     template <> struct JNITypes<bool> : JNITypes<jboolean> {};
 
-    template <> struct JNITypes<jobject> : ___JNIType<jobject> {
+    template <> struct JNITypes<jobject> : ___JNIType<jobject>, JNITypesObjectBase<Object, jobject, jobject> {
         using Array = jobjectArray;
         static jobject JNICast(ENV* env, const jvalue& v) {
             return v.l;
@@ -371,7 +371,7 @@ template<class orgtype, class T> struct OrgTypeConverter<std::shared_ptr<orgtype
 template<class orgtype, class T> struct OrgTypeConverter<orgtype*, T> {
     static orgtype* Convert(jnivm::ENV *env, std::shared_ptr<T> && org) {
         (void)jnivm::JNITypes<jnivm::Object>::ToJNIType(env, org);
-        return org.get();
+        return reinterpret_cast<orgtype*>(org.get());
     }
 };
 

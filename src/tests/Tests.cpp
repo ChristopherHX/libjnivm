@@ -1435,3 +1435,35 @@ TEST(JNIVM, FilterFalsePositives) {
     jenv->CallVoidMethod((jobject)(Object*)tc.get(), id, nullptr);
     ASSERT_TRUE(success);
 }
+
+TEST(JNIVM, OptionalParameter) {
+    using namespace jnivm;
+    VM vm(false, true);
+    auto&& env = vm.GetEnv();
+    env->GetClass("JustATest")->Hook(env.get(), "member", [](ENV* env) {
+
+    });
+    env->GetClass("JustATest")->Hook(env.get(), "member2", [](ENV* env, Object* obj) {
+
+    });
+
+    // JNITypes<jclass>::JNICast()
+    env->GetClass("JustATest")->Hook(env.get(), "member3", [](ENV* env, jobject obj) {
+
+    });
+    env->GetClass("JustATest")->Hook(env.get(), "member4", [](ENV* env, jclass c) {
+        
+    });
+    env->GetClass("JustATest")->Hook(env.get(), "member5", [](ENV* env, Class* c) {
+
+    });
+    env->GetClass("JustATest")->Hook(env.get(), "member6", [](JNIEnv* env, jclass c) {
+        auto m = env->GetStaticMethodID(c, "member", "()V");
+        env->CallStaticVoidMethod(c, m);
+    });
+
+    auto c = env->GetJNIEnv()->FindClass("JustATest");
+    auto m = env->GetJNIEnv()->GetStaticMethodID(c, "member6", "()V");
+    ASSERT_TRUE(m);
+    env->GetJNIEnv()->CallStaticVoidMethod(c, m);
+}
