@@ -64,7 +64,7 @@ namespace jnivm {
 
 namespace jnivm {
     namespace impl {
-        template<class T, FunctionType bind, size_t offset, bool b = (int)bind & (int)FunctionType::Instance ? (std::is_base_of<Object, std::remove_pointer_t<typename Function<T>::template Parameter<offset>>>::value || std::is_same<jobject, typename Function<T>::template Parameter<offset>>::value) : (std::is_same<Class*, typename Function<T>::template Parameter<offset>>::value || std::is_same<jclass, typename Function<T>::template Parameter<offset>>::value)> struct HookManagerHelper {
+        template<class T, FunctionType bind, size_t offset, bool b = Function<T>::type == FunctionType::None && ((int)bind & (int)FunctionType::Instance ? (std::is_base_of<Object, std::remove_pointer_t<typename Function<T>::template Parameter<offset>>>::value || std::is_same<jobject, typename Function<T>::template Parameter<offset>>::value) : (std::is_same<Class*, typename Function<T>::template Parameter<offset>>::value || std::is_same<jclass, typename Function<T>::template Parameter<offset>>::value))> struct HookManagerHelper {
             static void install(ENV* env, Class* cl, const std::string& id, T&& t) {}
         };
 
