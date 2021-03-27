@@ -1,4 +1,4 @@
-project(fake-jni-sample-cxx14-cxx14 LANGUAGES CXX)
+project(fake-jni-sample-cxx14 LANGUAGES CXX)
 
 add_executable(fake-jni-sample-cxx14 main.cpp)
 target_link_libraries(fake-jni-sample-cxx14 fake-jni)
