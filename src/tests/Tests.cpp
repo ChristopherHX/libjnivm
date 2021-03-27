@@ -1461,6 +1461,15 @@ TEST(JNIVM, OptionalParameter) {
         auto m = env->GetStaticMethodID(c, "member", "()V");
         env->CallStaticVoidMethod(c, m);
     });
+    env->GetClass("JustATest")->Hook(env.get(), "member7", [](jclass c) {
+        
+    });
+    env->GetClass("JustATest")->Hook(env.get(), "member8", [](Class* c) {
+
+    });
+    env->GetClass("JustATest")->Hook(env.get(), "member9", [](JNIEnv* env) {
+
+    });
 
     auto c = env->GetJNIEnv()->FindClass("JustATest");
     auto m = env->GetJNIEnv()->GetStaticMethodID(c, "member6", "()V");
