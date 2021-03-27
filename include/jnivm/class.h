@@ -70,12 +70,26 @@ namespace jnivm {
 
         template<class T, FunctionType bind> struct HookManagerHelper<T, bind, 1, true> {
             static void install(ENV* env, Class* cl, const std::string& id, T&& t) {
+                // Filter false positives at runtime
+                if((int)bind & (int)FunctionType::Instance ? !std::is_same<Object*, typename Function<T>::template Parameter<1>>::value && !std::is_same<jobject, typename Function<T>::template Parameter<1>>::value : !std::is_same<Class*, typename Function<T>::template Parameter<1>>::value && !std::is_same<jclass, typename Function<T>::template Parameter<1>>::value) {
+                    auto oc = env->GetVM()->typecheck.find(typeid(std::remove_pointer_t<typename Function<T>::template Parameter<1>>));
+                    if(oc == env->GetVM()->typecheck.end() || oc->second.get() != cl) {
+                        return;
+                    }
+                }
                 using w = Wrap<T, typename Function<T>::template Parameter<0>, typename Function<T>::template Parameter<1>>;
                 HookManager<bind, w>::install(env, cl, id, std::move(t));
             }
         };
         template<class T, FunctionType bind> struct HookManagerHelper<T, bind, 0, true> {
             static void install(ENV* env, Class* cl, const std::string& id, T&& t) {
+                // Filter false positives at runtime
+                if((int)bind & (int)FunctionType::Instance ? !std::is_same<Object*, typename Function<T>::template Parameter<0>>::value && !std::is_same<jobject, typename Function<T>::template Parameter<0>>::value : !std::is_same<Class*, typename Function<T>::template Parameter<0>>::value && !std::is_same<jclass, typename Function<T>::template Parameter<0>>::value) {
+                    auto oc = env->GetVM()->typecheck.find(typeid(std::remove_pointer_t<typename Function<T>::template Parameter<0>>));
+                    if(oc == env->GetVM()->typecheck.end() || oc->second.get() != cl) {
+                        return;
+                    }
+                }
                 using w = Wrap<T, typename Function<T>::template Parameter<0>>;
                 HookManager<bind, w>::install(env, cl, id, std::move(t));
             }
