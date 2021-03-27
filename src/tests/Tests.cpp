@@ -956,9 +956,8 @@ TEST(FakeJni, attachLibrary) {
                     };
                 }
                 if(!strcmp(name, "JNI_OnUnload")) {
-                    return (void*)+[](JavaVM* vm, void* reserved) -> jint  {
+                    return (void*)+[](JavaVM* vm, void* reserved) -> void  {
                         JNI_OnUnloadCalled = true;
-                        return 0;
                     };
                 }
                 return nullptr;
@@ -997,9 +996,8 @@ TEST(FakeJni, attachLibrary2) {
                     };
                 }
                 if(!strcmp(name, "JNI_OnUnload")) {
-                    return (void*)+[](JavaVM* vm, void* reserved) -> jint  {
+                    return (void*)+[](JavaVM* vm, void* reserved) -> void  {
                         ++JNI_OnUnloadCalled;
-                        return 0;
                     };
                 }
                 return nullptr;
@@ -1045,9 +1043,8 @@ TEST(FakeJni, attachLibrary3) {
                     };
                 }
                 if(!strcmp(name, "JNI_OnUnload")) {
-                    return (void*)+[](JavaVM* vm, void* reserved) -> jint  {
+                    return (void*)+[](JavaVM* vm, void* reserved) -> void  {
                         ++JNI_OnUnloadCalled;
-                        return 0;
                     };
                 }
                 return nullptr;
