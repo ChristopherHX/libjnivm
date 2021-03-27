@@ -1471,6 +1471,45 @@ TEST(JNIVM, OptionalParameter) {
 
     });
 
+    env->GetClass("JustATest")->HookGetterFunction(env.get(), "field0", [](JNIEnv* env) {
+        return 2;
+    });
+    env->GetClass("JustATest")->HookGetterFunction(env.get(), "field0", [](Class* cl) {
+        return 4;
+    });
+    env->GetClass("JustATest")->HookGetterFunction(env.get(), "field0", [](JNIEnv* env, Class* cl) {
+        return 3;
+    });
+    env->GetClass("JustATest")->HookSetterFunction(env.get(), "field0", [](JNIEnv* env, int i) {
+        
+    });
+    env->GetClass("JustATest")->HookSetterFunction(env.get(), "field0", [](Class* cl, int i) {
+        
+    });
+    env->GetClass("JustATest")->HookSetterFunction(env.get(), "field0", [](JNIEnv* env, Class* cl, int i) {
+        
+    });
+
+
+    env->GetClass("JustATest")->HookInstanceGetterFunction(env.get(), "field2", [](JNIEnv* env) {
+        return 2;
+    });
+    env->GetClass("JustATest")->HookInstanceGetterFunction(env.get(), "field2", [](Object* cl) {
+        return 4;
+    });
+    env->GetClass("JustATest")->HookInstanceGetterFunction(env.get(), "field2", [](JNIEnv* env, Object* cl) {
+        return 3;
+    });
+    env->GetClass("JustATest")->HookInstanceSetterFunction(env.get(), "field2", [](JNIEnv* env, int i) {
+        
+    });
+    env->GetClass("JustATest")->HookInstanceSetterFunction(env.get(), "field2", [](Object* cl, int i) {
+        
+    });
+    env->GetClass("JustATest")->HookInstanceSetterFunction(env.get(), "field2", [](JNIEnv* env, Object* cl, int i) {
+        
+    });
+
     auto c = env->GetJNIEnv()->FindClass("JustATest");
     auto m = env->GetJNIEnv()->GetStaticMethodID(c, "member6", "()V");
     ASSERT_TRUE(m);

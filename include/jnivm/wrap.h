@@ -88,12 +88,21 @@ namespace jnivm {
                 return InstanceInvoke(funk, env, obj, values);
             }
             static constexpr auto InstanceSet(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
+                static_assert(sizeof...(I) == 1, "To use this function as setter, you need to have exactly one parameter");
                 return funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrObject(env, obj)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
+            }
+            static constexpr auto InstanceGet(Funk& funk, ENV * env, jobject obj, const jvalue* values) {
+                static_assert(sizeof...(I) == 0, "To use this function as a getter, you need to have exactly zero parameter");
+                return funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrObject(env, obj)...);
             }
             static std::string GetJNIInstanceInvokeSignature(ENV * env) {
                 return "(" + UnfoldJNISignature<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
             }
             static std::string GetJNIInstanceGetterSignature(ENV * env) {
+                static_assert(sizeof...(I) == 0, "To use this function as a getter, you need to have exactly zero parameter");
+                return JNITypes<typename Function::Return>::GetJNISignature(env);
+            }
+            static std::string GetJNIInstanceSetterSignature(ENV * env) {
                 static_assert(sizeof...(I) == 1, "To use this function as setter, you need to have exactly one parameter");
                 return JNITypes<typename Function::template Parameter<sizeof...(EnvOrObjOrClass)>>::GetJNISignature(env);
             }
@@ -103,14 +112,19 @@ namespace jnivm {
                 return funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrClass(env, clazz)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
             }
             static constexpr auto StaticSet(Funk& funk, ENV * env, Class* clazz, const jvalue* values) {
+                static_assert(sizeof...(I) == 1, "To use this function as setter, you need to have exactly one parameter");
                 return funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrClass(env, clazz)..., (JNITypes<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>>::JNICast(env, values[I]))...);
+            }
+            static constexpr auto StaticGet(Funk& funk, ENV * env, Class* clazz, const jvalue* values) {
+                static_assert(sizeof...(I) == 0, "To use this function as setter, you need to have exactly zero parameter");
+                return funk(AnotherHelper<EnvOrObjOrClass>::GetEnvOrClass(env, clazz)...);
             }
             static std::string GetJNIStaticInvokeSignature(ENV * env) {
                 return "(" + UnfoldJNISignature<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
             }
             static std::string GetJNIStaticGetterSignature(ENV * env) {
                 static_assert(sizeof...(I) == 0, "To use this function as setter, you need to have exactly zero parameter");
-                return "(" + UnfoldJNISignature<typename Function::template Parameter<I+sizeof...(EnvOrObjOrClass)>...>::GetJNISignature(env) + ")" + std::string(JNITypes<typename Function::Return>::GetJNISignature(env));
+                return JNITypes<typename Function::Return>::GetJNISignature(env);
             }
             static std::string GetJNIStaticSetterSignature(ENV * env) {
                 static_assert(sizeof...(I) == 1, "To use this function as setter, you need to have exactly one parameter");

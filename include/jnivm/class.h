@@ -95,11 +95,16 @@ namespace jnivm {
             }
         };
 
-        template<class T, FunctionType bind> struct HookManagerHelper2 {
-            static constexpr bool EnvArg = std::is_same<typename Function<T>::template Parameter<0>, JNIEnv*>::value || std::is_same<typename Function<T>::template Parameter<0>, ENV*>::value;
+        template<class T, FunctionType bind, bool EnvArg = std::is_same<typename Function<T>::template Parameter<0>, JNIEnv*>::value || std::is_same<typename Function<T>::template Parameter<0>, ENV*>::value, class=void> struct HookManagerHelper2 {
             using w = std::conditional_t<EnvArg, Wrap<T, typename Function<T>::template Parameter<0>>, Wrap<T>>;
             static void install(ENV* env, Class* cl, const std::string& id, T&& t) {
                 HookManager<bind, w>::install(env, cl, id, t);
+                impl::HookManagerHelper<T, bind, EnvArg ? 1 : 0>::install(env, cl, id, std::move(t));
+            }
+        };
+
+        template<class T, FunctionType bind, bool EnvArg> struct jnivm::impl::HookManagerHelper2<T, bind, EnvArg, std::enable_if_t<(((int)bind & (int)FunctionType::Getter) && Function<T>::plength > (EnvArg ? 1 : 0) || ((int)bind & (int)FunctionType::Setter) && Function<T>::plength > (EnvArg ? 2 : 1))>> {
+            static void install(ENV* env, Class* cl, const std::string& id, T&& t) {
                 impl::HookManagerHelper<T, bind, EnvArg ? 1 : 0>::install(env, cl, id, std::move(t));
             }
         };
