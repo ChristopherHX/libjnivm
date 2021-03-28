@@ -1,0 +1,25 @@
+on: push
+jobs:
+    Test:
+        runs-on: Linux
+        strategy:
+            matrix:
+                CXX: ["g++", "clang++"]
+        steps:
+        - name: Checkout
+          uses: actions/checkout@main
+        - name: Configure
+          env:
+            CXX: ${{matrix.CXX}}
+          run: |
+            echo Configure with compiler $CXX
+            mkdir build
+            cd build
+            cmake .. -DJNIVM_ENABLE_TESTS=ON -DJNIVM_BUILD_EXAMPLES -DJNIVM_ENABLE_TRACE
+        - name: Build
+          run: |
+            cd build
+            cmake --build .
+        - name: Run Tests
+          run: |
+            build/JNIVMTests
