@@ -1,6 +1,9 @@
 # libjnivm
 Pseudo Java Native Interface implement Java functions in C++
 
+## Dependencies
+Only the c++14 or c++17 standard library. To run Unit Tests this project automatically downloads Google Test during configuration of cmake.
+
 ## Building
 You need g++, clang++ or msvc with at least c++14 support and cmake to build and use it.
 
@@ -11,25 +14,21 @@ cd libjnivm
 ```
 ### Configure
 Choose zero or more configuration options to change the behaviour of this library.
-- `JNIVM_ENABLE_TRACE` values `ON` or `OFF` (Default) activate logging of called function to help Troubleshooting errors
-- `JNIVM_ENABLE_GC` values `ON` (Default) or `OFF` deprecated option, previous version had only a experimental GC used to disable it enitirely 
-- `JNIVM_ENABLE_DEBUG` values `ON` (Default) or `OFF` enables additional debugging features like a stub code generator for faster reverse engineering
-    - use together with `void jnivm::VM::GenerateClassDump(const char * path);` to generate the stubs to a file (c++) with the specified path, you may need to create the parent folder of the path.
-    - You will get different generated code if you change the value of the configuration option `JNIVM_USE_FAKE_JNI_CODEGEN`
-- `JNIVM_USE_FAKE_JNI_CODEGEN` values `ON` or `OFF` (Default) choose to generate FakeJni compatible stubs instead of the default syntax of this library
-    - depends on `JNIVM_ENABLE_DEBUG=ON` to work
-    - use together with `Baron::Jvm::printStatistics()` to print the stubs to stdout
-- `JNIVM_ENABLE_RETURN_NON_ZERO` values `ON` or `OFF` (Default) contruct objects which are default_contructible with a parameterless contructor or classes without an native type as empty jnivm::Object and returns these instead of returning a nullptr
-    - use together with `JNIVM_ENABLE_TRACE=ON`, to see if a method wasn't found, but a return value was constructed
-- `JNIVM_FAKE_JNI_MINECRAFT_LINUX_COMPAT` values `ON` or `OFF` (Default)
-    - It is unclear how the fake-jni interface should handle static functions and static fields, based on the original sample from https://github.com/dukeify/fake-jni/blob/16b82688cb9a8794580293253fbe313f550eb00c/examples/src/main.cpp it seems, it should promote them to instance functions.
-    - To intercept this behavior add `JNIVM_FAKE_JNI_MINECRAFT_LINUX_COMPAT=ON`, to keep them static if they are not explicitly set to a member function like `{ Function<&staticFunction>, "staticFunction", JMethodID::Static }`
-- `JNIVM_ENABLE_TESTS` values `ON` or `OFF` (Default) enables and build gtest tests
-- `JNIVM_BUILD_EXAMPLES` values `ON` or `OFF` (Default) Enable jnivm / fake-jni (compat) examples
+|CMake Option|Values|Default|Description|
+---|---|---|---
+|`JNIVM_ENABLE_TRACE`|`ON`, `OFF`|`OFF`|activate logging of called function to help Troubleshooting errors|
+|`JNIVM_ENABLE_GC`|`ON`, `OFF`|`ON`|deprecated option, previous version had only a experimental GC used to disable it enitirely|
+|`JNIVM_ENABLE_DEBUG`|`ON`, `OFF`|`ON`|enables additional debugging features like a stub code generator for faster reverse engineering. Use together with `void jnivm::VM::GenerateClassDump(const char * path);` to generate the stubs to a file (c++) with the specified path, you may need to create the parent folder of the path. You will get different generated code if you change the value of the configuration option `JNIVM_USE_FAKE_JNI_CODEGEN`|
+|`JNIVM_USE_FAKE_JNI_CODEGEN`|`ON`, `OFF`|`OFF`|choose to generate FakeJni compatible stubs instead of the default syntax of this library. Depends on `JNIVM_ENABLE_DEBUG=ON` to work. Use together with `Baron::Jvm::printStatistics()` to print the stubs to stdout|
+|`JNIVM_ENABLE_RETURN_NON_ZERO`|`ON`, `OFF`|`OFF`|contruct objects which are default_contructible with a parameterless contructor or classes without a native type as an empty jnivm::Object and returns these instead of returning a nullptr. Use together with `JNIVM_ENABLE_TRACE=ON`, to see if a method wasn't found, but a return value was constructed|
+|`JNIVM_FAKE_JNI_MINECRAFT_LINUX_COMPAT`|`ON`, `OFF`|`OFF`|It is unclear how the fake-jni interface should handle static functions and static fields, based on the original sample from https://github.com/dukeify/fake-jni/blob/16b82688cb9a8794580293253fbe313f550eb00c/examples/src/main.cpp it seems, it should promote them to instance functions. To intercept this behavior add `JNIVM_FAKE_JNI_MINECRAFT_LINUX_COMPAT=ON`, to keep them static if they are not explicitly set to static like `{ Function<&staticFunction>, "staticFunction", JMethodID::Static }`|
+|`JNIVM_ENABLE_TESTS`|`ON`, `OFF`|`OFF`|enables and build gtest tests|
+|`JNIVM_BUILD_EXAMPLES`|`ON`, `OFF`|`OFF`|Enable jnivm / fake-jni (compat) examples|
 
-create a build directory
+create and change to a build directory
 ```
 mkdir build
+cd build
 ```
 Add the configure options like `-D<Option>=<value>` per option, add a space between each one. Then place them after `cmake .. `. For example two options shown here:
 ```
