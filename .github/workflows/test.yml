@@ -15,7 +15,7 @@ jobs:
             echo Configure with compiler $CXX
             mkdir build
             cd build
-            cmake .. -DJNIVM_ENABLE_TESTS=ON -DJNIVM_BUILD_EXAMPLES -DJNIVM_ENABLE_TRACE
+            cmake .. -DJNIVM_ENABLE_TESTS=ON -DJNIVM_BUILD_EXAMPLES=ON -DJNIVM_ENABLE_TRACE=ON
         - name: Build
           run: |
             cd build
