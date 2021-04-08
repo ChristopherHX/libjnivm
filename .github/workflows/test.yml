@@ -8,9 +8,15 @@ jobs:
                 CXX: ["g++", "clang++"]
                 trace: ["-DJNIVM_ENABLE_TRACE=OFF", "-DJNIVM_ENABLE_TRACE=ON"]
                 examples: ["-DJNIVM_BUILD_EXAMPLES=OFF", "-DJNIVM_BUILD_EXAMPLES=ON"]
+                codegen: ["-DJNIVM_USE_FAKE_JNI_CODEGEN=OFF", "-DJNIVM_USE_FAKE_JNI_CODEGEN=ON"]
                 exclude:
                 - OS: "windows-latest"
                   CXX: "g++" # Windows ignores CXX, so just remove g++
+                - OS: "macos-latest"
+                  CXX: "g++" # macOS uses a symlink to clang++, so just remove g++
+                include:
+                - OS: "windows-latest"
+                  suffix: .exe
         steps:
         - name: Checkout
           uses: actions/checkout@main
@@ -21,11 +27,11 @@ jobs:
             echo Configure with compiler $CXX
             mkdir build
             cd build
-            cmake .. -DJNIVM_ENABLE_TESTS=ON -DJNIVM_ENABLE_RETURN_NON_ZERO=ON ${{matrix.trace}} ${{matrix.examples}}
+            cmake .. -DJNIVM_ENABLE_TESTS=ON -DJNIVM_ENABLE_RETURN_NON_ZERO=ON ${{matrix.trace}} ${{matrix.examples}} ${{matrix.codegen}}
         - name: Build
           run: |
             cd build
             cmake --build .
         - name: Run Tests
           run: |
-            build/JNIVMTests
+            ./build/JNIVMTests${{matrix.suffix}}
