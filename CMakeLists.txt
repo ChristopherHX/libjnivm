@@ -73,6 +73,7 @@ if(JNIVM_ENABLE_TESTS)
 
     if(JNIVM_ENABLE_DEBUG)
         add_executable(JNIVMTestCodeGen src/tests/CodeGen.cpp)
+        set_target_properties(JNIVMTestCodeGen PROPERTIES CXX_STANDARD 14 CXX_STANDARD_REQUIRED ON)
         target_link_libraries(JNIVMTestCodeGen jnivm)
 
         add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/generated.hpp
