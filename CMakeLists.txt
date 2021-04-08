@@ -55,6 +55,10 @@ if(JNIVM_ENABLE_TESTS)
     GIT_REPOSITORY https://github.com/google/googletest.git
     GIT_TAG        release-1.10.0
     )
+    
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
+    set(INSTALL_GTEST ON CACHE BOOL "" FORCE)
 
     # After the following call, the CMake targets defined by googletest
     # will be defined and available to the rest of the build
@@ -73,6 +77,7 @@ if(JNIVM_ENABLE_TESTS)
 
     if(JNIVM_ENABLE_DEBUG)
         add_executable(JNIVMTestCodeGen src/tests/CodeGen.cpp)
+        set_target_properties(JNIVMTestCodeGen PROPERTIES CXX_STANDARD 14 CXX_STANDARD_REQUIRED ON)
         target_link_libraries(JNIVMTestCodeGen jnivm)
 
         add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/generated.hpp
@@ -88,6 +93,7 @@ if(JNIVM_ENABLE_TESTS)
         else()
             target_compile_definitions(JNIVMTestCodeGenTest PRIVATE JNIVM_FAKE_JNI_SYNTAX=0)
             target_link_libraries(JNIVMTestCodeGenTest jnivm)
+            set_target_properties(JNIVMTestCodeGenTest PROPERTIES CXX_STANDARD 14 CXX_STANDARD_REQUIRED ON)
         endif()
     endif()
 endif()
