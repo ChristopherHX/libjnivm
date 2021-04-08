@@ -1,10 +1,12 @@
 on: push
 jobs:
     Test:
-        runs-on: Linux
+        runs-on: ubuntu-latest
         strategy:
             matrix:
-                CXX: ["g++"]
+                CXX: ["g++", "clang++"]
+                trace: ["-DJNIVM_ENABLE_TRACE=OFF", "-DJNIVM_ENABLE_TRACE=ON"]
+                examples: ["-DJNIVM_BUILD_EXAMPLES=OFF", "-DJNIVM_BUILD_EXAMPLES=ON"]
         steps:
         - name: Checkout
           uses: actions/checkout@main
@@ -15,7 +17,7 @@ jobs:
             echo Configure with compiler $CXX
             mkdir build
             cd build
-            cmake .. -DJNIVM_ENABLE_TESTS=ON -DJNIVM_ENABLE_RETURN_NON_ZERO=ON -DJNIVM_BUILD_EXAMPLES=ON -DJNIVM_ENABLE_TRACE=ON
+            cmake .. -DJNIVM_ENABLE_TESTS=ON -DJNIVM_ENABLE_RETURN_NON_ZERO=ON ${{matrix.trace}} ${{matrix.examples}}
         - name: Build
           run: |
             cd build
