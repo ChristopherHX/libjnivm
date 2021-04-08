@@ -142,6 +142,8 @@ namespace jnivm {
         static jobject JNICast(ENV* env, const jvalue& v) {
             return v.l;
         }
+        using ___JNIType<jobject>::ToJNIType;
+        using ___JNIType<jobject>::ToJNIReturnType;
     };
 
     
