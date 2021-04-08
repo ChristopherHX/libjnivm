@@ -1,12 +1,16 @@
 on: push
 jobs:
     Test:
-        runs-on: ubuntu-latest
+        runs-on: ${{ matrix.OS }}
         strategy:
             matrix:
+                OS: ["ubuntu-latest", "windows-latest", "macos-latest"]
                 CXX: ["g++", "clang++"]
                 trace: ["-DJNIVM_ENABLE_TRACE=OFF", "-DJNIVM_ENABLE_TRACE=ON"]
                 examples: ["-DJNIVM_BUILD_EXAMPLES=OFF", "-DJNIVM_BUILD_EXAMPLES=ON"]
+                exclude:
+                - OS: "windows-latest"
+                  CXX: "g++" # Windows ignores CXX, so just remove g++
         steps:
         - name: Checkout
           uses: actions/checkout@main
