@@ -35,4 +35,4 @@ jobs:
             cmake --build .
         - name: Run Tests
           run: |
-            ./build/{{matrix.intdir}}JNIVMTests${{matrix.suffix}}
+            ./build/${{matrix.intdir}}JNIVMTests${{matrix.suffix}}
