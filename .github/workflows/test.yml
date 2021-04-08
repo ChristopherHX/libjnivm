@@ -17,6 +17,7 @@ jobs:
                 include:
                 - OS: "windows-latest"
                   suffix: .exe
+                  intdir: Debug/
         steps:
         - name: Checkout
           uses: actions/checkout@main
@@ -34,4 +35,4 @@ jobs:
             cmake --build .
         - name: Run Tests
           run: |
-            ./build/JNIVMTests${{matrix.suffix}}
+            ./build/{{matrix.intdir}}JNIVMTests${{matrix.suffix}}
