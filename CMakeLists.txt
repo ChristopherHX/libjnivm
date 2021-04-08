@@ -49,9 +49,9 @@ endif()
 option(JNIVM_ENABLE_TESTS "Enable jnivm Tests via googletest" OFF)
 
 if(JNIVM_ENABLE_TESTS)
-    set(gtest_force_shared_crt ON CACHE BOOL FORCE)
-    set(BUILD_GMOCK OFF CACHE BOOL FORCE)
-    set(INSTALL_GTEST OFF CACHE BOOL FORCE)
+    set(gtest_force_shared_crt ON)
+    set(BUILD_GMOCK OFF)
+    set(INSTALL_GTEST OFF)
     include(FetchContent)
     FetchContent_Declare(
     googletest
