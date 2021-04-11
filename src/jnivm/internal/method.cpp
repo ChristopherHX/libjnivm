@@ -336,3 +336,16 @@ DeclareTemplate(jchar);
 DeclareTemplate(jobject);
 DeclareTemplate(void);
 #undef DeclareTemplate
+
+#define DeclareTemplate(T) template T jnivm::defaultVal(ENV* env, std::string signature)
+DeclareTemplate(jboolean);
+DeclareTemplate(jbyte);
+DeclareTemplate(jshort);
+DeclareTemplate(jint);
+DeclareTemplate(jlong);
+DeclareTemplate(jfloat);
+DeclareTemplate(jdouble);
+DeclareTemplate(jchar);
+DeclareTemplate(jobject);
+DeclareTemplate(void);
+#undef DeclareTemplate
