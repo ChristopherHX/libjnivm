@@ -103,7 +103,7 @@ namespace jnivm {
             }
         };
 
-        template<class T, FunctionType bind, bool EnvArg> struct HookManagerHelper2<T, bind, EnvArg, std::enable_if_t<(((int)bind & (int)FunctionType::Getter) && Function<T>::plength > (EnvArg ? 1 : 0) || ((int)bind & (int)FunctionType::Setter) && Function<T>::plength > (EnvArg ? 2 : 1))>> {
+        template<class T, FunctionType bind, bool EnvArg> struct HookManagerHelper2<T, bind, EnvArg, std::enable_if_t<((((int)bind & (int)FunctionType::Getter) && Function<T>::plength > (EnvArg ? 1 : 0)) || (((int)bind & (int)FunctionType::Setter) && Function<T>::plength > (EnvArg ? 2 : 1)))>> {
             static void install(ENV* env, Class* cl, const std::string& id, T&& t) {
                 impl::HookManagerHelper<T, bind, EnvArg ? 1 : 0>::install(env, cl, id, std::move(t));
             }

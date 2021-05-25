@@ -102,3 +102,15 @@ jvalue Method::jinvoke(jnivm::ENV &env, jobject obj, ...) {
 	va_end(l);
 	return ret;
 }
+
+#define DeclareTemplate(T) template jvalue toJValue(T val);
+DeclareTemplate(jboolean);
+DeclareTemplate(jbyte);
+DeclareTemplate(jshort);
+DeclareTemplate(jint);
+DeclareTemplate(jlong);
+DeclareTemplate(jfloat);
+DeclareTemplate(jdouble);
+DeclareTemplate(jchar);
+DeclareTemplate(jobject);
+#undef DeclareTemplate

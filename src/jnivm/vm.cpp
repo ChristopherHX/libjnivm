@@ -566,3 +566,6 @@ jnivm::VM *jnivm::VM::FromJavaVM(JavaVM *vm) {
 	if(vm == nullptr || vm->functions->reserved0 == nullptr) throw std::runtime_error("Failed to get reference to jnivm::VM");
     return static_cast<jnivm::VM*>(vm->functions->reserved0);
 }
+
+template JNINativeInterface jnivm::VM::GetNativeInterfaceTemplate<true>();
+template JNINativeInterface jnivm::VM::GetNativeInterfaceTemplate<false>();
