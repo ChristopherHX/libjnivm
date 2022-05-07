@@ -8,7 +8,7 @@
 
 using namespace jnivm;
 
-template<bool isStatic, bool ReturnNull>
+template<bool isStatic, bool ReturnNull, bool trace>
 jfieldID jnivm::GetFieldID(JNIEnv *env, jclass cl_, const char *name, const char *type) {
     auto cl = JNITypes<std::shared_ptr<Class>>::JNICast(ENV::FromJNIEnv(env), cl_);
     std::lock_guard<std::mutex> lock(cl->mtx);
@@ -32,7 +32,7 @@ jfieldID jnivm::GetFieldID(JNIEnv *env, jclass cl_, const char *name, const char
         if(cur->baseclasses) {
             for(auto&& i : cur->baseclasses(ENV::FromJNIEnv(env))) {
                 if(i) {
-                    auto id = GetFieldID<isStatic, true>(env, (jclass)i.get(), name, type);
+                    auto id = GetFieldID<isStatic, true, false>(env, (jclass)i.get(), name, type);
                     if(id) {
                         return id;
                     }
@@ -41,7 +41,9 @@ jfieldID jnivm::GetFieldID(JNIEnv *env, jclass cl_, const char *name, const char
         }
         if(ReturnNull) {
 #ifdef JNI_TRACE
-            LOG("JNIVM", "Unresolved symbol, Class=`%s`, %sField=`%s`, Signature=`%s`", cl ? cl->nativeprefix.data() : nullptr, isStatic ? "Static" : "", name, type);
+            if(trace) {
+                LOG("JNIVM", "Unresolved symbol, Class=`%s`, %sField=`%s`, Signature=`%s`", cl ? cl->nativeprefix.data() : nullptr, isStatic ? "Static" : "", name, type);
+            }
 #endif
             return nullptr;
         }
@@ -156,8 +158,10 @@ template<class T, class O> void jnivm::SetField(JNIEnv *env, O obj, jfieldID id,
     }
 }
 
-template jfieldID jnivm::GetFieldID<true>(JNIEnv *env, jclass cl, const char *name, const char *type);
-template jfieldID jnivm::GetFieldID<false>(JNIEnv *env, jclass cl, const char *name, const char *type);
+template jfieldID jnivm::GetFieldID<true, true>(JNIEnv *env, jclass cl, const char *name, const char *type);
+template jfieldID jnivm::GetFieldID<false, true>(JNIEnv *env, jclass cl, const char *name, const char *type);
+template jfieldID jnivm::GetFieldID<true, false>(JNIEnv *env, jclass cl, const char *name, const char *type);
+template jfieldID jnivm::GetFieldID<false, false>(JNIEnv *env, jclass cl, const char *name, const char *type);
 
 #define DeclareTemplate(T) template void jnivm::SetField<T, jclass>(JNIEnv *env, jclass obj, jfieldID id, T value); \
                            template T jnivm::GetField<true, T, jclass>(JNIEnv *env, jclass obj, jfieldID id);\
