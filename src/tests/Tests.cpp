@@ -50,9 +50,9 @@ TEST(JNIVM, StringFields) {
     static_assert(sizeof(jchar) == sizeof(char16_t), "jchar is not as large as char16_t");
     auto str1 = env->NewString((jchar*) u"Hello World", 11);
     auto str2 = env->NewStringUTF("Hello World");
-    env->SetObjectField((jobject)(jnivm::Object*)obj.get(), field, str1);
-    ASSERT_EQ((jstring)obj->s.get(), str1);
     auto nobj = jnivm::JNITypes<Class1>::ToJNIType(vm.GetEnv().get(), obj);
+    env->SetObjectField(nobj, field, str1);
+    ASSERT_EQ((jstring)obj->s.get(), str1);
     ASSERT_EQ(env->GetObjectField(nobj, field), str1);
     env->SetObjectField(nobj, field, str2);
     ASSERT_EQ((jstring)obj->s.get(), str2);
