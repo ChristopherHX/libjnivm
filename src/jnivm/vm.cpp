@@ -260,6 +260,11 @@ jint RegisterNatives(JNIEnv *env, jclass c, const JNINativeMethod *method, jint 
 		std::lock_guard<std::mutex> lock(clazz->mtx);
 		while(i--) {
 			clazz->natives[method->name] = method->fnPtr;
+#ifdef JNI_TRACE
+			std::stringstream ss;
+			ss << "Class \"" << clazz->nativeprefix << "\" registred native method: " << method->name << " signature: " << method->signature;
+			LOG("JNIVM", "%s", ss.str().data());
+#endif
 			auto m = std::make_shared<Method>();
 			m->name = method->name;
 			m->signature = method->signature;
