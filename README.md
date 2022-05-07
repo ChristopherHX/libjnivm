@@ -76,4 +76,4 @@ You find some examples inside `src/examples`. Please open one or more issue's if
       - exception handling
       - WeakGlobal's
       - distinguish Global from Local References
-    - Removed unsafe type casts, a jobject is now allways `jnivm::Object*` then casted via dynamic_cast to the right type
+    - Removed unsafe type casts, a jobject is now always `jnivm::Object*` then casted via dynamic_cast to the right type
