@@ -21,12 +21,13 @@ TEST(JNIVM, BooleanFields) {
     auto obj = std::make_shared<Class1>();
     auto ncl = env->FindClass("Class1");
     auto field = env->GetFieldID(ncl, "b", "Z");
-    env->SetBooleanField((jobject)obj.get(), field, true);
+    auto nobj = jnivm::JNITypes<Class1>::ToJNIType(vm.GetEnv().get(), obj);
+    env->SetBooleanField(nobj, field, true);
     ASSERT_TRUE(obj->b);
-    ASSERT_TRUE(env->GetBooleanField((jobject)obj.get(), field));
-    env->SetBooleanField((jobject)obj.get(), field, false);
+    ASSERT_TRUE(env->GetBooleanField(nobj, field));
+    env->SetBooleanField(nobj, field, false);
     ASSERT_FALSE(obj->b);
-    ASSERT_FALSE(env->GetBooleanField((jobject)obj.get(), field));
+    ASSERT_FALSE(env->GetBooleanField(nobj, field));
 
     auto field2 = env->GetStaticFieldID(ncl, "b2", "Z");
     env->SetStaticBooleanField(ncl, field2, true);
@@ -51,10 +52,11 @@ TEST(JNIVM, StringFields) {
     auto str2 = env->NewStringUTF("Hello World");
     env->SetObjectField((jobject)(jnivm::Object*)obj.get(), field, str1);
     ASSERT_EQ((jstring)obj->s.get(), str1);
-    ASSERT_EQ(env->GetObjectField((jobject)obj.get(), field), str1);
-    env->SetObjectField((jobject)obj.get(), field, str2);
+    auto nobj = jnivm::JNITypes<Class1>::ToJNIType(vm.GetEnv().get(), obj);
+    ASSERT_EQ(env->GetObjectField(nobj, field), str1);
+    env->SetObjectField(nobj, field, str2);
     ASSERT_EQ((jstring)obj->s.get(), str2);
-    ASSERT_EQ(env->GetObjectField((jobject)obj.get(), field), str2);
+    ASSERT_EQ(env->GetObjectField(nobj, field), str2);
 
     auto field2 = env->GetStaticFieldID(ncl, "s2", "Ljava/lang/String;");
     env->SetStaticObjectField(ncl, field2, str1);
@@ -1432,7 +1434,8 @@ TEST(JNIVM, FilterFalsePositives) {
     auto id = jenv->GetMethodID(c, "Test", "(LTestInterface;)V");
     ASSERT_TRUE(id);
     auto tc = std::make_shared<TestClass>();
-    jenv->CallVoidMethod((jobject)(Object*)tc.get(), id, nullptr);
+    auto nobj = jnivm::JNITypes<TestClass>::ToJNIType(vm.GetEnv().get(), tc);
+    jenv->CallVoidMethod(nobj, id, nullptr);
     ASSERT_TRUE(success);
 }
 

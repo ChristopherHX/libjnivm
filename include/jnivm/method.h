@@ -139,10 +139,10 @@ break;
 }
 
 template<class... param> jvalue jnivm::Method::invoke(JNIEnv &env, jnivm::Class* cl, param ...params) {
-    return j2invoke<jclass>(env, (jclass)static_cast<Object*>(cl), params...);
+    return j2invoke<jclass>(env, JNITypes<jclass>::ToJNIType(ENV::FromJNIEnv(&env), std::shared_ptr<Class>(cl->shared_from_this(), cl)), params...);
 }
 
 template<class... param> jvalue jnivm::Method::invoke(JNIEnv &env, jnivm::Object* obj, param ...params) {
-    return j2invoke<jobject>(env, (jobject)obj, params...);
+    return j2invoke<jobject>(env, JNITypes<jnivm::Object>::ToJNIType(ENV::FromJNIEnv(&env), obj->shared_from_this()), params...);
 }
 #endif
