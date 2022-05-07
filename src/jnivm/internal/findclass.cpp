@@ -4,12 +4,14 @@
 #include <cstring>
 #include "log.h"
 
-std::shared_ptr<jnivm::Class> jnivm::InternalFindClass(ENV *env, const char *name, bool returnZero) {
+std::shared_ptr<jnivm::Class> jnivm::InternalFindClass(ENV *env, const char *name, bool returnZero, bool trace) {
 	auto prefix = name;
 	auto && nenv = *env;
 	auto && vm = nenv.GetVM();
 #ifdef JNI_TRACE
-	LOG("JNIVM", "InternalFindClass %s", name);
+	if(trace) {
+		LOG("JNIVM", "FindClass %s", name);
+	}
 #endif
 	std::shared_ptr<Class> curc = nullptr;
 #ifdef JNI_DEBUG
@@ -97,8 +99,8 @@ std::shared_ptr<jnivm::Class> jnivm::InternalFindClass(ENV *env, const char *nam
 	return curc;
 }
 
-jclass jnivm::InternalFindClass(JNIEnv *env, const char *name, bool returnZero) {
-	return JNITypes<std::shared_ptr<Class>>::ToJNIType(ENV::FromJNIEnv(env), InternalFindClass(ENV::FromJNIEnv(env), name, returnZero));
+jclass jnivm::InternalFindClass(JNIEnv *env, const char *name, bool returnZero, bool trace) {
+	return JNITypes<std::shared_ptr<Class>>::ToJNIType(ENV::FromJNIEnv(env), InternalFindClass(ENV::FromJNIEnv(env), name, returnZero, trace));
 }
 
 void jnivm::Declare(JNIEnv *env, const char *signature) {

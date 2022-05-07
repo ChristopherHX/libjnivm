@@ -28,7 +28,7 @@ template<bool returnZero=false>
 jclass FindClass(JNIEnv *env, const char *name) {
 	auto&& nenv = *ENV::FromJNIEnv(env);
 	std::lock_guard<std::mutex> lock(nenv.GetVM()->mtx);
-	return InternalFindClass(env, name, returnZero);
+	return InternalFindClass(env, name, returnZero, true);
 };
 jmethodID FromReflectedMethod(JNIEnv *env, jobject obj) {
 	if(obj && env->functions->IsSameObject(env, env->functions->GetObjectClass(env, obj), FindClass(env, "java/lang/reflect/Method"))) {
