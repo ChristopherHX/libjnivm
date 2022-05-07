@@ -4,7 +4,7 @@
 
 using namespace jnivm;
 
-template<bool isStatic, bool ReturnNull, bool AllowNative>
+template<bool isStatic, bool ReturnNull, bool AllowNative, bool trace>
 jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const char *str1) {
     std::shared_ptr<Method> next;
     std::string sname = str0 ? str0 : "";
@@ -21,7 +21,7 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
                 ssig.append(cur->nativeprefix);
                 ssig.append(";");
             }
-            return GetMethodID<true, ReturnNull, AllowNative>(env, cl, str0, ssig.data());
+            return GetMethodID<true, ReturnNull, AllowNative, trace>(env, cl, str0, ssig.data());
         }
         else {
             std::lock_guard<std::mutex> lock(cur->mtx);
@@ -37,23 +37,25 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
         }
     } else {
 #ifdef JNI_DEBUG
-        LOG("JNIVM", "Get%sMethodID class is null %s, %s", isStatic ? "Static" : "", str0, str1);
+        LOG("JNIVM", "Get%sMethodID class is null %s, %s", AllowNative ? "Native" : isStatic ? "Static" : "", str0, str1);
 #endif
     }
     if(!next) {
         if(cur && cur->baseclasses) {
             for(auto&& i : cur->baseclasses(ENV::FromJNIEnv(env))) {
                 if(i) {
-                    auto id = GetMethodID<isStatic, true, AllowNative>(env, (jclass)i.get(), str0, str1);
+                    auto id = GetMethodID<isStatic, true, AllowNative, false>(env, (jclass)i.get(), str0, str1);
                     if(id) {
                         return id;
                     }
                 }
             }
         }
-        if (ReturnNull) {
+        if(ReturnNull) {
 #ifdef JNI_TRACE
-            LOG("JNIVM", "Unresolved symbol, Class=`%s`, %sMethod=`%s`, Signature=`%s`", cur ? cur->nativeprefix.data() : nullptr, isStatic ? "Static" : "", str0, str1);
+            if(trace) {
+                LOG("JNIVM", "Unresolved symbol, Class=`%s`, %sMethod=`%s`, Signature=`%s`", cur ? cur->nativeprefix.data() : nullptr, AllowNative ? "Native" : isStatic ? "Static" : "", str0, str1);
+            }
 #endif
             return nullptr;
         }
@@ -71,11 +73,11 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
         Declare(env, next->signature.data());
 #endif
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Constructed Unresolved symbol, Class=`%s`, %sMethod=`%s`, Signature=`%s`", cur ? cur->nativeprefix.data() : nullptr, isStatic ? "Static" : "", str0, str1);
+        LOG("JNIVM", "Constructed Unresolved symbol, Class=`%s`, %sMethod=`%s`, Signature=`%s`", cur ? cur->nativeprefix.data() : nullptr, AllowNative ? "Native" : isStatic ? "Static" : "", str0, str1);
 #endif
     } else {
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Found symbol, Class=`%s`, %sMethod=`%s`, Signature=`%s`", cur ? cur->nativeprefix.data() : nullptr, isStatic ? "Static" : "", str0, str1);
+        LOG("JNIVM", "Found symbol, Class=`%s`, %sMethod=`%s`, Signature=`%s`", cur ? cur->nativeprefix.data() : nullptr, AllowNative ? "Native" : isStatic ? "Static" : "", str0, str1);
 #endif
     }
     return (jmethodID)next.get();
@@ -212,7 +214,7 @@ template<class T> T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jobject ob
     } else {
 #ifdef JNI_TRACE
         auto cl = JNITypes<std::shared_ptr<Class>>::JNICast(ENV::FromJNIEnv(env), env->GetObjectClass(obj));
-        LOG("JNIVM", "Invoked Unknown Member Function Class=`%s` Method=`%s` Signature=`%s`", cl ? cl->nativeprefix.data() : "???", mid ? mid->name.data() : "???", mid ? mid->signature.data() : "???");
+        LOG("JNIVM", "Call Unknown Member Function Class=`%s` Method=`%s` Signature=`%s`", cl ? cl->nativeprefix.data() : "???", mid ? mid->name.data() : "???", mid ? mid->signature.data() : "???");
 #endif
         return defaultVal<T>(ENV::FromJNIEnv(env), mid ? mid->signature : "");
     }
@@ -274,7 +276,7 @@ template<class T> T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jobject ob
     } else {
 #ifdef JNI_TRACE
         auto clz = JNITypes<std::shared_ptr<Class>>::JNICast(ENV::FromJNIEnv(env), cl);
-        LOG("JNIVM", "Invoked Unknown NonVirtual Member Function Class=`%s` Method=`%s` Signature=`%s`", clz ? clz->nativeprefix.data() : "???", mid ? mid->name.data() : "???", mid ? mid->signature.data() : "???");
+        LOG("JNIVM", "Call Unknown NonVirtual Member Function Class=`%s` Method=`%s` Signature=`%s`", clz ? clz->nativeprefix.data() : "???", mid ? mid->name.data() : "???", mid ? mid->signature.data() : "???");
 #endif
         return defaultVal<T>(ENV::FromJNIEnv(env), mid ? mid->signature : "");
     }
@@ -306,7 +308,7 @@ template<class T> T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jclass _cl
         }
     } else {
 #ifdef JNI_TRACE
-        LOG("JNIVM", "Invoked Unknown Static Function Class=`%s` Method=`%s` Signature=`%s`", cl ? cl->nativeprefix.data() : "???", mid ? mid->name.data() : "???", mid ? mid->signature.data() : "???");
+        LOG("JNIVM", "Call Unknown Static Function Class=`%s` Method=`%s` Signature=`%s`", cl ? cl->nativeprefix.data() : "???", mid ? mid->name.data() : "???", mid ? mid->signature.data() : "???");
 #endif
         return defaultVal<T>(ENV::FromJNIEnv(env), mid ? mid->signature : "");
     }
@@ -315,6 +317,9 @@ template<class T> T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jclass _cl
 template jmethodID jnivm::GetMethodID<true>(JNIEnv *env, jclass cl, const char *str0, const char *str1);
 template jmethodID jnivm::GetMethodID<false>(JNIEnv *env, jclass cl, const char *str0, const char *str1);
 template jmethodID jnivm::GetMethodID<false, true, true>(JNIEnv *env, jclass cl, const char *str0, const char *str1);
+template jmethodID jnivm::GetMethodID<false, true, false, false>(JNIEnv *env, jclass cl, const char *str0, const char *str1);
+template jmethodID jnivm::GetMethodID<true, true, false, true>(JNIEnv *env, jclass cl, const char *str0, const char *str1);
+template jmethodID jnivm::GetMethodID<false, true, false, true>(JNIEnv *env, jclass cl, const char *str0, const char *str1);
 
 #define DeclareTemplate(T) template T jnivm::MDispatchBase2<T>::CallMethod(JNIEnv *env, jobject obj, jmethodID id, jvalue *param);\
                            template T jnivm::MDispatchBase<T, jobject>::CallMethod(JNIEnv *env, jobject obj, jmethodID id, va_list param);\
@@ -346,6 +351,4 @@ DeclareTemplate(jlong);
 DeclareTemplate(jfloat);
 DeclareTemplate(jdouble);
 DeclareTemplate(jchar);
-DeclareTemplate(jobject);
-DeclareTemplate(void);
 #undef DeclareTemplate

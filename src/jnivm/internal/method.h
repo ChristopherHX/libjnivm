@@ -5,7 +5,7 @@
 
 namespace jnivm {
 
-    template<bool isStatic, bool ReturnNull = false, bool AllowNative = false>
+    template<bool isStatic, bool ReturnNull = false, bool AllowNative = false, bool trace = true>
     jmethodID GetMethodID(JNIEnv *env, jclass cl, const char *str0, const char *str1);
 
     template<class T> T defaultVal(ENV* env, std::string signature);
