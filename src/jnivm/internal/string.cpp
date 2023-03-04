@@ -1,6 +1,7 @@
 #include <jnivm/class.h>
 #include "string.hpp"
 #include "stringUtil.h"
+#include <stdexcept>
 
 using namespace jnivm;
 

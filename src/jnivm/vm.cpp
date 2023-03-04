@@ -11,6 +11,7 @@
 #include <climits>
 #include "internal/log.h"
 #include <jnivm/weak.h>
+#include <stdexcept>
 
 using namespace jnivm;
 

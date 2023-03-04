@@ -1,5 +1,6 @@
 #include <jnivm/class.h>
 #include <jnivm/method.h>
+#include <stdexcept>
 
 using namespace jnivm;
 

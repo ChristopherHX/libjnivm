@@ -2,6 +2,7 @@
 #include <jnivm/object.h>
 #include <jnivm/internal/findclass.h>
 #include <jnivm/class.h>
+#include <stdexcept>
 
 using namespace jnivm;
 

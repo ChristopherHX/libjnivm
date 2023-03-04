@@ -2,6 +2,7 @@
 #define JNIVM_METHOD_H_1
 #include "object.h"
 #include <string>
+#include <stdexcept>
 #include <jni.h>
 
 #include "methodhandlebase.h"

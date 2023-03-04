@@ -3,6 +3,7 @@
 #include <mutex>
 #include <vector>
 #include <unordered_map>
+#include <stdexcept>
 #include <jni.h>
 #include "array.h"
 #include <type_traits>

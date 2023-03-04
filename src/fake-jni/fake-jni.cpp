@@ -2,6 +2,7 @@
 #ifndef _WIN32
 #include <dlfcn.h>
 #endif
+#include <stdexcept>
 
 FakeJni::JniEnvContext::JniEnvContext(FakeJni::Jvm &vm) {
 	env2 = env.env.lock();

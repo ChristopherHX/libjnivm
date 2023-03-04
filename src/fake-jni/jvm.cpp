@@ -1,4 +1,5 @@
 #include <fake-jni/jvm.h>
+#include <stdexcept>
 
 using namespace FakeJni;
 

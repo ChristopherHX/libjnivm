@@ -3,6 +3,7 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include <stdexcept>
 #include <jni.h>
 #include "arrayBase.h"
 #include <type_traits>

@@ -1,6 +1,7 @@
 #pragma once
 #include "../jnivm.h"
 #include <functional>
+#include <stdexcept>
 #include "../jnivm/object.h"
 #include "../jnivm/string.h"
 #include "../jnivm/class.h"

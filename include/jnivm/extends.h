@@ -3,6 +3,7 @@
 #include "env.h"
 #include "arrayBase.h"
 #include <typeindex>
+#include <stdexcept>
 
 namespace jnivm {
 

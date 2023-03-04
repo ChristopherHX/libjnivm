@@ -1,5 +1,6 @@
 #include <baron/baron.h>
 #include <iostream>
+#include <stdexcept>
 
 using namespace Baron;
 
