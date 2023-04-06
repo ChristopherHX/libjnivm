@@ -13,6 +13,9 @@ std::shared_ptr<jnivm::ENV> Baron::Jvm::CreateEnv() {
         throw std::runtime_error("Attempt to initialize a FakeJni::Env twice in one thread!");
     }
     auto tmpl = GetNativeInterfaceTemplate();
+    for(auto && hook : jnienvhooks) {
+        hook(tmpl);
+    }
     tmpl.FindClass = [](JNIEnv *env, const char *name) -> jclass {
         jclass ret = GetNativeInterfaceTemplate<true>().FindClass(env, name);
         if(ret)

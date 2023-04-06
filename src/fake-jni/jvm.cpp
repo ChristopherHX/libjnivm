@@ -27,7 +27,11 @@ std::shared_ptr<jnivm::ENV> FakeJni::Jvm::CreateEnv() {
     if(FakeJni::JniEnvContext::env.env.lock()) {
         throw std::runtime_error("Attempt to initialize a FakeJni::Env twice in one thread!");
     }
-    auto ret = std::make_shared<Env>(*this, static_cast<jnivm::VM*>(this), GetNativeInterfaceTemplate());
+    auto tmpl = GetNativeInterfaceTemplate();
+	for(auto && hook : jnienvhooks) {
+        hook(tmpl);
+    }
+    auto ret = std::make_shared<Env>(*this, static_cast<jnivm::VM*>(this), tmpl);
     FakeJni::JniEnvContext::env.env = ret;
     return std::shared_ptr<jnivm::ENV>(ret, jnivm::ENV::FromJNIEnv(ret.get()));
 }

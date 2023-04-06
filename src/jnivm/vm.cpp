@@ -561,7 +561,11 @@ void jnivm::VM::OverrideJNIInvokeInterface(const JNIInvokeInterface &iinterface)
 }
 
 std::shared_ptr<jnivm::ENV> jnivm::VM::CreateEnv() {
-	return std::make_shared<ENV>(this, GetNativeInterfaceTemplate());
+	auto tmpl = GetNativeInterfaceTemplate();
+	for(auto && hook : jnienvhooks) {
+        hook(tmpl);
+    }
+	return std::make_shared<ENV>(this, tmpl);
 }
 
 const JNINativeInterface &jnivm::VM::GetNativeInterfaceTemplate() {
