@@ -134,7 +134,7 @@ template<class T, class... param> jvalue jnivm::Method::j2invoke(JNIEnv &env, T 
             throw std::runtime_error("Unsupported signature");
         }
     } else {
-        jvalue args[] = { JNITypes<param>::ToJNIReturnType(ENV::FromJNIEnv(&env), params)... };
+        jvalue args[] = { toJValue(JNITypes<param>::ToJNIReturnType(ENV::FromJNIEnv(&env), params))... };
         ret = jinvoke(*ENV::FromJNIEnv(&env), cl, args);
     }
     if((ENV::FromJNIEnv(&env))->current_exception) {
