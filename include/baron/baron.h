@@ -16,6 +16,7 @@ namespace Baron {
     public:
         Jvm();
         Jvm(std::function<void(Jvm*)> setup);
+        using jnivm::VM::AddHook;
         void printStatistics();
         bool isClassDenied(const char * name) const;
         bool isMethodDenied(const char * name, const char * sig, const char * clazz = "") const;
