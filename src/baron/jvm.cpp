@@ -8,6 +8,11 @@ Baron::Jvm::Jvm() : FakeJni::Jvm(true, false) {
     initialize();
 }
 
+Baron::Jvm::Jvm(std::function<void(Jvm*)> setup) : FakeJni::Jvm(true, false) {
+    setup(this);
+    initialize();
+}
+
 std::shared_ptr<jnivm::ENV> Baron::Jvm::CreateEnv() {
     if(FakeJni::JniEnvContext::env.env.lock()) {
         throw std::runtime_error("Attempt to initialize a FakeJni::Env twice in one thread!");

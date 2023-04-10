@@ -1,6 +1,7 @@
 #pragma once
 #include "../fake-jni/fake-jni.h"
 #include <unordered_set>
+#include <functional>
 namespace Baron {
     class Jvm : public FakeJni::Jvm {
         std::unordered_set<std::string> denyClasses;
@@ -14,6 +15,7 @@ namespace Baron {
         virtual std::shared_ptr<jnivm::ENV> CreateEnv() override;
     public:
         Jvm();
+        Jvm(std::function<void(Jvm*)> setup);
         void printStatistics();
         bool isClassDenied(const char * name) const;
         bool isMethodDenied(const char * name, const char * sig, const char * clazz = "") const;
