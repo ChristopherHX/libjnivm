@@ -133,8 +133,11 @@ break;
     } else {
         ret = jinvoke(*ENV::FromJNIEnv(&env), cl, JNITypes<param>::ToJNIReturnType(ENV::FromJNIEnv(&env), params)...);
     }
-    if((ENV::FromJNIEnv(&env))->current_exception) {
-        std::rethrow_exception((ENV::FromJNIEnv(&env))->current_exception->except);
+    auto nenv = ENV::FromJNIEnv(&env);
+    auto except = nenv->current_exception;
+    if(except) {
+        nenv->current_exception = nullptr;
+        std::rethrow_exception(except->except);
     }
     return ret;
 }
