@@ -43,19 +43,34 @@ namespace jnivm {
 
         template<class T, class OrgType, bool primitive>
         class Array : public Array<void> {
+        private:
+            bool owner = true;
         public:
             using Type = T;
             Array(jsize length) : Array<void>(new T[length], length) {}
-            Array() : Array<void>(nullptr, 0) {}
+            Array() : Array<void>(nullptr, 0) {
+                owner = false;
+            }
             Array(const std::vector<T> & vec) : Array<void>(new T[vec.size()], vec.size()) {
                 if(vec.size() > 0) {
                     memcpy(getArray(), vec.data(), sizeof(T) * vec.size());
                 }
             }
-            
-            Array(T* data, jsize length) : Array<void>(data, length) {}
+
+            Array(T* data, jsize length, bool copy) : Array<void>(copy ? new T[length] : data, length) {
+                if(copy) {
+                    memcpy(getArray(), data, sizeof(T) * length);
+                } else {
+                    owner = false;
+                }
+            }
+
+            Array(T* data, jsize length) : Array(data, length, true) {}
+
             virtual ~Array() {
-                delete[] getArray();
+                if(owner) {
+                    delete[] getArray();
+                }
             }
 
             inline T* getArray() {
