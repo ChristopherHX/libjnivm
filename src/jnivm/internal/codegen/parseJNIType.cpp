@@ -11,49 +11,56 @@ const char *jnivm::ParseJNIType(const char *cur, const char *end, std::string &t
 		break;
 	case 'Z':
 		if(!JNIVM_FAKE_JNI_SYNTAX) {
-		type = "jboolean";
+			type = "jboolean";
 		} else {
 			type = "FakeJni::JBoolean";
 		}
 		break;
 	case 'B':
 		if(!JNIVM_FAKE_JNI_SYNTAX) {
-		type = "jbyte";
+			type = "jbyte";
 		} else {
 			type = "FakeJni::JByte";
 		}
 		break;
 	case 'S':
 		if(!JNIVM_FAKE_JNI_SYNTAX) {
-		type = "jshort";
+			type = "jshort";
 		} else {
 			type = "FakeJni::JShort";
 		}
 		break;
+	case 'C':
+		if(!JNIVM_FAKE_JNI_SYNTAX) {
+			type = "jchar";
+		} else {
+			type = "FakeJni::JChar";
+		}
+		break;
 	case 'I':
 		if(!JNIVM_FAKE_JNI_SYNTAX) {
-		type = "jint";
+			type = "jint";
 		} else {
 			type = "FakeJni::JInt";
 		}
 		break;
 	case 'J':
 		if(!JNIVM_FAKE_JNI_SYNTAX) {
-		type = "jlong";
+			type = "jlong";
 		} else {
 			type = "FakeJni::JLong";
 		}
 		break;
 	case 'F':
 		if(!JNIVM_FAKE_JNI_SYNTAX) {
-		type = "jfloat";
+			type = "jfloat";
 		} else {
 			type = "FakeJni::JFloat";
 		}
 		break;
 	case 'D':
 		if(!JNIVM_FAKE_JNI_SYNTAX) {
-		type = "jdouble";
+			type = "jdouble";
 		} else {
 			type = "FakeJni::JDouble";
 		}
@@ -74,6 +81,9 @@ const char *jnivm::ParseJNIType(const char *cur, const char *end, std::string &t
 					break;
 				case 'S':
 					type = "std::shared_ptr<FakeJni::JShortArray>";
+					break;
+				case 'C':
+					type = "std::shared_ptr<FakeJni::JCharArray>";
 					break;
 				case 'I':
 					type = "std::shared_ptr<FakeJni::JIntArray>";

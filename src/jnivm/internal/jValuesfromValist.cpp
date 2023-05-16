@@ -31,6 +31,10 @@ std::vector<jvalue> jnivm::JValuesfromValist(va_list list, const char* signature
 				// These are promoted to int (gcc warning)
 				values.back().s = (jshort)va_arg(list, int);
 				break;
+		case 'C':
+				// These are promoted to int (gcc warning)
+				values.back().c = (jchar)va_arg(list, int);
+				break;
 		case 'I':
 				values.back().i = va_arg(list, jint);
 				break;

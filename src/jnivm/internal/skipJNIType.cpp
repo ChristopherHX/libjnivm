@@ -9,6 +9,7 @@ const char * jnivm::SkipJNIType(const char *cur, const char *end) {
     case 'Z':
     case 'B':
     case 'S':
+    case 'C':
     case 'I':
     case 'J':
     case 'F':

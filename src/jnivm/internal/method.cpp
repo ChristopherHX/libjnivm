@@ -103,6 +103,8 @@ template<> jobject jnivm::defaultVal(ENV* env, std::string signature) {
                 return env->GetJNIEnv()->NewByteArray(0);
             case 'S':
                 return env->GetJNIEnv()->NewShortArray(0);
+            case 'C':
+                return env->GetJNIEnv()->NewCharArray(0);
             case 'I':
                 return env->GetJNIEnv()->NewIntArray(0);
             case 'J':

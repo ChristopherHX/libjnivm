@@ -12,8 +12,8 @@ namespace jnivm {
     class ENV;
 
     class Method : public Object {
-        jvalue jinvoke(ENV& env, jclass cl, ...);
-        jvalue jinvoke(ENV& env, jobject obj, ...);
+        jvalue jinvoke(ENV& env, jclass cl, jvalue*);
+        jvalue jinvoke(ENV& env, jobject obj, jvalue*);
         template<class T, class... param>
         jvalue j2invoke(JNIEnv& env, T clorObj, param... params);
     public:
@@ -101,43 +101,44 @@ template<class T, class... param> jvalue jnivm::Method::j2invoke(JNIEnv &env, T 
         case 'V':
             ((void(*)(JNIEnv*, T, impl::JNINativeMethodHelper<param>...))native)(&env, cl, JNITypes<param>::ToJNIReturnType(ENV::FromJNIEnv(&env), params)...);
             ret = {};
-break;
+        break;
         case 'Z':
             ret = toJValue(((jboolean(*)(JNIEnv*, T, impl::JNINativeMethodHelper<param>...))native)(&env, cl, JNITypes<param>::ToJNIReturnType(ENV::FromJNIEnv(&env), params)...));
-break;
+        break;
         case 'B':
             ret = toJValue(((jbyte(*)(JNIEnv*, T, impl::JNINativeMethodHelper<param>...))native)(&env, cl, JNITypes<param>::ToJNIReturnType(ENV::FromJNIEnv(&env), params)...));
-break;
+        break;
         case 'S':
             ret = toJValue(((jshort(*)(JNIEnv*, T, impl::JNINativeMethodHelper<param>...))native)(&env, cl, JNITypes<param>::ToJNIReturnType(ENV::FromJNIEnv(&env), params)...));
-break;
+        break;
+        case 'C':
+            ret = toJValue(((jchar(*)(JNIEnv*, T, impl::JNINativeMethodHelper<param>...))native)(&env, cl, JNITypes<param>::ToJNIReturnType(ENV::FromJNIEnv(&env), params)...));
+        break;
         case 'I':
             ret = toJValue(((jint(*)(JNIEnv*, T, impl::JNINativeMethodHelper<param>...))native)(&env, cl, JNITypes<param>::ToJNIReturnType(ENV::FromJNIEnv(&env), params)...));
-break;
+        break;
         case 'J':
             ret = toJValue(((jlong(*)(JNIEnv*, T, impl::JNINativeMethodHelper<param>...))native)(&env, cl, JNITypes<param>::ToJNIReturnType(ENV::FromJNIEnv(&env), params)...));
-break;
+        break;
         case 'F':
             ret = toJValue(((jfloat(*)(JNIEnv*, T, impl::JNINativeMethodHelper<param>...))native)(&env, cl, JNITypes<param>::ToJNIReturnType(ENV::FromJNIEnv(&env), params)...));
-break;
+        break;
         case 'D':
             ret = toJValue(((jdouble(*)(JNIEnv*, T, impl::JNINativeMethodHelper<param>...))native)(&env, cl, JNITypes<param>::ToJNIReturnType(ENV::FromJNIEnv(&env), params)...));
-break;
+        break;
         case '[':
         case 'L':
             ret = toJValue(((jobject(*)(JNIEnv*, T, impl::JNINativeMethodHelper<param>...))native)(&env, cl, JNITypes<param>::ToJNIReturnType(ENV::FromJNIEnv(&env), params)...));
-break;
+        break;
         default:
             throw std::runtime_error("Unsupported signature");
         }
     } else {
-        ret = jinvoke(*ENV::FromJNIEnv(&env), cl, JNITypes<param>::ToJNIReturnType(ENV::FromJNIEnv(&env), params)...);
+        jvalue args[sizeof...(params) > 0 ? sizeof...(params) : 1] = { toJValue(JNITypes<param>::ToJNIReturnType(ENV::FromJNIEnv(&env), params))... };
+        ret = jinvoke(*ENV::FromJNIEnv(&env), cl, args);
     }
-    auto nenv = ENV::FromJNIEnv(&env);
-    auto except = nenv->current_exception;
-    if(except) {
-        nenv->current_exception = nullptr;
-        std::rethrow_exception(except->except);
+    if((ENV::FromJNIEnv(&env))->current_exception) {
+        std::rethrow_exception((ENV::FromJNIEnv(&env))->current_exception->except);
     }
     return ret;
 }
