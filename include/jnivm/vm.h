@@ -5,6 +5,7 @@
 #include <vector>
 #include <unordered_map>
 #include <typeindex>
+#include <functional>
 #include <jni.h>
 #ifdef JNI_DEBUG
 #include <jnivm/internal/codegen/namespace.h>
@@ -44,9 +45,14 @@ namespace jnivm {
         // If you override this, you have to use the contructor with skipInit=true and call VM::initialize in your derived Class
         virtual std::shared_ptr<ENV> CreateEnv();
         const JNINativeInterface& GetNativeInterfaceTemplate();
+        std::vector<std::function<void(JNINativeInterface&)>> jnienvhooks;
     public:
         template<bool ReturnNull>
         static JNINativeInterface GetNativeInterfaceTemplate();
+
+        void AddHook(std::function<void(JNINativeInterface&)>&& hook) {
+            jnienvhooks.emplace_back(std::move(hook));
+        }
 #ifdef JNI_DEBUG
         // For Generating Stub header files out of captured jni usage
         Namespace np;
