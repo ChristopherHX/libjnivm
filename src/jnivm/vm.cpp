@@ -541,6 +541,16 @@ void VM::initialize() {
 		hm->clazz = env->GetClass<HashMap>("java/util/HashMap");
 		return hm;
 	});
+	hashMap->Hook(penv, "<init>", [](ENV* env, int initialCapacity) -> std::shared_ptr<Object> {
+		auto hm = std::make_shared<HashMap>(initialCapacity);
+		hm->clazz = env->GetClass<HashMap>("java/util/HashMap");
+		return hm;
+	});
+	hashMap->Hook(penv, "<init>", [](ENV* env, int initialCapacity, float loadFactor) -> std::shared_ptr<Object> {
+		auto hm = std::make_shared<HashMap>(initialCapacity, loadFactor);
+		hm->clazz = env->GetClass<HashMap>("java/util/HashMap");
+		return hm;
+	});
 	hashMap->Hook(penv, "put", &HashMap::put);
 	hashMap->Hook(penv, "putIfAbsent", &HashMap::putIfAbsent);
 	hashMap->Hook(penv, "get", &HashMap::get);
