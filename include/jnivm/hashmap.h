@@ -74,8 +74,11 @@ namespace jnivm {
             return empty();
         }
 
-        void put(const std::shared_ptr<Object>& key, const std::shared_ptr<Object>& value) {
-            (*this)[key] = value;
+        std::shared_ptr<Object> put(const std::shared_ptr<Object>& key, const std::shared_ptr<Object>& value) {
+            auto && entry = (*this)[key];
+            auto oldValue = std::move(entry);
+            entry = value;
+            return oldValue;
         }
 
         void putIfAbsent(const std::shared_ptr<Object>& key, const std::shared_ptr<Object>& value) {

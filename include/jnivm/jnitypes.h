@@ -94,7 +94,7 @@ namespace jnivm {
     template<class T> struct JNITypes<T&> : JNITypes<T, T&> {};
     template<class T> struct JNITypes<const T&> : JNITypes<T, const T&> {};
     template<class T> struct JNITypes<std::shared_ptr<T>> : JNITypes<T, std::shared_ptr<T>> {};
-    template<class T> struct JNITypes<const std::shared_ptr<T>&> : JNITypes<T, const std::shared_ptr<T>&> {};
+    template<class T> struct JNITypes<const std::shared_ptr<T>&> : JNITypes<T, std::shared_ptr<T>> {};
 
     class String;
     class Class;
@@ -366,13 +366,13 @@ template<class orgtype, class T> struct OrgTypeConverter {
 };
 
 template<class orgtype, class T> struct OrgTypeConverter<const std::shared_ptr<orgtype>&, T> {
-    static const std::shared_ptr<T> && Convert(jnivm::ENV *env, std::shared_ptr<T> && org) {
-        return std::move(org);
+    static std::shared_ptr<T> Convert(jnivm::ENV *env, std::shared_ptr<T> org) {
+        return org;
     }
 };
 
 template<class orgtype, class T> struct OrgTypeConverter<std::shared_ptr<orgtype>, T> {
-    static std::shared_ptr<T> && Convert(jnivm::ENV *env, std::shared_ptr<T> && org) {
+    static std::shared_ptr<T> Convert(jnivm::ENV *env, std::shared_ptr<T> && org) {
         return std::move(org);
     }
 };

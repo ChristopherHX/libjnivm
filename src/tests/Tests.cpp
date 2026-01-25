@@ -1519,3 +1519,26 @@ TEST(JNIVM, OptionalParameter) {
     ASSERT_TRUE(m);
     env->GetJNIEnv()->CallStaticVoidMethod(c, m);
 }
+
+TEST(JNIVM, HashMap) {
+    using namespace jnivm;
+    VM vm(false, true);
+    auto&& env = vm.GetEnv();
+    auto&& nenv = env->GetJNIEnv();
+
+    auto hashmapClass = nenv->FindClass("java/util/HashMap");
+    auto hashmapInit = nenv->GetMethodID(hashmapClass, "<init>", "()V");
+    auto hashmapPut = nenv->GetMethodID(hashmapClass, "put", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+    auto hashmapGet = nenv->GetMethodID(hashmapClass, "get", "(Ljava/lang/Object;)Ljava/lang/Object;");
+    auto hashmapSize = nenv->GetMethodID(hashmapClass, "size", "()I");
+    auto hashmapObj = nenv->NewObject(hashmapClass, hashmapInit);
+    auto key1 = nenv->NewStringUTF("Key1");
+    auto value1 = nenv->NewStringUTF("Value1");
+    nenv->CallObjectMethod(hashmapObj, hashmapPut, key1, value1);
+    auto retValue1 = (jstring)nenv->CallObjectMethod(hashmapObj, hashmapGet, key1);
+    auto retChars1 = nenv->GetStringUTFChars(retValue1, nullptr);
+    ASSERT_STREQ("Value1", retChars1);
+    nenv->ReleaseStringUTFChars(retValue1, retChars1);
+    jint size = nenv->CallIntMethod(hashmapObj, hashmapSize);
+    ASSERT_EQ(size, 1);
+}
