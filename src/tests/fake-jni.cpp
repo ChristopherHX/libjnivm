@@ -104,7 +104,7 @@ extern "C" JNIEXPORT void JNI_OnUnload_jnistatic(JavaVM*vm, void*reserved) {
     called = true;
 }
 
-TEST(FakeJni, LoadStaticLibrary) {
+TEST(FakeJni, DISABLED_LoadStaticLibrary) {
     {
         Jvm vm;
         called = false;

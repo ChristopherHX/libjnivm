@@ -11,5 +11,14 @@ namespace jnivm {
         inline std::string asStdString() {
             return *this;
         }
+        
+        virtual intptr_t hashCode() override {
+            return std::hash<std::string>{}(*this);
+        }
+
+        virtual bool equals(const std::shared_ptr<Object>& other) override {
+            auto sother = std::dynamic_pointer_cast<String>(other);
+            return sother && (std::string)*this == *sother;
+        }
     };
 }

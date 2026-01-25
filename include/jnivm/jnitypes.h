@@ -94,7 +94,7 @@ namespace jnivm {
     template<class T> struct JNITypes<T&> : JNITypes<T, T&> {};
     template<class T> struct JNITypes<const T&> : JNITypes<T, const T&> {};
     template<class T> struct JNITypes<std::shared_ptr<T>> : JNITypes<T, std::shared_ptr<T>> {};
-    template<class T> struct JNITypes<const std::shared_ptr<T>&> : JNITypes<T, const std::shared_ptr<T>&> {};
+    template<class T> struct JNITypes<const std::shared_ptr<T>&> : JNITypes<T, std::shared_ptr<T>> {};
 
     class String;
     class Class;

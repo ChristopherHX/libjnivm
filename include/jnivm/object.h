@@ -30,5 +30,12 @@ namespace jnivm {
         Class& getClass();
 
         static std::vector<std::shared_ptr<Class>> GetBaseClasses(ENV* env);
+
+        virtual intptr_t hashCode() {
+            return (intptr_t)this;
+        }
+        virtual bool equals(const std::shared_ptr<Object>& other) {
+            return this == other.get();
+        }
     };
 }

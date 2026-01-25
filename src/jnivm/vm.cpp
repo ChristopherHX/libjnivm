@@ -11,6 +11,7 @@
 #include <climits>
 #include "internal/log.h"
 #include <jnivm/weak.h>
+#include <jnivm/hashmap.h>
 #include <stdexcept>
 
 using namespace jnivm;
@@ -533,6 +534,36 @@ void VM::initialize() {
 	env->GetClass<Field>("java/lang/reflect/Field");
 	env->GetClass<Weak>("java/lang/ref/WeakReference");
 	env->GetClass<Global>("internal/lang/Global");
+	auto hashMap = env->GetClass<HashMap>("java/util/HashMap");
+	auto&& penv = env.get();
+	hashMap->Hook(penv, "<init>", [](ENV* env) -> std::shared_ptr<HashMap> {
+		auto hm = std::make_shared<HashMap>();
+		hm->clazz = env->GetClass<HashMap>("java/util/HashMap");
+		return hm;
+	});
+	hashMap->Hook(penv, "<init>", [](ENV* env, int initialCapacity) -> std::shared_ptr<HashMap> {
+		auto hm = std::make_shared<HashMap>(initialCapacity);
+		hm->clazz = env->GetClass<HashMap>("java/util/HashMap");
+		return hm;
+	});
+	hashMap->Hook(penv, "<init>", [](ENV* env, int initialCapacity, float loadFactor) -> std::shared_ptr<HashMap> {
+		auto hm = std::make_shared<HashMap>(initialCapacity, loadFactor);
+		hm->clazz = env->GetClass<HashMap>("java/util/HashMap");
+		return hm;
+	});
+	hashMap->Hook(penv, "clone", &HashMap::clone);
+	hashMap->Hook(penv, "containsKey", &HashMap::containsKey);
+	hashMap->Hook(penv, "containsValue", &HashMap::containsValue);
+	hashMap->Hook(penv, "get", &HashMap::get);
+	hashMap->Hook(penv, "getOrDefault", &HashMap::getOrDefault);
+	hashMap->Hook(penv, "isEmpty", &HashMap::isEmpty);
+	hashMap->Hook(penv, "put", &HashMap::put);
+	hashMap->Hook(penv, "putIfAbsent", &HashMap::putIfAbsent);
+	hashMap->Hook(penv, "remove", (void (jnivm::HashMap::*)(const std::shared_ptr<jnivm::Object> &key))&HashMap::remove);
+	// hashMap->Hook(penv, "remove", (void (jnivm::HashMap::*)(const std::shared_ptr<jnivm::Object> &key, const std::shared_ptr<jnivm::Object> &val))&HashMap::remove);
+	hashMap->Hook(penv, "replace", (std::shared_ptr<Object> (jnivm::HashMap::*)(const std::shared_ptr<jnivm::Object> &key, const std::shared_ptr<jnivm::Object> &val))&HashMap::replace);
+	// hashMap->Hook(penv, "replace", (bool (jnivm::HashMap::*)(const std::shared_ptr<jnivm::Object> &key, const std::shared_ptr<jnivm::Object> &old, const std::shared_ptr<jnivm::Object> &val))&HashMap::replace);
+	hashMap->Hook(penv, "size", &HashMap::size);
 }
 
 JavaVM *VM::GetJavaVM() {
