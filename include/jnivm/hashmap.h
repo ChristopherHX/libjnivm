@@ -114,6 +114,8 @@ namespace jnivm {
             return false;
         }
 
-        using HashMapBase::size;
+        jsize size() {
+            return HashMapBase::size();
+        }
     };
 }
