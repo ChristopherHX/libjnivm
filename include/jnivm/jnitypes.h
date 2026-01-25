@@ -365,6 +365,12 @@ template<class orgtype, class T> struct OrgTypeConverter {
     }
 };
 
+template<class orgtype, class T> struct OrgTypeConverter<const std::shared_ptr<orgtype>&, T> {
+    static const std::shared_ptr<T> && Convert(jnivm::ENV *env, std::shared_ptr<T> && org) {
+        return std::move(org);
+    }
+};
+
 template<class orgtype, class T> struct OrgTypeConverter<std::shared_ptr<orgtype>, T> {
     static std::shared_ptr<T> && Convert(jnivm::ENV *env, std::shared_ptr<T> && org) {
         return std::move(org);
