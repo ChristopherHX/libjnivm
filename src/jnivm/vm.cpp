@@ -559,10 +559,10 @@ void VM::initialize() {
 	hashMap->Hook(penv, "isEmpty", &HashMap::isEmpty);
 	hashMap->Hook(penv, "put", &HashMap::put);
 	hashMap->Hook(penv, "putIfAbsent", &HashMap::putIfAbsent);
-	hashMap->Hook(penv, "remove", (void (jnivm::HashMap::*)(const std::__1::shared_ptr<jnivm::Object> &key))&HashMap::remove);
-	// hashMap->Hook(penv, "remove", (void (jnivm::HashMap::*)(const std::__1::shared_ptr<jnivm::Object> &key, const std::__1::shared_ptr<jnivm::Object> &val))&HashMap::remove);
-	hashMap->Hook(penv, "replace", (std::shared_ptr<Object> (jnivm::HashMap::*)(const std::__1::shared_ptr<jnivm::Object> &key, const std::__1::shared_ptr<jnivm::Object> &val))&HashMap::replace);
-	// hashMap->Hook(penv, "replace", (bool (jnivm::HashMap::*)(const std::__1::shared_ptr<jnivm::Object> &key, const std::__1::shared_ptr<jnivm::Object> &old, const std::__1::shared_ptr<jnivm::Object> &val))&HashMap::replace);
+	hashMap->Hook(penv, "remove", (void (jnivm::HashMap::*)(const std::shared_ptr<jnivm::Object> &key))&HashMap::remove);
+	// hashMap->Hook(penv, "remove", (void (jnivm::HashMap::*)(const std::shared_ptr<jnivm::Object> &key, const std::shared_ptr<jnivm::Object> &val))&HashMap::remove);
+	hashMap->Hook(penv, "replace", (std::shared_ptr<Object> (jnivm::HashMap::*)(const std::shared_ptr<jnivm::Object> &key, const std::shared_ptr<jnivm::Object> &val))&HashMap::replace);
+	// hashMap->Hook(penv, "replace", (bool (jnivm::HashMap::*)(const std::shared_ptr<jnivm::Object> &key, const std::shared_ptr<jnivm::Object> &old, const std::shared_ptr<jnivm::Object> &val))&HashMap::replace);
 	hashMap->Hook(penv, "size", &HashMap::size);
 }
 
