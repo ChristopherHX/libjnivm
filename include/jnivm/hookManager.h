@@ -46,6 +46,7 @@ namespace jnivm {
     template<class w, class W, bool isStatic> struct FunctionBase {
         template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
             auto ssig = InvokeSignature<isStatic, typename w::Wrapper>::Get(env);
+            std::lock_guard<std::mutex> lock(cl->mtx);
             auto ccl =
                     std::find_if(cl->methods.begin(), cl->methods.end(),
                                             [&id, &ssig](std::shared_ptr<Method> &m) {
@@ -67,6 +68,7 @@ namespace jnivm {
         template<class T> static void install(ENV* env, Class * cl, const std::string& id, const std::string& signature, T&& t) {
             auto ssig = signature;
             static_assert(Function<T>::plength == 3 && std::is_same<typename Function<T>::Return, jvalue>::value  && std::is_same<typename Function<T>::template Parameter<0>,JNIEnv*>::value && std::is_same<typename Function<T>::template Parameter<2>,jvalue*>::value, "Invalid arbitary function");
+            std::lock_guard<std::mutex> lock(cl->mtx);
             auto ccl =
                     std::find_if(cl->methods.begin(), cl->methods.end(),
                                             [&id, &ssig](std::shared_ptr<Method> &m) {
@@ -99,6 +101,7 @@ namespace jnivm {
     template<class w, class W, bool isStatic, bool isGetter, class handle_t, handle_t handle> struct PropertyBase {
         template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
             auto ssig = PropertySignature<isStatic, isGetter, typename w::Wrapper>::Get(env);
+            std::lock_guard<std::mutex> lock(cl->mtx);
             auto ccl =
                     std::find_if(cl->fields.begin(), cl->fields.end(),
                                             [&id, &ssig](std::shared_ptr<Field> &f) {
@@ -120,6 +123,7 @@ namespace jnivm {
         template<class T> static void install(ENV* env, Class * cl, const std::string& id, const std::string& signature, T&& t) {
             static_assert(Function<T>::plength == 3 && std::is_same<typename Function<T>::Return, jvalue>::value && std::is_same<typename Function<T>::template Parameter<0>,JNIEnv*>::value && std::is_same<typename Function<T>::template Parameter<2>,jvalue*>::value, "Invalid arbitary function");
             auto ssig = signature;
+            std::lock_guard<std::mutex> lock(cl->mtx);
             auto ccl =
                     std::find_if(cl->fields.begin(), cl->fields.end(),
                                             [&id, &ssig](std::shared_ptr<Field> &f) {
