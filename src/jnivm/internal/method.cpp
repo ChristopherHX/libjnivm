@@ -60,15 +60,16 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
             return nullptr;
         }
         next = std::make_shared<Method>();
+        next->name = std::move(sname);
+        next->signature = std::move(ssig);
+        next->_static = isStatic;
         if(cur) {
+            std::lock_guard<std::mutex> lock(cur->mtx);
             cur->methods.push_back(next);
         } else {
             // For Debugging purposes without valid parent class
             JNITypes<std::shared_ptr<Method>>::ToJNIType(ENV::FromJNIEnv(env), next);
         }
-        next->name = std::move(sname);
-        next->signature = std::move(ssig);
-        next->_static = isStatic;
 #ifdef JNI_DEBUG
         Declare(env, next->signature.data());
 #endif
@@ -169,6 +170,7 @@ static Method* findNonVirtualOverload(Class*cl, Method*mid) {
     if(!cl) {
         return mid;
     }
+    std::lock_guard<std::mutex> lock(cl->mtx);
     auto res = std::find_if(cl->methods.begin(), cl->methods.end(), [mid](auto&& m) {
         return !m->_static && mid->name == m->name && mid->signature == m->signature && m->nativehandle;
     });
